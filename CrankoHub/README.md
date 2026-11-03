@@ -216,7 +216,7 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 - **Barra de título:** o `JanelaService` avisa a troca de visual, do mesmo jeito que já faz com `TemaMudou`. O `MainWindow` escolhe entre as cores lisas de hoje e o gradiente Aero, e entre as bolinhas lisas e as de gel. No Linux (Photino) a barra é a do sistema, então não há nada a fazer.
 - **Como testar:** alternar entre os visuais nos temas claro e escuro, com várias cores de destaque, em todas as páginas (Início, Dieta, Carro e suas abas, Assinaturas, Entretenimento, Tarefas, Configurações), nos diálogos de confirmação e nos toasts.
 
-## 14. Supabase: dados centralizados com login 🚧 (fases 1 a 4 feitas; falta testar a sincronização no app; capas ficam para depois)
+## 14. Supabase: dados centralizados com login 🚧 (fases 1 a 5 feitas; falta rodar o SQL das capas e testar a sincronização no app)
 
 **Objetivo:** contas com login e dados centralizados por usuário, para que o desktop atual e os futuros app de celular e versão web usem a mesma base.
 
@@ -229,7 +229,8 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 - ✅ Código das fases 2 (login), 3 (sincronização) e 4 (primeiro login/migração) compilando no Windows e no Linux. O .exe de teste foi gerado com `dotnet publish CrankoHub.csproj -c Release -o <pasta>`.
 - ⏳ **Falta testar no app:** entrar com o usuário admin, ver "Sincronizado às …" no card "Conta", conferir os dados no Table Editor do painel, editar/excluir e ver refletir; depois com um segundo PC (ver "Como testar").
 - ⏳ Ainda sem commit e sem Release novo (o .exe de teste continua marcado como 1.0.0, igual ao último Release, então o auto-update não o substitui). Para os outros PCs: tag nova, ex.: `crankohub-v1.1.0`.
-- ⏸️ Fase 5 (capas) adiada.
+- ✅ Código da fase 5 (capas no Storage, reduzidas com SkiaSharp) compilando no Windows e no Linux.
+- ⏳ **Falta rodar** `supabase/migrations/0002_capas.sql` no SQL Editor (cria o bucket `capas` e as políticas). Até lá as capas não sobem, mas o resto sincroniza normalmente.
 
 **Login só do admin (decisão atual):**
 - Não existe cadastro pelo app: o card "Conta" tem apenas **Usuário + Senha → Entrar** (e Sair). Sem "criar conta" e sem "esqueci a senha".
@@ -329,16 +330,17 @@ RLS e permissões, em todas as tabelas:
 - Importar backup, dados de exemplo e "Apagar tudo" refletem na nuvem pelo mesmo diff; logado, as confirmações avisam disso.
 - **Detalhes da implementação:** as linhas são geradas dos modelos com `SnakeCaseLower` (quadros, colunas e perfil têm records próprios, com `ordem` = posição na lista). Filhos cujo pai não existe localmente não sobem, para não esbarrar nas chaves estrangeiras. O layout fornece `NaTela` (thread do Blazor) para ler e aplicar os dados; mudanças recebidas recriam a página aberta e reaplicam tema/cor.
 
-### Fase 5: Capas (Storage) ⏸️ (adiada)
+### Fase 5: Capas (Storage) ✅ (falta rodar o SQL no painel)
 
-Hoje as capas **não sincronizam**: a coluna `entretenimento.capa` leva só o nome do arquivo, e a imagem fica na pasta `capas/` de cada PC. Num PC novo, os itens aparecem sem capa (dá para buscar de novo pelo próprio item).
+A coluna `entretenimento.capa` continua levando só o nome do arquivo. A imagem vai **à parte**, para o Storage. Se fosse na linha do item, mudar a nota ou o status reenviaria a imagem, gastando a cota de tráfego de 5 GB/mês e pesando o `base.json`.
 
-**Decisão tomada (para quando retomar):**
-- A imagem **não** vai na mesma linha do Entretenimento: mudar a nota ou o status reenviaria a imagem, e a busca de "o que mudou" traria as imagens a cada sincronização (gasta a cota de tráfego de 5 GB/mês e pesa o `base.json`).
-- A capa fica **separada** e é enviada uma vez só: o nome do arquivo é único e nunca muda, então basta subir quando é nova e baixar quando falta.
-- **Preferência: Storage** (bucket privado `capas`, caminho `<user_id>/<arquivo>`, políticas por dono). Dá o mesmo trabalho que uma tabela `capas` no banco, não divide os 500 MB do banco (o Storage tem 1 GB no plano gratuito) e guarda o arquivo como ele é, sem base64. A alternativa no banco continua possível se preferir não usar o Storage.
-- Reduzir as capas importadas para ~600 px de largura antes de salvar (hoje o `CapasService` guarda a imagem original), para ficarem em ~100–200 KB.
-- O `CapasService` envia a capa nova, baixa as que faltam no aparelho e a pasta local continua como cache.
+- **Bucket privado `capas`** (`supabase/migrations/0002_capas.sql`): caminho `<user_id>/<arquivo>`, até 2 MB por arquivo, só jpeg/png/webp/gif. Políticas de select/insert/update/delete apenas para o dono da pasta; nada para `anon`. O Storage tem 1 GB no plano gratuito e não divide os 500 MB do banco.
+- **Uma vez só:** o nome do arquivo é único e nunca muda. Depois das linhas, `SincronizacaoService.Capas` sobe as capas que o servidor ainda não tem, baixa as que faltam no aparelho e apaga do servidor as que nenhum item usa mais (item excluído ou capa trocada). O `base.json` guarda a lista das capas que já estão no servidor (`Capas`), e só essas podem ser apagadas, então uma capa nova de outro PC nunca some.
+- **Capa que ainda não chegou** (o outro PC ainda não subiu): o item aparece sem capa e a próxima rodada tenta de novo. Ao baixar, a página aberta é recriada e a capa aparece sem reiniciar.
+- **Tamanho:** `CapasService.Reduzir` (SkiaSharp) deixa as capas com no máximo 600 px de largura, no mesmo formato, para o nome não mudar. Vale para as capas novas (buscadas ou importadas) e para as antigas, que são reduzidas antes de subir. Gif e imagens menores ficam como estão.
+- **Pasta local:** continua sendo o cache, e o app sem conta segue igual.
+- **SupabaseCliente:** `EnviarArquivo` (com `x-upsert`), `BaixarArquivo` (`/object/authenticated/...`, null quando não existe) e `ExcluirArquivo`.
+- **Linux:** o pacote `SkiaSharp.NativeAssets.Linux.NoDependencies` dispensa a `libfontconfig` no Mint.
 
 ### Antes de abrir o login ao público (fora desta entrega)
 
@@ -352,7 +354,7 @@ Hoje as capas **não sincronizam**: a coluna `entretenimento.capa` leva só o no
 
 - **Novos:** `supabase/migrations/0001_esquema_inicial.sql`, `Services/SupabaseConfig.cs`, `Services/SupabaseCliente.cs`, `Services/ContaService.cs`, `Services/SincronizacaoService.cs`, `Services/CofreSessao.cs`, `Linux/Plataforma/CofreSessao.cs`.
 - **Alterados:** `Services/ArmazenamentoService.cs` (`PorConta`, `PastaDaConta`, `PrepararPastaDaConta`, evento `Salvou`, `Substituir`, `NormalizarESalvar`), `Services/ConfigLocal.cs`, `Pages/Configuracoes.razor`, `Layout/LayoutPrincipal.razor` (`NaTela`, `RecebeuDaConta`, texto do rodapé do menu), `App.xaml.cs`, `Linux/Program.cs`, `Linux/CrankoHub.Linux.csproj`.
-- **Fase 5 (depois):** `Services/CapasService.cs` e um SQL novo para o bucket.
+- **Fase 5:** `supabase/migrations/0002_capas.sql` (novo), `Services/CapasService.cs` (`Reduzir`, `TipoMime`), `Services/SupabaseCliente.cs` (Storage), `Services/SincronizacaoService.cs` (`Capas`), pacote `SkiaSharp` nos dois `.csproj`.
 
 ### O que fazer no painel do Supabase ✅ (feito)
 
@@ -362,6 +364,7 @@ Hoje as capas **não sincronizam**: a coluna `entretenimento.capa` leva só o no
 4. Authentication → Users → **Add user**: o e-mail interno do usuário, a senha e "Auto Confirm User".
 5. (Opcional) Inserir a linha em `perfis` com o `user_id` e o nome de usuário criados.
 6. Conferir que o cadastro está fechado: `curl -X POST <url>/auth/v1/signup -H "apikey: <publishable>" -H "Content-Type: application/json" -d '{"email":"x@exemplo.com","password":"12345678"}'` deve responder "Signups not allowed".
+7. ⏳ **Capas:** rodar `supabase/migrations/0002_capas.sql` no **SQL Editor** e conferir em Storage que o bucket `capas` existe e **não** é público.
 
 ### Como testar
 
@@ -373,6 +376,12 @@ Hoje as capas **não sincronizam**: a coluna `entretenimento.capa` leva só o no
 6. **Offline:** editar sem internet, reconectar e confirmar o envio.
 7. **Sem conta:** o app segue funcionando como hoje.
 8. **Sessão:** reiniciar mantém o login; sair volta aos dados locais, sem misturar contas.
+9. **Capas:** ✅ redução testada (1500×2250 → 600×900). Falta:
+   - adicionar um item com capa e vê-la em `capas/<user_id>/` no Storage;
+   - apagar uma imagem de `contas/<user_id>/capas/` e ver que ela volta na próxima sincronização, sem reiniciar;
+   - trocar a capa de um item e excluir outro: as imagens antigas somem do bucket;
+   - sem login, `curl <url>/storage/v1/object/authenticated/capas/<user_id>/<arquivo> -H "apikey: <publishable>"` é recusado;
+   - no Linux, conferir que a redução funciona (biblioteca nativa do Skia).
 
 ## Pendências de teste do que já existe
 

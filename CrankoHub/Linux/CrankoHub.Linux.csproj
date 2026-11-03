@@ -33,6 +33,9 @@
 
   <ItemGroup>
     <PackageReference Include="Photino.Blazor" Version="4.0.13" />
+    <!-- Reduz as capas do Entretenimento; NoDependencies dispensa a libfontconfig -->
+    <PackageReference Include="SkiaSharp" Version="4.154.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.154.0" />
   </ItemGroup>
 
   <!-- Código compartilhado com a versão Windows -->

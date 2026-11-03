@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Conversa com o Supabase (Auth e Data API) por HTTPS. Toda chamada leva a publishable key no
+/// Conversa com o Supabase (Auth, Data API e Storage) por HTTPS. Toda chamada leva a publishable key no
 /// header apikey; logado, leva também "Authorization: Bearer" com o token do usuário, renovado sozinho.
 /// A publishable key nunca vai no Authorization: o Supabase tentaria ler como JWT e recusaria.
 /// </summary>
@@ -65,16 +65,61 @@ public class SupabaseCliente
     /// </summary>
     public async Task<JsonNode?> Enviar(HttpMethod metodo, string caminho, JsonNode? corpo = null, string? prefer = null)
     {
-        var s = Atual ?? throw new SupabaseErro(401, "sem_sessao", "Não há conta conectada.");
-        if (s.ExpiraEm <= DateTimeOffset.UtcNow.AddSeconds(60))
-            s = await Renovar(s.RefreshToken);
-
-        using var req = Requisicao(metodo, caminho, s.AccessToken, corpo);
+        using var req = Requisicao(metodo, caminho, await Token(), corpo);
         if (prefer is not null) req.Headers.Add("Prefer", prefer);
         using var resp = await Http.SendAsync(req);
         var texto = await resp.Content.ReadAsStringAsync();
         if (!resp.IsSuccessStatusCode) throw SupabaseErro.De((int)resp.StatusCode, texto);
         return texto.Length == 0 ? null : JsonNode.Parse(texto);
+    }
+
+    // ----- Storage (capas, fase 5) -----
+
+    /// <summary>Envia (ou substitui) um arquivo no bucket, ex.: ("capas", "&lt;user_id&gt;/abc.jpg").</summary>
+    public async Task EnviarArquivo(string bucket, string caminho, byte[] bytes, string tipo)
+    {
+        using var req = Requisicao(HttpMethod.Post, $"/storage/v1/object/{bucket}/{Caminho(caminho)}", await Token());
+        req.Headers.Add("x-upsert", "true");
+        req.Content = new ByteArrayContent(bytes);
+        req.Content.Headers.ContentType = new MediaTypeHeaderValue(tipo);
+        using var resp = await Http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode) throw SupabaseErro.De((int)resp.StatusCode, await resp.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>Baixa um arquivo do bucket privado. null = não existe (ainda).</summary>
+    public async Task<byte[]?> BaixarArquivo(string bucket, string caminho)
+    {
+        using var req = Requisicao(HttpMethod.Get, $"/storage/v1/object/authenticated/{bucket}/{Caminho(caminho)}", await Token());
+        using var resp = await Http.SendAsync(req);
+        if (resp.IsSuccessStatusCode) return await resp.Content.ReadAsByteArrayAsync();
+        var texto = await resp.Content.ReadAsStringAsync();
+        if (NaoExiste(resp, texto)) return null;
+        throw SupabaseErro.De((int)resp.StatusCode, texto);
+    }
+
+    /// <summary>Apaga um arquivo do bucket (não reclama se ele já não existir).</summary>
+    public async Task ExcluirArquivo(string bucket, string caminho)
+    {
+        using var req = Requisicao(HttpMethod.Delete, $"/storage/v1/object/{bucket}/{Caminho(caminho)}", await Token());
+        using var resp = await Http.SendAsync(req);
+        if (resp.IsSuccessStatusCode) return;
+        var texto = await resp.Content.ReadAsStringAsync();
+        if (!NaoExiste(resp, texto)) throw SupabaseErro.De((int)resp.StatusCode, texto);
+    }
+
+    // O Storage às vezes responde 400 com "statusCode": "404" no corpo para arquivo inexistente
+    private static bool NaoExiste(HttpResponseMessage resp, string texto) =>
+        resp.StatusCode == System.Net.HttpStatusCode.NotFound || texto.Contains("\"404\"") || texto.Contains("not_found", StringComparison.OrdinalIgnoreCase);
+
+    private static string Caminho(string caminho) => string.Join('/', caminho.Split('/').Select(Uri.EscapeDataString));
+
+    /// <summary>Token do usuário, renovado se estiver perto de expirar. Lança <see cref="SupabaseErro"/> sem sessão.</summary>
+    private async Task<string> Token()
+    {
+        var s = Atual ?? throw new SupabaseErro(401, "sem_sessao", "Não há conta conectada.");
+        if (s.ExpiraEm <= DateTimeOffset.UtcNow.AddSeconds(60))
+            s = await Renovar(s.RefreshToken);
+        return s.AccessToken;
     }
 
     private static async Task<JsonNode> Auth(string caminho, JsonNode corpo)

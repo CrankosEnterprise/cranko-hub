@@ -10,7 +10,7 @@ using CrankoHub.Models;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Sincroniza os dados da conta com o Supabase (README, item 14, fases 3 e 4). O dados.json continua sendo a
+/// Sincroniza os dados da conta com o Supabase (README, item 14, fases 3 a 5). O dados.json continua sendo a
 /// cópia local e as telas continuam lendo <see cref="ArmazenamentoService.Dados"/>; este serviço trabalha por trás:
 /// <list type="bullet">
 /// <item>Envio: compara os dados com base.json (a última versão confirmada pelo servidor), item a item pelo Id,
@@ -19,6 +19,7 @@ namespace CrankoHub.Services;
 /// <item>Conflito: por registro, vale a última gravação no servidor.</item>
 /// <item>Primeira vez (sem base.json): conta vazia recebe os dados deste computador; conta com dados
 /// substitui os daqui, que ficam guardados em "dados.antes-sincronizar-*.json".</item>
+/// <item>Capas: as imagens vão à parte, para o Storage, uma vez cada (ver <see cref="Capas"/>).</item>
 /// </list>
 /// Roda 3 s depois de cada gravação, ao abrir, quando a internet volta e a cada 5 minutos.
 /// </summary>
@@ -146,6 +147,9 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     {
         public Dictionary<string, Dictionary<string, JsonObject>> Linhas { get; set; } = [];
         public Dictionary<string, DateTimeOffset> Cursores { get; set; } = [];
+
+        /// <summary>Capas (nomes de arquivo) que já estão no Storage. Só estas podem ser apagadas de lá por este computador.</summary>
+        public HashSet<string> Capas { get; set; } = [];
     }
 
     private Base? _base;
@@ -231,6 +235,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
                 await Enviar(_base);
                 await Receber(_base);
             }
+            await Capas(_base!);
             Avisar(problema: null);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -381,6 +386,64 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         if (t.Nome is "quadros" or "colunas")
             r = [.. r.OrderBy(x => x.Item2?["ordem"]?.GetValue<int>() ?? 0)];
         return (r, cursor);
+    }
+
+    // ----- Capas (fase 5) -----
+
+    /// <summary>
+    /// As imagens não vão nas linhas do Entretenimento: cada capa vai uma vez para o Storage ("capas/&lt;user_id&gt;/&lt;arquivo&gt;"),
+    /// já que o nome do arquivo é único e nunca muda. Sobe a que o servidor não tem, baixa a que falta aqui e apaga
+    /// do servidor a que nenhum item usa mais. Roda depois das linhas, então os itens daqui já batem com os do servidor.
+    /// </summary>
+    private async Task Capas(Base b)
+    {
+        const string Bucket = "capas";
+        var usadas = await NaTelaRetornar(() => store.Dados.Entretenimento
+            .Select(e => e.Capa).OfType<string>().Where(c => c.Length > 0).Select(Path.GetFileName).OfType<string>().ToHashSet());
+        string Remoto(string arquivo) => $"{conta.UserId}/{arquivo}";
+        var baixou = false;
+
+        foreach (var arquivo in usadas)
+        {
+            var local = Path.Combine(CapasService.Pasta, arquivo);
+            try
+            {
+                if (File.Exists(local))
+                {
+                    if (b.Capas.Contains(arquivo)) continue;
+                    // Capas de antes da fase 5 ainda estão no tamanho original: reduz antes de subir
+                    var bytes = File.ReadAllBytes(local);
+                    var menor = CapasService.Reduzir(bytes, Path.GetExtension(arquivo));
+                    if (menor != bytes) File.WriteAllBytes(local, menor);
+                    await supabase.EnviarArquivo(Bucket, Remoto(arquivo), menor, CapasService.TipoMime(arquivo));
+                }
+                else
+                {
+                    // null: o outro computador ainda não subiu; tenta na próxima rodada
+                    if (await supabase.BaixarArquivo(Bucket, Remoto(arquivo)) is not { } bytes) continue;
+                    Directory.CreateDirectory(CapasService.Pasta);
+                    File.WriteAllBytes(local, bytes);
+                    baixou = true;
+                }
+                b.Capas.Add(arquivo);
+                GravarBase(b);
+            }
+            catch (SupabaseErro) { } // uma capa recusada não segura as outras nem os dados
+        }
+
+        foreach (var arquivo in b.Capas.Where(c => !usadas.Contains(c)).ToList())
+        {
+            try
+            {
+                await supabase.ExcluirArquivo(Bucket, Remoto(arquivo));
+                b.Capas.Remove(arquivo);
+                GravarBase(b);
+            }
+            catch (SupabaseErro) { }
+        }
+
+        // As capas aparecem sem reiniciar (a página aberta é recriada)
+        if (baixou) await NaTela!(() => { Recebeu?.Invoke(); return Task.CompletedTask; });
     }
 
     // ----- Primeira sincronização (fase 4) -----
