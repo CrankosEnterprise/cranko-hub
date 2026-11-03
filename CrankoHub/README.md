@@ -224,16 +224,16 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 
 **Onde estamos (03/11/2026):**
 - ✅ Projeto criado no Supabase, URL e publishable key em `Services/SupabaseConfig.cs`.
-- ✅ SQL da fase 1 rodado; cadastro desligado no painel; usuário `diego@crankohub.local` criado à mão.
+- ✅ SQL da fase 1 rodado; cadastro desligado no painel; usuário admin criado à mão.
 - ✅ Testado por `curl` só com a publishable key: cadastro recusado (`signup_disabled`), as 11 tabelas negam leitura e gravação sem login (`permission denied`), senha errada recusada.
 - ✅ Código das fases 2 (login), 3 (sincronização) e 4 (primeiro login/migração) compilando no Windows e no Linux. O .exe de teste foi gerado com `dotnet publish CrankoHub.csproj -c Release -o <pasta>`.
-- ⏳ **Falta testar no app:** entrar com `diego`, ver "Sincronizado às …" no card "Conta", conferir os dados no Table Editor do painel, editar/excluir e ver refletir; depois com um segundo PC (ver "Como testar").
+- ⏳ **Falta testar no app:** entrar com o usuário admin, ver "Sincronizado às …" no card "Conta", conferir os dados no Table Editor do painel, editar/excluir e ver refletir; depois com um segundo PC (ver "Como testar").
 - ⏳ Ainda sem commit e sem Release novo (o .exe de teste continua marcado como 1.0.0, igual ao último Release, então o auto-update não o substitui). Para os outros PCs: tag nova, ex.: `crankohub-v1.1.0`.
 - ⏸️ Fase 5 (capas) adiada.
 
 **Login só do admin (decisão atual):**
 - Não existe cadastro pelo app: o card "Conta" tem apenas **Usuário + Senha → Entrar** (e Sair). Sem "criar conta" e sem "esqueci a senha".
-- O login é por **usuário**, não por e-mail. O Supabase Auth só aceita e-mail, então o app transforma `diego` em `diego@crankohub.local` (`SupabaseConfig.DominioUsuario`, `ContaService.ParaEmail`). Um texto com `@` passa como está.
+- O login é por **usuário**, não por e-mail. O Supabase Auth só aceita e-mail, então o app converte o usuário num e-mail interno (`SupabaseConfig.DominioUsuario`, `ContaService.ParaEmail`).
 - O usuário é criado **à mão** no painel. Como a publishable key é pública, tirar o botão não basta: o bloqueio de verdade é desligar **"Allow new users to sign up"** no painel (ver abaixo).
 - Futuro: e-mail opcional em Configurações → Conta, para recuperar senha e avisos.
 
@@ -359,8 +359,8 @@ Hoje as capas **não sincronizam**: a coluna `entretenimento.capa` leva só o no
 1. Copiar a **Project URL** e a **publishable key** (Connect ou Settings > API Keys) para `Services/SupabaseConfig.cs`.
 2. Rodar `supabase/migrations/0001_esquema_inicial.sql` no **SQL Editor** e conferir o **Security Advisor** (nenhuma tabela sem RLS).
 3. Authentication → Sign In / Providers: **desligar "Allow new users to sign up"** (é isso que impede outras pessoas de criarem conta) e deixar "Confirm email" desligado.
-4. Authentication → Users → **Add user**: e-mail `diego@crankohub.local` (o usuário + `@crankohub.local`), a senha e "Auto Confirm User".
-5. (Opcional) Inserir a linha em `perfis` com `user_id` do usuário criado e `usuario = 'diego'`.
+4. Authentication → Users → **Add user**: o e-mail interno do usuário, a senha e "Auto Confirm User".
+5. (Opcional) Inserir a linha em `perfis` com o `user_id` e o nome de usuário criados.
 6. Conferir que o cadastro está fechado: `curl -X POST <url>/auth/v1/signup -H "apikey: <publishable>" -H "Content-Type: application/json" -d '{"email":"x@exemplo.com","password":"12345678"}'` deve responder "Signups not allowed".
 
 ### Como testar

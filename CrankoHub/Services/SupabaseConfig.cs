@@ -14,7 +14,7 @@ public static class SupabaseConfig
     public const string ChavePublica = "sb_publishable_OQrcs4RLHUCIWnV3y9707Q_SaVyVI0G";
 
     /// <summary>
-    /// O login é por usuário, mas o Supabase Auth só aceita e-mail: "diego" vira "diego@crankohub.local".
+    /// O login é por usuário, mas o Supabase Auth só aceita e-mail: o usuário vira "usuario@" + este domínio.
     /// Os usuários são criados à mão no painel (cadastro desligado lá).
     /// </summary>
     public const string DominioUsuario = "crankohub.local";

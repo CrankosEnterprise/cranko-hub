@@ -14,7 +14,7 @@ public class ContaService(SupabaseCliente supabase)
 
     public bool Logado => ConfigLocal.Atual.ContaId is not null;
 
-    /// <summary>Nome mostrado na tela ("diego"), sem o domínio interno.</summary>
+    /// <summary>Nome mostrado na tela, sem o domínio interno.</summary>
     public string? Usuario => ConfigLocal.Atual.ContaUsuario;
 
     public string? UserId => ConfigLocal.Atual.ContaId;
@@ -25,7 +25,7 @@ public class ContaService(SupabaseCliente supabase)
     /// <summary>Entrou, saiu ou mudou o estado da conexão. Pode vir de outra thread.</summary>
     public event Action? Mudou;
 
-    /// <summary>"diego" → "diego@crankohub.local". Um texto que já é e-mail passa como está.</summary>
+    /// <summary>"usuario" → "usuario@&lt;DominioUsuario&gt;". Um texto que já é e-mail passa como está.</summary>
     public static string ParaEmail(string usuario)
     {
         var u = usuario.Trim().ToLowerInvariant();
