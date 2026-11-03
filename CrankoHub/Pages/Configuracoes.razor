@@ -9,9 +9,6 @@
 @inject IJSRuntime JS
 @inject BandejaService Bandeja
 @inject AtualizacaoService Atualizacao
-@inject ContaService Conta
-@inject SincronizacaoService Sincronizacao
-@implements IDisposable
 
 @{
     var d = Store.Dados;
@@ -75,61 +72,6 @@
             <input type="password" placeholder="Chave da API" value="@cfg.ChaveRawg" @onchange="e => SalvarChave(e, false)"></label>
     </div>
     <p class="muted" style="margin-top:10px">Sem chave, filmes, séries, animações e jogos vêm da <b>Wikipedia</b> e da <b>Wikidata</b> (pôsteres de séries pelo <b>TVmaze</b>); animes do <b>AniList</b> e livros da <b>Open Library</b>. Itens pouco conhecidos podem não estar lá: aí a chave ajuda (crie grátis em <b>themoviedb.org</b> → Configurações → API e em <b>rawg.io/apidocs</b>) ou cadastre manualmente.</p>
-</section>
-
-<section class="card">
-    <div class="card-head"><div><h2>Conta</h2><p>Conta no servidor do CrankoHub, para os dados ficarem disponíveis em outros aparelhos.</p></div></div>
-    @if (!ContaService.Configurado)
-    {
-        <p class="muted">A conta ainda não está disponível nesta versão. Os dados ficam neste computador, como sempre.</p>
-    }
-    else if (Conta.Logado)
-    {
-        <p>Conectado como <b>@Conta.Usuario</b>@(Conta.Offline ? " (sem conexão agora)" : "").</p>
-        @if (!ArmazenamentoService.PorConta)
-        {
-            <p class="aviso-sincronia">Reinicie o app para começar a usar os dados da conta.</p>
-        }
-        else if (Sincronizacao.Problema is { } problema)
-        {
-            <p class="aviso-sincronia">@problema</p>
-        }
-        else
-        {
-            <p class="muted">@(Sincronizacao.Sincronizando ? "Sincronizando…" : Sincronizacao.Ultima is DateTime ultima ? $"Sincronizado às {ultima:HH:mm}. As mudanças vão sozinhas para os outros aparelhos." : "Preparando a sincronização…")</p>
-        }
-        <div class="form-actions">
-            @if (ArmazenamentoService.PorConta)
-            {
-                <button class="btn" type="button" disabled="@Sincronizacao.Sincronizando" @onclick="Sincronizacao.Sincronizar">Sincronizar agora</button>
-            }
-            <button class="btn" type="button" @onclick="SairDaConta">Sair</button>
-        </div>
-    }
-    else
-    {
-        @if (ArmazenamentoService.PorConta)
-        {
-            <p class="aviso-sincronia">A sessão da conta foi encerrada. Entre de novo para voltar a sincronizar.</p>
-        }
-        else
-        {
-            <p class="muted">Ao entrar, o app reinicia e passa a usar os dados da conta. Se ela estiver vazia, os dados deste computador sobem para ela; se já tiver dados, eles são usados aqui e os atuais ficam guardados. Ao sair, os dados de agora voltam.</p>
-        }
-        <form autocomplete="off" @onsubmit="EntrarNaConta">
-            <div class="form-grid">
-                <label class="field"><span>Usuário</span><input maxlength="60" autocapitalize="off" spellcheck="false" @bind="_usuario"></label>
-                <label class="field"><span>Senha</span><input type="password" maxlength="200" @bind="_senha"></label>
-            </div>
-            @if (_erroConta is not null)
-            {
-                <p class="aviso-sincronia">@_erroConta</p>
-            }
-            <div class="form-actions">
-                <button class="btn primary" type="submit" disabled="@_entrando">@(_entrando ? "Entrando…" : "Entrar")</button>
-            </div>
-        </form>
-    }
 </section>
 
 <section class="card">
@@ -304,56 +246,11 @@
         Janela.TemaMudou(tema);
     }
 
-    private string _usuario = "", _senha = "";
-    private string? _erroConta;
-    private bool _entrando;
-
-    // A sessão é renovada em segundo plano ao abrir o app: redesenha quando terminar
-    private void ContaMudou() => InvokeAsync(StateHasChanged);
-
-    protected override void OnInitialized()
-    {
-        Conta.Mudou += ContaMudou;
-        Sincronizacao.Mudou += ContaMudou;
-    }
-
-    public void Dispose()
-    {
-        Conta.Mudou -= ContaMudou;
-        Sincronizacao.Mudou -= ContaMudou;
-    }
-
     // Aviso nas confirmações que mexem em todos os dados: logado, a mudança vai junto para a conta
     private static string NaConta => ArmazenamentoService.PorConta ? " Com a conta conectada, isso também vale para a nuvem e para os outros aparelhos." : "";
 
     // O mesmo aviso, como explicação (segunda linha) de uma pergunta que só tem título
     private static string ExplicacaoNaConta => NaConta.Length > 0 ? "\n" + NaConta.Trim() : "";
-
-    private async Task EntrarNaConta()
-    {
-        _erroConta = null;
-        _entrando = true;
-        try
-        {
-            await Conta.Entrar(_usuario, _senha);
-            _senha = "";
-            Toast.Ok($"Conectado como {Conta.Usuario}. Reiniciando…");
-            AtualizacaoService.Reiniciar();
-        }
-        catch (InvalidOperationException ex)
-        {
-            _erroConta = ex.Message;
-        }
-        _entrando = false;
-    }
-
-    private async Task SairDaConta()
-    {
-        if (!await Dialogo.Confirmar("Sair da conta?\nAs mudanças pendentes são enviadas antes. O app reinicia e volta a usar os dados que estavam neste computador antes do login. Os dados da conta continuam na nuvem.")) return;
-        await Sincronizacao.Sincronizar();
-        await Conta.Sair();
-        AtualizacaoService.Reiniciar();
-    }
 
     private void SalvarChave(ChangeEventArgs e, bool tmdb)
     {

@@ -227,16 +227,16 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 - ✅ SQL da fase 1 rodado; cadastro desligado no painel; usuário admin criado à mão.
 - ✅ Testado por `curl` só com a publishable key: cadastro recusado (`signup_disabled`), as 11 tabelas negam leitura e gravação sem login (`permission denied`), senha errada recusada.
 - ✅ Código das fases 2 (login), 3 (sincronização) e 4 (primeiro login/migração) compilando no Windows e no Linux. O .exe de teste foi gerado com `dotnet publish CrankoHub.csproj -c Release -o <pasta>`.
-- ⏳ **Falta testar no app:** entrar com o usuário admin, ver "Sincronizado às …" no card "Conta", conferir os dados no Table Editor do painel, editar/excluir e ver refletir; depois com um segundo PC (ver "Como testar").
+- ⏳ **Falta testar no app:** entrar com o usuário admin, ver "Sincronizado às …" embaixo do nome, no rodapé da barra lateral, conferir os dados no Table Editor do painel, editar/excluir e ver refletir; depois com um segundo PC (ver "Como testar").
 - ⏳ Ainda sem commit e sem Release novo (o .exe de teste continua marcado como 1.0.0, igual ao último Release, então o auto-update não o substitui). Para os outros PCs: tag nova, ex.: `crankohub-v1.1.0`.
 - ✅ Código da fase 5 (capas no Storage, reduzidas com SkiaSharp) compilando no Windows e no Linux.
 - ⏳ **Falta rodar** `supabase/migrations/0002_capas.sql` no SQL Editor (cria o bucket `capas` e as políticas). Até lá as capas não sobem, mas o resto sincroniza normalmente.
 
 **Login só do admin (decisão atual):**
-- Não existe cadastro pelo app: o card "Conta" tem apenas **Usuário + Senha → Entrar** (e Sair). Sem "criar conta" e sem "esqueci a senha".
+- Não existe cadastro pelo app: o rodapé da barra lateral tem apenas **Entrar** (abre uma janela com Usuário + Senha) e, logado, o nome com o menu Sincronizar agora / Sair. Sem "criar conta" e sem "esqueci a senha".
 - O login é por **usuário**, não por e-mail. O Supabase Auth só aceita e-mail, então o app converte o usuário num e-mail interno (`SupabaseConfig.DominioUsuario`, `ContaService.ParaEmail`).
 - O usuário é criado **à mão** no painel. Como a publishable key é pública, tirar o botão não basta: o bloqueio de verdade é desligar **"Allow new users to sign up"** no painel (ver abaixo).
-- Futuro: e-mail opcional em Configurações → Conta, para recuperar senha e avisos.
+- Futuro: e-mail opcional no menu da conta, para recuperar senha e avisos.
 
 ### Formas de conexão do Supabase
 
@@ -300,12 +300,12 @@ RLS e permissões, em todas as tabelas:
 
 ### Fase 2: Login ✅
 
-- **`Services/SupabaseConfig.cs`:** URL, publishable key e domínio interno dos usuários como constantes. Com a URL vazia, o card "Conta" diz que a conta não está disponível e nada é chamado.
+- **`Services/SupabaseConfig.cs`:** URL, publishable key e domínio interno dos usuários como constantes. Com a URL vazia, o rodapé da conta não aparece e nada é chamado.
 - **`Services/SupabaseCliente.cs`:** `HttpClient` próprio que envia `apikey` e `Authorization: Bearer <token do usuário>`. Nunca envia a publishable key no `Authorization`, porque o Supabase tenta ler como JWT e rejeita. Renova o token sozinho; `Enviar(...)` já serve para a Data API da fase 3.
 - **`Services/ContaService.cs`:** entrar (usuário → e-mail interno), sair, restaurar a sessão ao abrir e evento `Mudou`. Sessão recusada pelo servidor (senha trocada, revogada) sai sozinha; sem internet continua logado ("sem conexão agora").
 - **Sessão:** só o refresh token, nunca a senha. Windows: DPAPI em `Services/CofreSessao.cs` (`sessao.bin`). Linux: `Linux/Plataforma/CofreSessao.cs`, arquivo `sessao` com permissão 600.
 - **`ConfigLocal`:** `ContaUsuario` e `ContaId`, por computador.
-- **`Pages/Configuracoes.razor`:** card "Conta" com usuário/senha e Entrar (sem criar conta); logado, mostra o status da sincronização, "Sincronizar agora" e Sair. Entrar e sair reiniciam o app (`AtualizacaoService.Reiniciar()`), para trocar para a pasta da conta e voltar (fase 4).
+- **`Components/ContaRodape.razor`** (no rodapé da barra lateral, em `Layout/LayoutPrincipal.razor`): deslogado mostra **Entrar**, que abre uma janela com usuário/senha (sem criar conta); logado mostra a inicial, o nome e o status curto da sincronização, e o clique abre um menu com o status completo, "Sincronizar agora" e Sair. Entrar e sair reiniciam o app (`AtualizacaoService.Reiniciar()`), para trocar para a pasta da conta e voltar (fase 4). O card "Conta" saiu das Configurações.
 - **`GarantirSessao()`:** usado pela sincronização; renova o token quando precisa e, se o servidor recusar, sai da conta.
 
 ### Fase 3: Sincronização (`Services/SincronizacaoService.cs`) ✅ (falta testar com dois PCs)
@@ -318,7 +318,7 @@ RLS e permissões, em todas as tabelas:
   - Um `JsonSerializerOptions` com `SnakeCaseLower` mapeia os modelos atuais, sem DTOs. Quadros, colunas (que no app ficam dentro do quadro) e o perfil usam records próprios (`QuadroLinha`, `ColunaLinha`, `PerfilLinha`).
 - **Recebimento:** busca `atualizado_em=gt.<cursor>` por tabela (com margem de 1 min), aplica em `Dados`, grava local e atualiza `base.json`. Só aplica o que difere da base (o que acabou de ser enviado volta igual e é ignorado). A tela é atualizada pelo evento `Recebeu` → `RecebeuDaConta` em `Layout/LayoutPrincipal.razor`, no mesmo estilo do `RecarregarDados`.
 - **Conflito:** por registro, a última gravação no servidor vence. Editar coisas diferentes em dois aparelhos não gera conflito, um ganho grande sobre o documento inteiro de hoje.
-- **Falha ou offline:** não incomoda o usuário. Mudanças ficam pendentes, porque o diff com `base.json` as recupera, e o status aparece no card "Conta" (com o botão "Sincronizar agora").
+- **Falha ou offline:** não incomoda o usuário. Mudanças ficam pendentes, porque o diff com `base.json` as recupera, e o status aparece embaixo do nome, no rodapé da barra lateral (o menu tem "Sincronizar agora").
 - **Pasta sincronizada:** logado, os botões de OneDrive ficam desativados, pois os dois mecanismos não devem rodar juntos. A estratégia do item 12 segue para quem não tem conta.
 
 ### Fase 4: Primeiro login (migração) ✅
@@ -353,7 +353,7 @@ A coluna `entretenimento.capa` continua levando só o nome do arquivo. A imagem 
 ### Arquivos principais
 
 - **Novos:** `supabase/migrations/0001_esquema_inicial.sql`, `Services/SupabaseConfig.cs`, `Services/SupabaseCliente.cs`, `Services/ContaService.cs`, `Services/SincronizacaoService.cs`, `Services/CofreSessao.cs`, `Linux/Plataforma/CofreSessao.cs`.
-- **Alterados:** `Services/ArmazenamentoService.cs` (`PorConta`, `PastaDaConta`, `PrepararPastaDaConta`, evento `Salvou`, `Substituir`, `NormalizarESalvar`), `Services/ConfigLocal.cs`, `Pages/Configuracoes.razor`, `Layout/LayoutPrincipal.razor` (`NaTela`, `RecebeuDaConta`, texto do rodapé do menu), `App.xaml.cs`, `Linux/Program.cs`, `Linux/CrankoHub.Linux.csproj`.
+- **Alterados:** `Services/ArmazenamentoService.cs` (`PorConta`, `PastaDaConta`, `PrepararPastaDaConta`, evento `Salvou`, `Substituir`, `NormalizarESalvar`), `Services/ConfigLocal.cs`, `Pages/Configuracoes.razor`, `Layout/LayoutPrincipal.razor` (`NaTela`, `RecebeuDaConta`, rodapé com a conta), `App.xaml.cs`, `Linux/Program.cs`, `Linux/CrankoHub.Linux.csproj`.
 - **Fase 5:** `supabase/migrations/0002_capas.sql` (novo), `Services/CapasService.cs` (`Reduzir`, `TipoMime`), `Services/SupabaseCliente.cs` (Storage), `Services/SincronizacaoService.cs` (`Capas`), pacote `SkiaSharp` nos dois `.csproj`.
 
 ### O que fazer no painel do Supabase ✅ (feito)

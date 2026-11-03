@@ -25,14 +25,10 @@
             <div class="nav-sep"></div>
             <NavLink href="configuracoes">@Icones.Engrenagem<span>Configurações</span></NavLink>
         </nav>
-        <div class="sidebar-foot">@if (ArmazenamentoService.PorConta)
-            {
-                <text>Seus dados ficam na sua conta e são sincronizados com os outros aparelhos.</text>
-            }
-            else
-            {
-                <text>Seus dados ficam salvos neste computador.<br>Faça backups em <b>Configurações</b>.</text>
-            }</div>
+        @if (ContaService.Configurado)
+        {
+            <div class="sidebar-foot"><ContaRodape /></div>
+        }
     </aside>
     <div class="backdrop" @onclick="() => _menuAberto = false"></div>
 

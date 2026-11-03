@@ -142,6 +142,45 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .nav-sep { height: 1px; background: var(--border); margin: 8px 6px; }
 .sidebar-foot { padding: 16px 18px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
 .sidebar-foot b { color: var(--text-2); font-weight: 600; }
+.sidebar-foot:has(.conta) { padding: 10px; }
+
+/* Conta no rodapé da barra lateral (Components/ContaRodape.razor) */
+.conta { position: relative; }
+.conta-btn {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 7px 8px; border: 0; border-radius: 10px; background: none;
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: background .15s;
+}
+.conta-btn:hover, .conta-btn[aria-expanded="true"] { background: var(--sidebar-hover); }
+.conta-avatar {
+  display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 14px;
+}
+.conta-avatar.vazio { background: var(--surface-2); color: var(--accent); border: 1px solid var(--border); }
+.conta-avatar svg { width: 17px; height: 17px; }
+.conta-texto { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.conta-texto b { font-size: 13.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conta-texto small { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conta-fundo { position: fixed; inset: 0; z-index: 40; }
+.conta-menu {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 41;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0,0,0,.18); animation: enter .12s ease-out;
+}
+.conta-status { padding: 6px 8px 8px; margin-bottom: 2px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); }
+.conta-status.problema { color: var(--serious); }
+.conta-opcao {
+  display: flex; align-items: center; gap: 10px; padding: 7px 8px;
+  border: 0; border-radius: 8px; background: none; color: var(--text); font: inherit; font-size: 13px;
+  text-align: left; cursor: pointer;
+}
+.conta-opcao svg { width: 16px; height: 16px; color: var(--accent); }
+.conta-opcao:hover:not(:disabled) { background: var(--surface-2); }
+.conta-opcao:disabled { opacity: .5; cursor: default; }
+.conta-opcao.perigo, .conta-opcao.perigo svg { color: var(--bad); }
+.conta-explicacao { font-size: 12.5px; }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
