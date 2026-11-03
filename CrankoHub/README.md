@@ -18,7 +18,7 @@ Lista do que ainda vamos fazer no CrankoHub. Cada item tem detalhes suficientes 
 - **Menu:** `Layout/LayoutPrincipal.razor` (NavLink + `TituloDaPagina`). Ícones em `Components/Icones.cs`.
 - **Publicar o .exe:** `dotnet publish -c Release -p:PublishProfile=win-x64` gera `publicar\CrankoHub.exe`.
 - **Lançar uma versão:** `git tag crankohub-v1.2.0` e `git push origin crankohub-v1.2.0`. O workflow `.github/workflows/crankohub-release.yml` compila e cria o Release com o `CrankoHub.exe`; a versão vem da tag.
-- **Atualizar os outros PCs:** Configurações → Atualizações → "Verificar atualizações" → "Atualizar agora" (`Services/AtualizacaoService.cs`). Sem token: os Releases vêm do repositório público `DiegoOttani/cranko-hub`. PC novo: baixar o `CrankoHub.exe` do Releases.
+- **Atualizar os outros PCs:** Configurações → Aplicativo → Atualizações → "Verificar atualizações" → "Atualizar agora" (`Services/AtualizacaoService.cs`). Sem token: os Releases vêm do repositório público `DiegoOttani/cranko-hub`. PC novo: baixar o `CrankoHub.exe` do Releases.
 
 ---
 
@@ -138,6 +138,7 @@ Lista do que ainda vamos fazer no CrankoHub. Cada item tem detalhes suficientes 
 - **Os dados não são apagados**: ligar de novo traz tudo de volta, e o backup continua com tudo. A página ainda abre pelo endereço.
 - Fica salvo em `config.modulosOcultos`, uma lista dos **escondidos**, para que módulos novos já apareçam ligados.
 - No Início, quando só um card de uma dupla está visível, ele ocupa a linha inteira.
+- **Abas nas Configurações** (mesmo padrão do Carro, com `?aba=` no link): **Aparência**, **Módulos**, **Integrações** (chaves TMDB/RAWG), **Dados e backup** (armazenamento, pasta sincronizada, backup automático, exportar/importar, exemplo, apagar tudo) e **Aplicativo** (bandeja, notificações, iniciar com o Windows, atualizações). A aba escolhida fica guardada enquanto o app está aberto. Os links do Início, o aviso de backup e a notificação de versão nova abrem direto na aba certa. A conta saiu daqui e foi para o rodapé da barra lateral (item 14).
 
 ## 10. Versão para Linux (Linux Mint) ✅ (feito e testado no Mint)
 
@@ -180,7 +181,7 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 
 **Abordagem:** pasta sincronizada (OneDrive, Google Drive, Dropbox), sem servidor e sem login. Cada pessoa usa a própria nuvem, então funciona igual no app público, sem custo nem dados de terceiros com a gente.
 
-- Configurações → Armazenamento → **"Usar pasta sincronizada…"**. Se a pasta já tem um `dados.json` (o outro PC), o app usa os dados de lá e guarda os daqui como `dados.antes-sincronizar-*.json`. Se não tem, copia os dados e as `capas/` para lá. Depois o app reinicia.
+- Configurações → Dados e backup → Armazenamento → **"Usar pasta sincronizada…"**. Se a pasta já tem um `dados.json` (o outro PC), o app usa os dados de lá e guarda os daqui como `dados.antes-sincronizar-*.json`. Se não tem, copia os dados e as `capas/` para lá. Depois o app reinicia.
 - A pasta escolhida fica em `%LocalAppData%\CrankoHub\local.json`, que é de cada PC. "Iniciar com o Windows" também passou para lá, para não ligar sozinho no outro PC. WebView2 e a trava de instância continuam na pasta local.
 - Com o app aberto, um `FileSystemWatcher` percebe quando o outro PC sincronizou. O app recarrega os dados, recria a página aberta e mostra um toast.
 - **Conflito:** se o arquivo mudou por fora e o app vai salvar antes de recarregar, a versão de fora vira `dados.conflito-*.json` e nada se perde. Configurações lista essas cópias, inclusive as do OneDrive (`dados-NOMEDOPC.json`).

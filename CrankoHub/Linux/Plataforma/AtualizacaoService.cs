@@ -136,7 +136,7 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
             try
             {
                 if (await VerificarAsync() is Novidade n)
-                    bandeja.Notificar("Nova versão do CrankoHub", $"A versão {Texto(n.Versao)} está disponível em Configurações → Atualizações.");
+                    bandeja.Notificar("Nova versão do CrankoHub", $"A versão {Texto(n.Versao)} está disponível em Configurações → Aplicativo.");
             }
             catch { } // sem internet ou token inválido: tenta de novo mais tarde
         }, null, TimeSpan.FromSeconds(30), TimeSpan.FromHours(6));

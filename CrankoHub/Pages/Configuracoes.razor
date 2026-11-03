@@ -13,229 +13,274 @@
 @{
     var d = Store.Dados;
     var cfg = d.Config;
-    var backups = Backup.Listar();
 }
 
 <div class="page-head">
     <div>
         <h1>Configurações</h1>
-        <p>Aparência, aplicativo, backup e dados. Tudo fica salvo automaticamente neste computador.</p>
+        <p>Tudo fica salvo automaticamente.</p>
     </div>
 </div>
 
-<section class="card">
-    <div class="card-head"><div><h2>Aparência</h2><p>Tema e cor de destaque do aplicativo.</p></div></div>
-    @{
-        var corAtual = CorDestaque.DaConfig(cfg.CorDestaque);
-        var personalizada = !CorDestaque.Paleta.Contains(corAtual);
+<nav class="tabs" role="tablist" aria-label="Seções das configurações">
+    @foreach (var (chave, rotulo) in Abas)
+    {
+        <button type="button" role="tab" class="tab @(_aba == chave ? "active" : "")" aria-selected="@(_aba == chave)" @onclick="() => _aba = chave">@rotulo</button>
     }
-    <div class="aparencia">
-        <span>Tema</span>
-        <div class="chips">
-            @foreach (var (valor, rotulo) in Temas)
-            {
-                <button type="button" class="chip @(d.Tema == valor ? "active" : "")" @onclick="() => MudarTema(valor)">@rotulo</button>
-            }
-        </div>
-        <span>Cor de destaque</span>
-        <div class="paleta">
-            @foreach (var c in CorDestaque.Paleta)
-            {
-                <button type="button" class="cor @(c == corAtual ? "ativa" : "")" title="@c.Nome" aria-label="@c.Nome"
-                        style="background:@c.Claro;--cor:@c.Claro" @onclick="() => MudarCor(c.Chave)"></button>
-            }
-            <label class="cor cor-personalizada @(personalizada ? "ativa" : "")" title="Personalizada"
-                   style="@(personalizada ? $"background:{corAtual.Claro};--cor:{corAtual.Claro}" : "")">
-                <input type="color" value="@(personalizada ? corAtual.Claro.ToLowerInvariant() : "#5856d6")" @onchange="MudarCorPersonalizada">
-            </label>
-            <span class="muted">@corAtual.Nome</span>
-        </div>
-    </div>
-</section>
+</nav>
 
-<section class="card">
-    <div class="card-head"><div><h2>Módulos</h2><p>Escolha o que aparece no menu, no Início e nos avisos. Esconder um módulo não apaga os dados dele.</p></div></div>
-    <div class="opcoes">
-        @foreach (var m in Modulo.Todos)
-        {
-            <label class="check" @key="m.Id"><input type="checkbox" checked="@Modulo.Visivel(cfg, m.Id)" @onchange="@(e => Store.MostrarModulo(m.Id, e.Value is true))"> <b>@m.Nome</b> <span class="muted">· @m.Descricao</span></label>
-        }
-    </div>
-</section>
-
-<section class="card">
-    <div class="card-head"><div><h2>Entretenimento</h2><p>A busca de dados e capas já funciona sem nenhuma chave. As chaves abaixo são opcionais e trazem mais resultados.</p></div></div>
-    <div class="form-grid">
-        <label class="field"><span>Chave do TMDB (opcional: filmes, séries e animações)</span>
-            <input type="password" placeholder="Chave da API ou token de leitura" value="@cfg.ChaveTmdb" @onchange="e => SalvarChave(e, true)"></label>
-        <label class="field"><span>Chave do RAWG (opcional: jogos)</span>
-            <input type="password" placeholder="Chave da API" value="@cfg.ChaveRawg" @onchange="e => SalvarChave(e, false)"></label>
-    </div>
-    <p class="muted" style="margin-top:10px">Sem chave, filmes, séries, animações e jogos vêm da <b>Wikipedia</b> e da <b>Wikidata</b> (pôsteres de séries pelo <b>TVmaze</b>); animes do <b>AniList</b> e livros da <b>Open Library</b>. Itens pouco conhecidos podem não estar lá: aí a chave ajuda (crie grátis em <b>themoviedb.org</b> → Configurações → API e em <b>rawg.io/apidocs</b>) ou cadastre manualmente.</p>
-</section>
-
-<section class="card">
-    <div class="card-head"><div><h2>Armazenamento</h2><p>@ArmazenamentoService.CaminhoDados@(ArmazenamentoService.Sincronizada ? " · sincronizada" : "")</p></div></div>
-    <div class="storage-stats">
-        <div><span>Registros de peso</span><b>@d.Dieta.Registros.Count</b></div>
-        <div><span>Abastecimentos</span><b>@d.Carro.Abastecimentos.Count</b></div>
-        <div><span>Manutenções</span><b>@d.Carro.Manutencoes.Count</b></div>
-        <div><span>Documentos</span><b>@d.Carro.Documentos.Count</b></div>
-        <div><span>Veículos</span><b>@d.Carro.Veiculos.Count</b></div>
-        <div><span>Assinaturas</span><b>@d.Assinaturas.Count</b></div>
-        <div><span>Entretenimento</span><b>@d.Entretenimento.Count</b></div>
-        <div><span>Tarefas</span><b>@d.Tarefas.Cards.Count</b></div>
-        <div><span>Tamanho</span><b>@Num(Store.TamanhoKB(), 1) KB</b></div>
-    </div>
-    <div class="sincronia">
-        <h3>Usar em mais de um computador</h3>
-        @if (ArmazenamentoService.PorConta)
-        {
-            <p class="muted">Com a <b>conta</b> conectada, os dados já vão para os outros aparelhos pela conta, então a pasta sincronizada fica desativada. Ela volta a valer ao sair da conta.</p>
-        }
-        else if (ArmazenamentoService.Sincronizada)
-        {
-            <p class="muted">Os dados estão numa <b>pasta sincronizada</b>. Os outros computadores que apontarem para ela veem as mesmas informações, e mudanças feitas lá aparecem aqui sozinhas.</p>
-        }
-        else
-        {
-            <p class="muted">Escolha uma pasta do <b>OneDrive</b>, <b>Google Drive</b> ou <b>Dropbox</b> (ex.: <code>OneDrive\CrankoHub</code>) e faça o mesmo no outro computador. Evite usar os dois ao mesmo tempo: se acontecer, nada se perde, a outra versão fica guardada como cópia de conflito.</p>
-        }
-        @if (ArmazenamentoService.PastaSincronizadaSumiu)
-        {
-            <p class="aviso-sincronia">A pasta sincronizada <b>@ConfigLocal.Atual.PastaDados</b> não foi encontrada, então os dados locais estão em uso. Confira se o OneDrive/Google Drive está conectado e reinicie o app.</p>
-        }
-        @{ var conflitos = ArmazenamentoService.Conflitos(); }
-        @if (conflitos.Count > 0)
-        {
-            <p class="aviso-sincronia">@conflitos.Count @Plural(conflitos.Count, "cópia", "cópias") de conflito na pasta (@string.Join(", ", conflitos.Select(Path.GetFileName))). Confira se falta algo e, se quiser, importe pelo backup abaixo; depois pode apagar.</p>
-        }
-        <div class="form-actions">
-            @if (!ArmazenamentoService.PorConta)
-            {
-                <button class="btn" type="button" @onclick="UsarPastaSincronizada">@(ArmazenamentoService.Sincronizada ? "Trocar pasta…" : "Usar pasta sincronizada…")</button>
-            }
-            @if (ArmazenamentoService.Sincronizada || ArmazenamentoService.PastaSincronizadaSumiu)
-            {
-                <button class="btn" type="button" @onclick="VoltarParaLocal">Voltar para a pasta local</button>
-            }
-            <button class="btn" type="button" @onclick="AbrirPastaDados">Abrir pasta</button>
-        </div>
-    </div>
-</section>
-
-<section class="card">
-    <div class="card-head">
-        <div><h2>Backup automático</h2><p>Uma cópia por dia, feita ao abrir o app. Dica: escolha uma pasta do OneDrive ou Google Drive para ter o backup também na nuvem.</p></div>
-        <label class="check"><input type="checkbox" checked="@cfg.BackupAutomatico" @onchange="AlternarAutomatico"> Ativado</label>
-    </div>
-    <div class="form-grid">
-        <div class="field full"><span>Pasta</span>
-            <div class="linha-pasta">
-                <input readonly value="@(cfg.PastaBackup ?? "")" placeholder="nenhuma pasta escolhida">
-                <button class="btn" type="button" @onclick="EscolherPasta">Escolher…</button>
-            </div></div>
-        <label class="field"><span>Manter os últimos</span>
-            <select value="@cfg.BackupsMantidos" @onchange="MudarMantidos">
-                @foreach (var n in new[] { 3, 5, 10, 15, 30 })
+@switch (_aba)
+{
+    case "modulos":
+        <section class="card">
+            <div class="card-head"><div><h2>Módulos</h2><p>Escolha o que aparece no menu, no Início e nos avisos. Esconder um módulo não apaga os dados dele.</p></div></div>
+            <div class="opcoes">
+                @foreach (var m in Modulo.Todos)
                 {
-                    <option value="@n">@n backups</option>
+                    <label class="check" @key="m.Id"><input type="checkbox" checked="@Modulo.Visivel(cfg, m.Id)" @onchange="@(e => Store.MostrarModulo(m.Id, e.Value is true))"> <b>@m.Nome</b> <span class="muted">· @m.Descricao</span></label>
                 }
-            </select></label>
-        <div class="field"><span>Último backup</span><b>@(cfg.UltimoBackup is DateOnly u ? DataBR(u) : "nunca")</b></div>
-    </div>
-    <div class="form-actions">
-        <button class="btn primary" type="button" disabled="@string.IsNullOrWhiteSpace(cfg.PastaBackup)" @onclick="FazerAgora">Fazer backup agora</button>
-    </div>
-    @if (backups.Count > 0)
-    {
-        <div class="table-wrap" style="margin-top:16px">
-            <table>
-                <thead><tr><th>Arquivo</th><th>Salvo em</th><th class="num">Tamanho</th><th></th></tr></thead>
-                <tbody>
-                    @foreach (var f in backups)
+            </div>
+        </section>
+        break;
+
+    case "integracoes":
+        <section class="card">
+            <div class="card-head"><div><h2>Entretenimento</h2><p>A busca de dados e capas já funciona sem nenhuma chave. As chaves abaixo são opcionais e trazem mais resultados.</p></div></div>
+            <div class="form-grid">
+                <label class="field"><span>Chave do TMDB (opcional: filmes, séries e animações)</span>
+                    <input type="password" placeholder="Chave da API ou token de leitura" value="@cfg.ChaveTmdb" @onchange="e => SalvarChave(e, true)"></label>
+                <label class="field"><span>Chave do RAWG (opcional: jogos)</span>
+                    <input type="password" placeholder="Chave da API" value="@cfg.ChaveRawg" @onchange="e => SalvarChave(e, false)"></label>
+            </div>
+            <p class="muted" style="margin-top:10px">Sem chave, filmes, séries, animações e jogos vêm da <b>Wikipedia</b> e da <b>Wikidata</b> (pôsteres de séries pelo <b>TVmaze</b>); animes do <b>AniList</b> e livros da <b>Open Library</b>. Itens pouco conhecidos podem não estar lá: aí a chave ajuda (crie grátis em <b>themoviedb.org</b> → Configurações → API e em <b>rawg.io/apidocs</b>) ou cadastre manualmente.</p>
+        </section>
+        break;
+
+    case "dados":
+        var backups = Backup.Listar();
+        <section class="card">
+            <div class="card-head"><div><h2>Armazenamento</h2><p>@ArmazenamentoService.CaminhoDados@(ArmazenamentoService.Sincronizada ? " · sincronizada" : "")</p></div></div>
+            <div class="storage-stats">
+                <div><span>Registros de peso</span><b>@d.Dieta.Registros.Count</b></div>
+                <div><span>Abastecimentos</span><b>@d.Carro.Abastecimentos.Count</b></div>
+                <div><span>Manutenções</span><b>@d.Carro.Manutencoes.Count</b></div>
+                <div><span>Documentos</span><b>@d.Carro.Documentos.Count</b></div>
+                <div><span>Veículos</span><b>@d.Carro.Veiculos.Count</b></div>
+                <div><span>Assinaturas</span><b>@d.Assinaturas.Count</b></div>
+                <div><span>Entretenimento</span><b>@d.Entretenimento.Count</b></div>
+                <div><span>Tarefas</span><b>@d.Tarefas.Cards.Count</b></div>
+                <div><span>Tamanho</span><b>@Num(Store.TamanhoKB(), 1) KB</b></div>
+            </div>
+            <div class="sincronia">
+                <h3>Usar em mais de um computador</h3>
+                @if (ArmazenamentoService.PorConta)
+                {
+                    <p class="muted">Com a <b>conta</b> conectada, os dados já vão para os outros aparelhos pela conta, então a pasta sincronizada fica desativada. Ela volta a valer ao sair da conta.</p>
+                }
+                else if (ArmazenamentoService.Sincronizada)
+                {
+                    <p class="muted">Os dados estão numa <b>pasta sincronizada</b>. Os outros computadores que apontarem para ela veem as mesmas informações, e mudanças feitas lá aparecem aqui sozinhas.</p>
+                }
+                else
+                {
+                    <p class="muted">Escolha uma pasta do <b>OneDrive</b>, <b>Google Drive</b> ou <b>Dropbox</b> (ex.: <code>OneDrive\CrankoHub</code>) e faça o mesmo no outro computador. Evite usar os dois ao mesmo tempo: se acontecer, nada se perde, a outra versão fica guardada como cópia de conflito.</p>
+                }
+                @if (ArmazenamentoService.PastaSincronizadaSumiu)
+                {
+                    <p class="aviso-sincronia">A pasta sincronizada <b>@ConfigLocal.Atual.PastaDados</b> não foi encontrada, então os dados locais estão em uso. Confira se o OneDrive/Google Drive está conectado e reinicie o app.</p>
+                }
+                @{ var conflitos = ArmazenamentoService.Conflitos(); }
+                @if (conflitos.Count > 0)
+                {
+                    <p class="aviso-sincronia">@conflitos.Count @Plural(conflitos.Count, "cópia", "cópias") de conflito na pasta (@string.Join(", ", conflitos.Select(Path.GetFileName))). Confira se falta algo e, se quiser, importe pelo backup abaixo; depois pode apagar.</p>
+                }
+                <div class="form-actions">
+                    @if (!ArmazenamentoService.PorConta)
                     {
-                        <tr @key="f.Name">
-                            <td>@f.Name</td>
-                            <td>@f.LastWriteTime.ToString("dd/MM/yyyy HH:mm")</td>
-                            <td class="num">@Num(f.Length / 1024.0, 1) KB</td>
-                            <td><button class="btn sm" type="button" @onclick="() => Restaurar(f)">Restaurar</button></td>
-                        </tr>
+                        <button class="btn" type="button" @onclick="UsarPastaSincronizada">@(ArmazenamentoService.Sincronizada ? "Trocar pasta…" : "Usar pasta sincronizada…")</button>
                     }
-                </tbody>
-            </table>
+                    @if (ArmazenamentoService.Sincronizada || ArmazenamentoService.PastaSincronizadaSumiu)
+                    {
+                        <button class="btn" type="button" @onclick="VoltarParaLocal">Voltar para a pasta local</button>
+                    }
+                    <button class="btn" type="button" @onclick="AbrirPastaDados">Abrir pasta</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <div><h2>Backup automático</h2><p>Uma cópia por dia, feita ao abrir o app. Dica: escolha uma pasta do OneDrive ou Google Drive para ter o backup também na nuvem.</p></div>
+                <label class="check"><input type="checkbox" checked="@cfg.BackupAutomatico" @onchange="AlternarAutomatico"> Ativado</label>
+            </div>
+            <div class="form-grid">
+                <div class="field full"><span>Pasta</span>
+                    <div class="linha-pasta">
+                        <input readonly value="@(cfg.PastaBackup ?? "")" placeholder="nenhuma pasta escolhida">
+                        <button class="btn" type="button" @onclick="EscolherPasta">Escolher…</button>
+                    </div></div>
+                <label class="field"><span>Manter os últimos</span>
+                    <select value="@cfg.BackupsMantidos" @onchange="MudarMantidos">
+                        @foreach (var n in new[] { 3, 5, 10, 15, 30 })
+                        {
+                            <option value="@n">@n backups</option>
+                        }
+                    </select></label>
+                <div class="field"><span>Último backup</span><b>@(cfg.UltimoBackup is DateOnly u ? DataBR(u) : "nunca")</b></div>
+            </div>
+            <div class="form-actions">
+                <button class="btn primary" type="button" disabled="@string.IsNullOrWhiteSpace(cfg.PastaBackup)" @onclick="FazerAgora">Fazer backup agora</button>
+            </div>
+            @if (backups.Count > 0)
+            {
+                <div class="table-wrap" style="margin-top:16px">
+                    <table>
+                        <thead><tr><th>Arquivo</th><th>Salvo em</th><th class="num">Tamanho</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var f in backups)
+                            {
+                                <tr @key="f.Name">
+                                    <td>@f.Name</td>
+                                    <td>@f.LastWriteTime.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="num">@Num(f.Length / 1024.0, 1) KB</td>
+                                    <td><button class="btn sm" type="button" @onclick="() => Restaurar(f)">Restaurar</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        <div class="grid-2">
+            <section class="card action-card">
+                <h2>Exportar backup</h2>
+                <p>Salva um arquivo <b>.json</b> com todos os seus dados. Guarde no Drive, e-mail ou pendrive.</p>
+                <button class="btn primary" type="button" @onclick="Exportar">Salvar backup…</button>
+            </section>
+            <section class="card action-card">
+                <h2>Importar backup</h2>
+                <p>Restaura um arquivo exportado antes (do CrankoHub ou do antigo ClaudeParameters). <b>Substitui</b> os dados atuais.</p>
+                <button class="btn" type="button" @onclick="Importar">Escolher arquivo…</button>
+            </section>
+            <section class="card action-card">
+                <h2>Dados de exemplo</h2>
+                <p>Preenche o app com ~5 meses de pesos e ~8 meses de abastecimentos e manutenções e algumas assinaturas fictícias para você explorar os gráficos. <b>Substitui</b> os dados atuais.</p>
+                <button class="btn" type="button" @onclick="CarregarExemplo">Carregar exemplo</button>
+            </section>
+            <section class="card action-card">
+                <h2>Apagar tudo</h2>
+                <p>Remove todos os registros, veículos, manutenções e assinaturas. Não dá para desfazer — exporte um backup antes.</p>
+                <button class="btn danger" type="button" @onclick="ApagarTudo">Apagar todos os dados</button>
+            </section>
         </div>
-    }
-</section>
+        break;
 
-<section class="card">
-    <div class="card-head"><div><h2>Aplicativo</h2><p>Ícone na bandeja do Windows (perto do relógio) e notificações dos vencimentos.</p></div></div>
-    <div class="opcoes">
-        <label class="check"><input type="checkbox" checked="@cfg.MinimizarParaBandeja" @onchange="@(e => Mudar(e, v => cfg.MinimizarParaBandeja = v))"> Ao fechar a janela, continuar rodando na bandeja</label>
-        <label class="check"><input type="checkbox" checked="@cfg.Avisos" @onchange="@(e => Mudar(e, v => cfg.Avisos = v))"> Mostrar notificações (manutenção, documentos, assinaturas, peso, backup)</label>
-        <label class="check"><input type="checkbox" checked="@(ConfigLocal.Atual.IniciarComWindows == true)" @onchange="MudarInicioWindows"> Iniciar com o Windows (abre direto na bandeja)</label>
-    </div>
-    <div class="form-actions">
-        <button class="btn" type="button" @onclick="() => Avisos.Verificar(manual: true)">Testar notificação</button>
-    </div>
-</section>
+    case "aplicativo":
+        <section class="card">
+            <div class="card-head"><div><h2>Aplicativo</h2><p>Ícone na bandeja do Windows (perto do relógio) e notificações dos vencimentos.</p></div></div>
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@cfg.MinimizarParaBandeja" @onchange="@(e => Mudar(e, v => cfg.MinimizarParaBandeja = v))"> Ao fechar a janela, continuar rodando na bandeja</label>
+                <label class="check"><input type="checkbox" checked="@cfg.Avisos" @onchange="@(e => Mudar(e, v => cfg.Avisos = v))"> Mostrar notificações (manutenção, documentos, assinaturas, peso, backup)</label>
+                <label class="check"><input type="checkbox" checked="@(ConfigLocal.Atual.IniciarComWindows == true)" @onchange="MudarInicioWindows"> Iniciar com o Windows (abre direto na bandeja)</label>
+            </div>
+            <div class="form-actions">
+                <button class="btn" type="button" @onclick="() => Avisos.Verificar(manual: true)">Testar notificação</button>
+            </div>
+        </section>
 
-<section class="card">
-    <div class="card-head">
-        <div><h2>Atualizações</h2><p>Versão instalada: <b>@AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)</b>. As versões novas vêm do Releases do GitHub (<b>DiegoOttani/cranko-hub</b>).</p></div>
-        <label class="check"><input type="checkbox" checked="@cfg.VerificarAtualizacoes" @onchange="@(e => Mudar(e, v => cfg.VerificarAtualizacoes = v))"> Verificar sozinho</label>
-    </div>
-    @if (Atualizacao.Disponivel is { } nova)
-    {
-        <p style="margin-top:12px"><b>Versão @AtualizacaoService.Texto(nova.Versao) disponível</b> (@Num(nova.Tamanho / 1048576.0, 0) MB)</p>
-        @if (!string.IsNullOrWhiteSpace(nova.Notas))
-        {
-            <p class="muted" style="white-space:pre-wrap;margin-top:6px">@nova.Notas</p>
-        }
-        @if (_progresso is double p)
-        {
-            <div class="progress"><div style="width:@Num(p * 100, 0)%"></div></div>
-            <div class="progress-legend"><span>Baixando…</span><b>@Num(p * 100, 0)%</b></div>
-        }
-    }
-    else if (_emDia)
-    {
-        <p class="muted" style="margin-top:12px">Você está na versão mais recente.</p>
-    }
-    <div class="form-actions">
-        <button class="btn" type="button" disabled="@(_verificando || _progresso is not null)" @onclick="VerificarAtualizacao">
-            @(_verificando ? "Verificando…" : "Verificar atualizações")</button>
-        @if (Atualizacao.Disponivel is { } versaoNova)
-        {
-            <button class="btn primary" type="button" disabled="@(_progresso is not null)" @onclick="() => Atualizar(versaoNova)">Atualizar agora</button>
-        }
-    </div>
-</section>
+        <section class="card">
+            <div class="card-head">
+                <div><h2>Atualizações</h2><p>Versão instalada: <b>@AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)</b>. As versões novas vêm do Releases do GitHub (<b>DiegoOttani/cranko-hub</b>).</p></div>
+                <label class="check"><input type="checkbox" checked="@cfg.VerificarAtualizacoes" @onchange="@(e => Mudar(e, v => cfg.VerificarAtualizacoes = v))"> Verificar sozinho</label>
+            </div>
+            @if (Atualizacao.Disponivel is { } nova)
+            {
+                <p style="margin-top:12px"><b>Versão @AtualizacaoService.Texto(nova.Versao) disponível</b> (@Num(nova.Tamanho / 1048576.0, 0) MB)</p>
+                @if (!string.IsNullOrWhiteSpace(nova.Notas))
+                {
+                    <p class="muted" style="white-space:pre-wrap;margin-top:6px">@nova.Notas</p>
+                }
+                @if (_progresso is double p)
+                {
+                    <div class="progress"><div style="width:@Num(p * 100, 0)%"></div></div>
+                    <div class="progress-legend"><span>Baixando…</span><b>@Num(p * 100, 0)%</b></div>
+                }
+            }
+            else if (_emDia)
+            {
+                <p class="muted" style="margin-top:12px">Você está na versão mais recente.</p>
+            }
+            <div class="form-actions">
+                <button class="btn" type="button" disabled="@(_verificando || _progresso is not null)" @onclick="VerificarAtualizacao">
+                    @(_verificando ? "Verificando…" : "Verificar atualizações")</button>
+                @if (Atualizacao.Disponivel is { } versaoNova)
+                {
+                    <button class="btn primary" type="button" disabled="@(_progresso is not null)" @onclick="() => Atualizar(versaoNova)">Atualizar agora</button>
+                }
+            </div>
+        </section>
+        break;
 
-<div class="grid-2">
-    <section class="card action-card">
-        <h2>Exportar backup</h2>
-        <p>Salva um arquivo <b>.json</b> com todos os seus dados. Guarde no Drive, e-mail ou pendrive.</p>
-        <button class="btn primary" type="button" @onclick="Exportar">Salvar backup…</button>
-    </section>
-    <section class="card action-card">
-        <h2>Importar backup</h2>
-        <p>Restaura um arquivo exportado antes (do CrankoHub ou do antigo ClaudeParameters). <b>Substitui</b> os dados atuais.</p>
-        <button class="btn" type="button" @onclick="Importar">Escolher arquivo…</button>
-    </section>
-    <section class="card action-card">
-        <h2>Dados de exemplo</h2>
-        <p>Preenche o app com ~5 meses de pesos e ~8 meses de abastecimentos e manutenções e algumas assinaturas fictícias para você explorar os gráficos. <b>Substitui</b> os dados atuais.</p>
-        <button class="btn" type="button" @onclick="CarregarExemplo">Carregar exemplo</button>
-    </section>
-    <section class="card action-card">
-        <h2>Apagar tudo</h2>
-        <p>Remove todos os registros, veículos, manutenções e assinaturas. Não dá para desfazer — exporte um backup antes.</p>
-        <button class="btn danger" type="button" @onclick="ApagarTudo">Apagar todos os dados</button>
-    </section>
-</div>
+    default:
+        <section class="card">
+            <div class="card-head"><div><h2>Aparência</h2><p>Tema e cor de destaque do aplicativo.</p></div></div>
+            @{
+                var corAtual = CorDestaque.DaConfig(cfg.CorDestaque);
+                var personalizada = !CorDestaque.Paleta.Contains(corAtual);
+            }
+            <div class="aparencia">
+                <span>Tema</span>
+                <div class="chips">
+                    @foreach (var (valor, rotulo) in Temas)
+                    {
+                        <button type="button" class="chip @(d.Tema == valor ? "active" : "")" @onclick="() => MudarTema(valor)">@rotulo</button>
+                    }
+                </div>
+                <span>Cor de destaque</span>
+                <div class="paleta">
+                    @foreach (var c in CorDestaque.Paleta)
+                    {
+                        <button type="button" class="cor @(c == corAtual ? "ativa" : "")" title="@c.Nome" aria-label="@c.Nome"
+                                style="background:@c.Claro;--cor:@c.Claro" @onclick="() => MudarCor(c.Chave)"></button>
+                    }
+                    <label class="cor cor-personalizada @(personalizada ? "ativa" : "")" title="Personalizada"
+                           style="@(personalizada ? $"background:{corAtual.Claro};--cor:{corAtual.Claro}" : "")">
+                        <input type="color" value="@(personalizada ? corAtual.Claro.ToLowerInvariant() : "#5856d6")" @onchange="MudarCorPersonalizada">
+                    </label>
+                    <span class="muted">@corAtual.Nome</span>
+                </div>
+            </div>
+        </section>
+        break;
+}
 
 @code {
+    private static readonly (string Chave, string Rotulo)[] Abas =
+    [
+        ("aparencia", "Aparência"),
+        ("modulos", "Módulos"),
+        ("integracoes", "Integrações"),
+        ("dados", "Dados e backup"),
+        ("aplicativo", "Aplicativo"),
+    ];
+
+    // Aba aberta, mantida enquanto o app estiver aberto
+    private static string _aba = "aparencia";
+
+    /// <summary>Permite abrir uma aba direto pelo link (ex.: configuracoes?aba=dados).</summary>
+    [SupplyParameterFromQuery(Name = "aba")] public string? AbaInicial { get; set; }
+
+    private string? _abaDoLink;
+
+    protected override void OnParametersSet()
+    {
+        // Só quando o link muda, para não desfazer a aba escolhida a cada nova renderização
+        if (AbaInicial == _abaDoLink) return;
+        _abaDoLink = AbaInicial;
+        if (Abas.Any(a => a.Chave == AbaInicial)) _aba = AbaInicial!;
+    }
+
     private static readonly (string? Valor, string Rotulo)[] Temas = [("light", "Claro"), ("dark", "Escuro"), (null, "Automático")];
 
     private async Task MudarTema(string? tema)

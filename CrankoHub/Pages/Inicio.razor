@@ -235,7 +235,7 @@
         }
         else
         {
-            <div class="chart-empty"><span>Nada registrado ainda. Comece pela <a href="dieta">Dieta</a> ou pelo <a href="carro">Carro</a> — ou carregue dados de exemplo em <a href="configuracoes">Configurações</a>.</span></div>
+            <div class="chart-empty"><span>Nada registrado ainda. Comece pela <a href="dieta">Dieta</a> ou pelo <a href="carro">Carro</a> — ou carregue dados de exemplo em <a href="configuracoes?aba=dados">Configurações</a>.</span></div>
         }
     </section>
 }
@@ -243,6 +243,6 @@
 @if (!Modulo.Visiveis(cfg).Any())
 {
     <section class="card">
-        <div class="chart-empty"><span>Todos os módulos estão escondidos. Escolha o que mostrar em <a href="configuracoes">Configurações</a>.</span></div>
+        <div class="chart-empty"><span>Todos os módulos estão escondidos. Escolha o que mostrar em <a href="configuracoes?aba=modulos">Configurações</a>.</span></div>
     </section>
 }
