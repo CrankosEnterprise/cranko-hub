@@ -1,0 +1,445 @@
+using System.Globalization;
+using System.Net.Http;
+using System.Net.NetworkInformation;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using CrankoHub.Models;
+
+namespace CrankoHub.Services;
+
+/// <summary>
+/// Sincroniza os dados da conta com o Supabase (README, item 14, fases 3 e 4). O dados.json continua sendo a
+/// cópia local e as telas continuam lendo <see cref="ArmazenamentoService.Dados"/>; este serviço trabalha por trás:
+/// <list type="bullet">
+/// <item>Envio: compara os dados com base.json (a última versão confirmada pelo servidor), item a item pelo Id,
+/// e manda só o que mudou. Itens removidos ganham excluido_em no servidor.</item>
+/// <item>Recebimento: busca o que mudou no servidor desde a última vez (atualizado_em) e aplica nos dados.</item>
+/// <item>Conflito: por registro, vale a última gravação no servidor.</item>
+/// <item>Primeira vez (sem base.json): conta vazia recebe os dados deste computador; conta com dados
+/// substitui os daqui, que ficam guardados em "dados.antes-sincronizar-*.json".</item>
+/// </list>
+/// Roda 3 s depois de cada gravação, ao abrir, quando a internet volta e a cada 5 minutos.
+/// </summary>
+public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente supabase, ContaService conta)
+{
+    private static readonly string CaminhoBase = Path.Combine(ArmazenamentoService.PastaDados, "base.json");
+
+    // Colunas em snake_case iguais às das tabelas (supabase/migrations/0001_esquema_inicial.sql).
+    // Nulos são enviados: é assim que um campo apagado no app é apagado no servidor.
+    private static readonly JsonSerializerOptions Json = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    private static readonly JsonSerializerOptions JsonBase = new(Json) { WriteIndented = false };
+
+    // Formato das linhas que não têm um modelo próprio no app
+    private record QuadroLinha(string Id, string Nome, string? Emoji, int Ordem);
+    private record ColunaLinha(string Id, string QuadroId, string Nome, int Ordem);
+    private record PerfilLinha(double? Altura, double? Meta, string? Tema, string? CorDestaque, List<string>? ModulosOcultos);
+
+    /// <summary>
+    /// Uma tabela do servidor: como tirar as linhas dos dados do app e como aplicar uma linha recebida.
+    /// A ordem da lista <see cref="Tabelas"/> põe os pais antes dos filhos (chaves estrangeiras).
+    /// </summary>
+    private sealed record Tabela(
+        string Nome,
+        Type Tipo,
+        Func<EstadoApp, IEnumerable<(string Id, object Linha)>> Ler,
+        Action<EstadoApp, object?, string> Aplicar) // linha (null = excluída), id
+    {
+        public bool Perfil => Nome == "perfis";
+    }
+
+    private const string IdPerfil = "perfil";
+
+    private static readonly Tabela[] Tabelas =
+    [
+        new("perfis", typeof(PerfilLinha),
+            d => [(IdPerfil, new PerfilLinha(d.Dieta.Perfil.Altura, d.Dieta.Perfil.Meta, d.Tema, d.Config.CorDestaque, d.Config.ModulosOcultos))],
+            (d, o, _) =>
+            {
+                if (o is not PerfilLinha p) return;
+                d.Dieta.Perfil.Altura = p.Altura;
+                d.Dieta.Perfil.Meta = p.Meta;
+                d.Tema = p.Tema;
+                if (p.CorDestaque is not null) d.Config.CorDestaque = p.CorDestaque;
+                d.Config.ModulosOcultos = p.ModulosOcultos ?? [];
+            }),
+        Lista("registros_peso", d => d.Dieta.Registros, r => r.Id),
+        Lista("veiculos", d => d.Carro.Veiculos, v => v.Id),
+        Lista("abastecimentos", d => d.Carro.Abastecimentos, a => a.Id),
+        Lista("manutencoes", d => d.Carro.Manutencoes, m => m.Id),
+        Lista("documentos_carro", d => d.Carro.Documentos, x => x.Id),
+        Lista("assinaturas", d => d.Assinaturas, a => a.Id),
+        Lista("entretenimento", d => d.Entretenimento, e => e.Id),
+        new("quadros", typeof(QuadroLinha),
+            d => d.Tarefas.Quadros.Select((q, i) => (q.Id, (object)new QuadroLinha(q.Id, q.Nome, q.Emoji, i))),
+            (d, o, id) =>
+            {
+                var quadros = d.Tarefas.Quadros;
+                var atual = quadros.FindIndex(q => q.Id == id);
+                if (o is not QuadroLinha l)
+                {
+                    if (atual >= 0) quadros.RemoveAt(atual);
+                    return;
+                }
+                var q = atual >= 0 ? quadros[atual] : new Quadro { Id = id };
+                q.Nome = l.Nome;
+                q.Emoji = l.Emoji;
+                if (atual >= 0) quadros.RemoveAt(atual);
+                quadros.Insert(Math.Clamp(l.Ordem, 0, quadros.Count), q);
+            }),
+        new("colunas", typeof(ColunaLinha),
+            d => d.Tarefas.Quadros.SelectMany(q => q.Colunas.Select((c, i) => (c.Id, (object)new ColunaLinha(c.Id, q.Id, c.Nome, i)))),
+            (d, o, id) =>
+            {
+                foreach (var quadro in d.Tarefas.Quadros) quadro.Colunas.RemoveAll(c => c.Id == id);
+                if (o is not ColunaLinha l || d.Tarefas.Quadros.FirstOrDefault(q => q.Id == l.QuadroId) is not { } q) return;
+                q.Colunas.Insert(Math.Clamp(l.Ordem, 0, q.Colunas.Count), new ColunaQuadro { Id = id, Nome = l.Nome });
+            }),
+        Lista("cards", d => d.Tarefas.Cards, c => c.Id),
+    ];
+
+    private static Tabela Lista<T>(string nome, Func<EstadoApp, List<T>> lista, Func<T, string> id) where T : class => new(
+        nome, typeof(T),
+        d => lista(d).Select(x => (id(x), (object)x)),
+        (d, o, chave) =>
+        {
+            var l = lista(d);
+            var i = l.FindIndex(x => id(x) == chave);
+            if (o is T novo)
+            {
+                if (i >= 0) l[i] = novo; else l.Add(novo);
+            }
+            else if (i >= 0) l.RemoveAt(i);
+        });
+
+    /// <summary>Linhas (já no formato do servidor) de todos os dados: tabela → id → linha.</summary>
+    private static Dictionary<string, Dictionary<string, JsonObject>> Linhas(EstadoApp d)
+    {
+        var r = new Dictionary<string, Dictionary<string, JsonObject>>();
+        foreach (var t in Tabelas)
+        {
+            var linhas = r[t.Nome] = [];
+            foreach (var (id, linha) in t.Ler(d))
+                linhas[id] = JsonSerializer.SerializeToNode(linha, t.Tipo, Json)!.AsObject();
+        }
+        return r;
+    }
+
+    // As linhas são sempre geradas pelo mesmo caminho (modelo → JSON), então comparar o texto basta
+    private static bool Igual(JsonObject a, JsonObject b) => a.ToJsonString() == b.ToJsonString();
+
+    // ----- Estado -----
+
+    /// <summary>
+    /// Base: a última versão de cada linha confirmada pelo servidor, e até onde já recebemos (cursor por tabela).
+    /// Gravada em base.json, na pasta da conta. Sem ela, a próxima sincronização é a "primeira".
+    /// </summary>
+    private sealed class Base
+    {
+        public Dictionary<string, Dictionary<string, JsonObject>> Linhas { get; set; } = [];
+        public Dictionary<string, DateTimeOffset> Cursores { get; set; } = [];
+    }
+
+    private Base? _base;
+    private readonly SemaphoreSlim _rodando = new(1, 1);
+    private bool _denovo;
+    private Timer? _espera, _periodico;
+
+    /// <summary>Executa na thread da tela do Blazor (definido pelo layout). Sem ele, a sincronização espera.</summary>
+    public Func<Func<Task>, Task>? NaTela { get; set; }
+
+    public bool Ativa { get; private set; }
+
+    public bool Sincronizando { get; private set; }
+
+    public DateTime? Ultima { get; private set; }
+
+    /// <summary>Problema da última tentativa (sem internet, sessão expirada...). null = tudo certo.</summary>
+    public string? Problema { get; private set; }
+
+    /// <summary>Mudou o status (para o card "Conta"). Pode vir de outra thread.</summary>
+    public event Action? Mudou;
+
+    /// <summary>Chegaram mudanças do servidor e já estão em <see cref="ArmazenamentoService.Dados"/> (chamado na thread da tela).</summary>
+    public event Action? Recebeu;
+
+    public void Iniciar()
+    {
+        if (!ArmazenamentoService.PorConta || !SupabaseConfig.Configurado) return;
+        Ativa = true;
+        _espera = new Timer(_ => _ = Sincronizar());
+        _periodico = new Timer(_ => _ = Sincronizar(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+        store.Salvou += () => _espera.Change(3000, Timeout.Infinite);
+        NetworkChange.NetworkAvailabilityChanged += (_, e) => { if (e.IsAvailable) _espera.Change(3000, Timeout.Infinite); };
+        _espera.Change(1500, Timeout.Infinite);
+    }
+
+    /// <summary>Envia as mudanças daqui e recebe as do servidor. Nunca lança: problemas ficam em <see cref="Problema"/>.</summary>
+    public async Task Sincronizar()
+    {
+        if (!Ativa) return;
+        if (!await _rodando.WaitAsync(0))
+        {
+            _denovo = true; // já está rodando: roda de novo no fim, para pegar o que mudou nesse meio-tempo
+            return;
+        }
+        try
+        {
+            do
+            {
+                _denovo = false;
+                await Rodada();
+            } while (_denovo);
+        }
+        finally { _rodando.Release(); }
+    }
+
+    private async Task Rodada()
+    {
+        if (NaTela is null)
+        {
+            _espera?.Change(2000, Timeout.Infinite); // a janela ainda está abrindo
+            return;
+        }
+        if (!conta.Logado)
+        {
+            Avisar(problema: "Sessão encerrada. Entre na conta de novo para voltar a sincronizar.");
+            return;
+        }
+
+        Sincronizando = true;
+        Mudou?.Invoke();
+        try
+        {
+            if (!await conta.GarantirSessao())
+            {
+                Avisar(problema: conta.Logado ? "Sem conexão com o servidor. As mudanças ficam guardadas e vão depois." : "Sessão encerrada. Entre na conta de novo para voltar a sincronizar.");
+                return;
+            }
+            _base ??= LerBase();
+            if (_base is null) await Primeira();
+            else
+            {
+                await Enviar(_base);
+                await Receber(_base);
+            }
+            Avisar(problema: null);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Avisar(problema: "Sem conexão com o servidor. As mudanças ficam guardadas e vão depois.");
+        }
+        catch (Exception ex)
+        {
+            Avisar(problema: $"Não foi possível sincronizar: {ex.Message}");
+        }
+    }
+
+    private void Avisar(string? problema)
+    {
+        Sincronizando = false;
+        Problema = problema;
+        if (problema is null) Ultima = DateTime.Now;
+        Mudou?.Invoke();
+    }
+
+    // ----- Envio -----
+
+    private async Task Enviar(Base b)
+    {
+        var locais = await NaTelaRetornar(() => Linhas(store.Dados));
+        var agora = DateTimeOffset.UtcNow.ToString("o");
+
+        foreach (var t in Tabelas)
+        {
+            var local = locais[t.Nome];
+            var anterior = b.Linhas.GetValueOrDefault(t.Nome) ?? [];
+
+            var mudadas = local.Where(kv => !anterior.TryGetValue(kv.Key, out var a) || !Igual(a, kv.Value))
+                               .Where(kv => PaisExistem(t.Nome, kv.Value, locais))
+                               .ToList();
+            foreach (var lote in mudadas.Chunk(500))
+            {
+                var corpo = new JsonArray();
+                foreach (var (_, linha) in lote)
+                {
+                    var l = linha.DeepClone().AsObject();
+                    l["user_id"] = conta.UserId;
+                    if (!t.Perfil) l["excluido_em"] = null; // recriado depois de excluído
+                    corpo.Add(l);
+                }
+                await supabase.Enviar(HttpMethod.Post, $"/rest/v1/{t.Nome}?on_conflict={(t.Perfil ? "user_id" : "user_id,id")}", corpo,
+                    "resolution=merge-duplicates,return=minimal");
+                foreach (var (id, linha) in lote) anterior[id] = linha;
+            }
+
+            var removidas = t.Perfil ? new List<string>() : anterior.Keys.Where(id => !local.ContainsKey(id)).ToList();
+            foreach (var lote in removidas.Chunk(100))
+            {
+                await supabase.Enviar(HttpMethod.Patch, $"/rest/v1/{t.Nome}?id=in.({string.Join(',', lote.Select(Uri.EscapeDataString))})",
+                    new JsonObject { ["excluido_em"] = agora }, "return=minimal");
+                foreach (var id in lote) anterior.Remove(id);
+            }
+
+            b.Linhas[t.Nome] = anterior;
+            if (mudadas.Count > 0 || removidas.Count > 0) GravarBase(b);
+        }
+    }
+
+    // Um filho cujo pai não existe aqui não pode subir (o servidor recusaria pela chave estrangeira)
+    private static bool PaisExistem(string tabela, JsonObject l, Dictionary<string, Dictionary<string, JsonObject>> locais)
+    {
+        bool Tem(string pai, string campo) => l[campo]?.GetValue<string>() is not { } id || locais[pai].ContainsKey(id);
+        return tabela switch
+        {
+            "abastecimentos" or "manutencoes" or "documentos_carro" => Tem("veiculos", "veiculo_id"),
+            "colunas" => Tem("quadros", "quadro_id"),
+            "cards" => Tem("quadros", "quadro_id") && Tem("colunas", "coluna_id"),
+            _ => true,
+        };
+    }
+
+    // ----- Recebimento -----
+
+    private async Task Receber(Base b)
+    {
+        // Busca tudo o que mudou em todas as tabelas e aplica de uma vez (pais antes dos filhos)
+        var recebidas = new List<(Tabela T, string Id, JsonObject? Linha)>();
+        var cursores = new Dictionary<string, DateTimeOffset>();
+        foreach (var t in Tabelas)
+        {
+            var (linhas, cursor) = await Buscar(t, b.Cursores.TryGetValue(t.Nome, out var c) ? c : null);
+            if (cursor is { } novo) cursores[t.Nome] = novo;
+            var anterior = b.Linhas.GetValueOrDefault(t.Nome) ?? [];
+            foreach (var (id, linha) in linhas)
+            {
+                // Volta também o que acabamos de enviar (e a margem de 1 min repete linhas): só aplica o que é diferente
+                var igual = linha is null ? !anterior.ContainsKey(id) : anterior.TryGetValue(id, out var a) && Igual(a, linha);
+                if (!igual) recebidas.Add((t, id, linha));
+            }
+        }
+
+        if (recebidas.Count > 0)
+        {
+            await NaTela!(() =>
+            {
+                foreach (var (t, id, linha) in recebidas)
+                    t.Aplicar(store.Dados, linha?.Deserialize(t.Tipo, Json), id);
+                store.NormalizarESalvar();
+                // A base passa a ter o que veio do servidor (assim não é reenviado)
+                foreach (var (t, id, linha) in recebidas)
+                {
+                    var anterior = b.Linhas.TryGetValue(t.Nome, out var x) ? x : b.Linhas[t.Nome] = [];
+                    if (linha is null) anterior.Remove(id); else anterior[id] = linha;
+                }
+                Recebeu?.Invoke();
+                return Task.CompletedTask;
+            });
+        }
+
+        foreach (var (nome, cursor) in cursores) b.Cursores[nome] = cursor;
+        GravarBase(b);
+    }
+
+    /// <summary>
+    /// Linhas da tabela alteradas depois do cursor (todas, se null), já normalizadas para comparar com a base.
+    /// Linha null = excluída. Retorna também o novo cursor (maior atualizado_em visto).
+    /// </summary>
+    private async Task<(List<(string Id, JsonObject? Linha)> Linhas, DateTimeOffset? Cursor)> Buscar(Tabela t, DateTimeOffset? desde)
+    {
+        var r = new List<(string, JsonObject?)>();
+        DateTimeOffset? cursor = null;
+        // Margem de 1 min: gravações em andamento podem terminar com um atualizado_em um pouco anterior ao último visto
+        var filtro = desde is { } d ? $"&atualizado_em=gt.{Uri.EscapeDataString(d.AddMinutes(-1).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'"))}" : "";
+        var ordem = t.Perfil ? "atualizado_em.asc" : "atualizado_em.asc,id.asc";
+        const int Pagina = 1000;
+        for (var inicio = 0; ; inicio += Pagina)
+        {
+            var resposta = await supabase.Enviar(HttpMethod.Get, $"/rest/v1/{t.Nome}?select=*&order={ordem}&limit={Pagina}&offset={inicio}{filtro}");
+            var linhas = resposta?.AsArray() ?? [];
+            foreach (var n in linhas)
+            {
+                var o = n!.AsObject();
+                if (o["atualizado_em"]?.GetValue<string>() is { } s && DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var quando) && (cursor is null || quando > cursor))
+                    cursor = quando;
+                var id = t.Perfil ? IdPerfil : o["id"]!.GetValue<string>();
+                var excluida = !t.Perfil && o["excluido_em"] is JsonValue;
+                // Passa pelo modelo e volta: fica no mesmo formato das linhas geradas pelo app
+                r.Add((id, excluida ? null : JsonSerializer.SerializeToNode(o.Deserialize(t.Tipo, Json), t.Tipo, Json)!.AsObject()));
+            }
+            if (linhas.Count < Pagina) break;
+        }
+        // Quadros e colunas entram na posição da "ordem": aplicar em ordem crescente monta a lista certa
+        if (t.Nome is "quadros" or "colunas")
+            r = [.. r.OrderBy(x => x.Item2?["ordem"]?.GetValue<int>() ?? 0)];
+        return (r, cursor);
+    }
+
+    // ----- Primeira sincronização (fase 4) -----
+
+    private async Task Primeira()
+    {
+        var b = new Base();
+        var doServidor = new List<(Tabela T, string Id, JsonObject Linha)>();
+        foreach (var t in Tabelas)
+        {
+            var (linhas, cursor) = await Buscar(t, null);
+            if (cursor is { } c) b.Cursores[t.Nome] = c;
+            doServidor.AddRange(linhas.Where(l => l.Linha is not null).Select(l => (t, l.Id, l.Linha!)));
+        }
+
+        // Só o perfil não conta: ele é criado sozinho
+        if (doServidor.Any(l => !l.T.Perfil))
+        {
+            // Conta com dados: eles substituem os deste computador, que ficam guardados
+            await NaTela!(() =>
+            {
+                try { File.Copy(ArmazenamentoService.CaminhoDados, Path.Combine(ArmazenamentoService.PastaDados, $"dados.antes-sincronizar-{DateTime.Now:yyyyMMdd-HHmmss}.json"), overwrite: true); }
+                catch { }
+                var novo = new EstadoApp { Tema = store.Dados.Tema, Config = store.Dados.Config };
+                foreach (var (t, id, linha) in doServidor)
+                    t.Aplicar(novo, linha.Deserialize(t.Tipo, Json), id);
+                foreach (var (t, id, linha) in doServidor)
+                    (b.Linhas.TryGetValue(t.Nome, out var x) ? x : b.Linhas[t.Nome] = [])[id] = linha;
+                store.Substituir(novo);
+                Recebeu?.Invoke();
+                return Task.CompletedTask;
+            });
+        }
+        // Conta vazia: a base fica vazia e o envio abaixo sobe tudo o que há aqui
+
+        _base = b;
+        GravarBase(b);
+        await Enviar(b); // o que o app completou ao normalizar (ou tudo, na conta vazia)
+    }
+
+    // ----- base.json -----
+
+    private static Base? LerBase()
+    {
+        try { return File.Exists(CaminhoBase) ? JsonSerializer.Deserialize<Base>(File.ReadAllText(CaminhoBase), JsonBase) : null; }
+        catch { return null; } // corrompida: refaz pela primeira sincronização (nada se perde, os locais ficam guardados)
+    }
+
+    private static void GravarBase(Base b)
+    {
+        var temporario = CaminhoBase + ".tmp";
+        File.WriteAllText(temporario, JsonSerializer.Serialize(b, JsonBase));
+        File.Move(temporario, CaminhoBase, overwrite: true);
+    }
+
+    private async Task<T> NaTelaRetornar<T>(Func<T> f)
+    {
+        T r = default!;
+        await NaTela!(() => { r = f(); return Task.CompletedTask; });
+        return r;
+    }
+}

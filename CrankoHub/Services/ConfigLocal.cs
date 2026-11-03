@@ -23,6 +23,12 @@ public class ConfigLocal
     /// <summary>null até migrar a opção antiga, que ficava nos dados (e iria junto para o outro PC).</summary>
     public bool? IniciarComWindows { get; set; }
 
+    /// <summary>Usuário da conta conectada neste computador (null = sem conta). A sessão fica em <see cref="CofreSessao"/>.</summary>
+    public string? ContaUsuario { get; set; }
+
+    /// <summary>Id (user_id) da conta conectada no Supabase.</summary>
+    public string? ContaId { get; set; }
+
     public void Salvar()
     {
         Directory.CreateDirectory(Pasta);

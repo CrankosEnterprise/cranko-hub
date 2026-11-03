@@ -15,16 +15,38 @@ public class ArmazenamentoService
     /// <summary>Pasta deste computador (WebView, trava de instância, local.json).</summary>
     public static readonly string PastaLocal = ConfigLocal.Pasta;
 
-    /// <summary>Pasta dos dados: a local ou uma sincronizada (se ainda existir). Muda só reiniciando o app.</summary>
+    /// <summary>Havia uma conta conectada ao abrir o app: os dados são os dela (contas/&lt;user_id&gt;/), sincronizados com o servidor.</summary>
+    public static readonly bool PorConta = ConfigLocal.Atual.ContaId is not null;
+
+    /// <summary>Pasta dos dados: a da conta, uma sincronizada (se ainda existir) ou a local. Muda só reiniciando o app.</summary>
     public static readonly string PastaDados =
-        ConfigLocal.Atual.PastaDados is { } p && Directory.Exists(p) ? p : PastaLocal;
+        ConfigLocal.Atual.ContaId is { } conta ? PastaDaConta(conta)
+        : ConfigLocal.Atual.PastaDados is { } p && Directory.Exists(p) ? p : PastaLocal;
 
     public static readonly string CaminhoDados = Path.Combine(PastaDados, "dados.json");
 
-    public static bool Sincronizada => PastaDados != PastaLocal;
+    /// <summary>Os dados estão numa pasta do OneDrive/Google Drive (item 12), não na de uma conta.</summary>
+    public static bool Sincronizada => !PorConta && PastaDados != PastaLocal;
 
     /// <summary>A pasta sincronizada escolhida não foi encontrada (ex.: OneDrive desconectado) e os dados locais estão em uso.</summary>
-    public static bool PastaSincronizadaSumiu => ConfigLocal.Atual.PastaDados is not null && !Sincronizada;
+    public static bool PastaSincronizadaSumiu => !PorConta && ConfigLocal.Atual.PastaDados is not null && !Sincronizada;
+
+    public static string PastaDaConta(string userId) => Path.Combine(PastaLocal, "contas", userId);
+
+    /// <summary>
+    /// Ao entrar numa conta: se este computador ainda não tem a pasta dela, começa com uma cópia dos dados atuais
+    /// (e das capas). A primeira sincronização decide depois se eles sobem (conta vazia) ou dão lugar aos da nuvem.
+    /// Os dados atuais continuam onde estão e voltam ao sair da conta.
+    /// </summary>
+    public static void PrepararPastaDaConta(string userId)
+    {
+        var pasta = PastaDaConta(userId);
+        Directory.CreateDirectory(pasta);
+        var destino = Path.Combine(pasta, "dados.json");
+        if (File.Exists(destino)) return;
+        if (File.Exists(CaminhoDados)) File.Copy(CaminhoDados, destino);
+        CopiarCapas(CapasService.Pasta, Path.Combine(pasta, "capas"));
+    }
 
     // Mesmo formato (camelCase, datas "AAAA-MM-DD") do antigo app web, para os backups serem compatíveis
     private static readonly JsonSerializerOptions OpcoesJson = new()
@@ -153,6 +175,23 @@ public class ArmazenamentoService
         }
     }
 
+    /// <summary>Os dados foram gravados (a sincronização com a conta espera uns segundos e envia as mudanças).</summary>
+    public event Action? Salvou;
+
+    /// <summary>Substitui todos os dados (ex.: pelos da conta, na primeira sincronização) e grava.</summary>
+    public void Substituir(EstadoApp novo)
+    {
+        Dados = Normalizar(novo);
+        Salvar();
+    }
+
+    /// <summary>Depois de mudar <see cref="Dados"/> direto (mudanças vindas do servidor): normaliza e grava.</summary>
+    public void NormalizarESalvar()
+    {
+        Dados = Normalizar(Dados);
+        Salvar();
+    }
+
     /// <summary>Avisa o menu quando um módulo é mostrado ou escondido.</summary>
     public event Action? ModulosMudaram;
 
@@ -197,7 +236,9 @@ public class ArmazenamentoService
         catch (Exception ex)
         {
             _toast.Erro($"Não foi possível salvar os dados: {ex.Message}");
+            return;
         }
+        Salvou?.Invoke();
     }
 
     public void Resetar()

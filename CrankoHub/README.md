@@ -216,11 +216,26 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 - **Barra de título:** o `JanelaService` avisa a troca de visual, do mesmo jeito que já faz com `TemaMudou`. O `MainWindow` escolhe entre as cores lisas de hoje e o gradiente Aero, e entre as bolinhas lisas e as de gel. No Linux (Photino) a barra é a do sistema, então não há nada a fazer.
 - **Como testar:** alternar entre os visuais nos temas claro e escuro, com várias cores de destaque, em todas as páginas (Início, Dieta, Carro e suas abas, Assinaturas, Entretenimento, Tarefas, Configurações), nos diálogos de confirmação e nos toasts.
 
-## 14. Supabase: dados centralizados com login 📋 (planejado)
+## 14. Supabase: dados centralizados com login 🚧 (fases 1 a 4 feitas; falta testar a sincronização no app; capas ficam para depois)
 
-**Objetivo:** contas com e-mail e senha e dados centralizados por usuário, para que o desktop atual e os futuros app de celular e versão web usem a mesma base.
+**Objetivo:** contas com login e dados centralizados por usuário, para que o desktop atual e os futuros app de celular e versão web usem a mesma base.
 
 **Situação:** o repositório é público, mas por enquanto só o dono testa essa integração. A estrutura já nasce pronta para vários usuários, cada um vendo só os próprios dados.
+
+**Onde estamos (03/11/2026):**
+- ✅ Projeto criado no Supabase, URL e publishable key em `Services/SupabaseConfig.cs`.
+- ✅ SQL da fase 1 rodado; cadastro desligado no painel; usuário `diego@crankohub.local` criado à mão.
+- ✅ Testado por `curl` só com a publishable key: cadastro recusado (`signup_disabled`), as 11 tabelas negam leitura e gravação sem login (`permission denied`), senha errada recusada.
+- ✅ Código das fases 2 (login), 3 (sincronização) e 4 (primeiro login/migração) compilando no Windows e no Linux. O .exe de teste foi gerado com `dotnet publish CrankoHub.csproj -c Release -o <pasta>`.
+- ⏳ **Falta testar no app:** entrar com `diego`, ver "Sincronizado às …" no card "Conta", conferir os dados no Table Editor do painel, editar/excluir e ver refletir; depois com um segundo PC (ver "Como testar").
+- ⏳ Ainda sem commit e sem Release novo (o .exe de teste continua marcado como 1.0.0, igual ao último Release, então o auto-update não o substitui). Para os outros PCs: tag nova, ex.: `crankohub-v1.1.0`.
+- ⏸️ Fase 5 (capas) adiada.
+
+**Login só do admin (decisão atual):**
+- Não existe cadastro pelo app: o card "Conta" tem apenas **Usuário + Senha → Entrar** (e Sair). Sem "criar conta" e sem "esqueci a senha".
+- O login é por **usuário**, não por e-mail. O Supabase Auth só aceita e-mail, então o app transforma `diego` em `diego@crankohub.local` (`SupabaseConfig.DominioUsuario`, `ContaService.ParaEmail`). Um texto com `@` passa como está.
+- O usuário é criado **à mão** no painel. Como a publishable key é pública, tirar o botão não basta: o bloqueio de verdade é desligar **"Allow new users to sign up"** no painel (ver abaixo).
+- Futuro: e-mail opcional em Configurações → Conta, para recuperar senha e avisos.
 
 ### Formas de conexão do Supabase
 
@@ -252,7 +267,7 @@ Web (futuro) ────────┘
 - **Sincronização por trás:** um serviço novo compara os dados com a última versão confirmada pelo servidor e envia só o que mudou.
 - **Login opcional no desktop:** sem conta, o app funciona como hoje.
 
-### Fase 1: Banco (`supabase/migrations/0001_esquema_inicial.sql`)
+### Fase 1: Banco (`supabase/migrations/0001_esquema_inicial.sql`) ✅ (rodado no painel)
 
 Todas as tabelas de dados têm:
 - `user_id uuid references auth.users on delete cascade` e `id text`, com **PK `(user_id, id)`**. Mantém os ids atuais do `NovoId()`, então não há conversão.
@@ -282,41 +297,52 @@ RLS e permissões, em todas as tabelas:
 
 **Ficam fora do banco (por aparelho):** `PastaBackup`, `BackupAutomatico`, avisos enviados, bandeja, `Carro.Ativo`, `Tarefas.Ativo`. As chaves `ChaveTmdb`/`ChaveRawg` também ficam locais nesta etapa.
 
-### Fase 2: Login
+### Fase 2: Login ✅
 
-- **`Services/SupabaseConfig.cs`:** URL e publishable key como constantes.
-- **`Services/SupabaseCliente.cs`:** `HttpClient` próprio que envia `apikey` e `Authorization: Bearer <token do usuário>`. Nunca enviar a publishable key no `Authorization`, porque o Supabase tenta ler como JWT e rejeita. Renova o token sozinho.
-- **`Services/ContaService.cs`:** cadastrar, entrar, sair, recuperar senha (endpoints `/auth/v1/...`) e evento de estado da conta.
-- **Sessão:** guardar só o refresh token, nunca a senha. Windows: criptografado com DPAPI em `Services/CofreSessao.cs`. Linux: versão em `Linux/Plataforma/CofreSessao.cs` com permissão 600, excluindo o arquivo do link em `Linux/CrankoHub.Linux.csproj` como os demais serviços de plataforma.
-- **`Pages/Configuracoes.razor`:** card "Conta" com entrar, criar conta, sair e status da sincronização.
-- **Registrar serviços** em `App.xaml.cs` e `Linux/Program.cs`.
-- **Dados por conta:** em `ConfigLocal`, guardar a conta ativa; `PastaDados` passa a ser `contas/<user_id>/` quando logado. Login e logout reiniciam o app (`AtualizacaoService.Reiniciar()`), do mesmo jeito que a troca de pasta já faz. Assim, duas pessoas no mesmo PC não misturam dados.
+- **`Services/SupabaseConfig.cs`:** URL, publishable key e domínio interno dos usuários como constantes. Com a URL vazia, o card "Conta" diz que a conta não está disponível e nada é chamado.
+- **`Services/SupabaseCliente.cs`:** `HttpClient` próprio que envia `apikey` e `Authorization: Bearer <token do usuário>`. Nunca envia a publishable key no `Authorization`, porque o Supabase tenta ler como JWT e rejeita. Renova o token sozinho; `Enviar(...)` já serve para a Data API da fase 3.
+- **`Services/ContaService.cs`:** entrar (usuário → e-mail interno), sair, restaurar a sessão ao abrir e evento `Mudou`. Sessão recusada pelo servidor (senha trocada, revogada) sai sozinha; sem internet continua logado ("sem conexão agora").
+- **Sessão:** só o refresh token, nunca a senha. Windows: DPAPI em `Services/CofreSessao.cs` (`sessao.bin`). Linux: `Linux/Plataforma/CofreSessao.cs`, arquivo `sessao` com permissão 600.
+- **`ConfigLocal`:** `ContaUsuario` e `ContaId`, por computador.
+- **`Pages/Configuracoes.razor`:** card "Conta" com usuário/senha e Entrar (sem criar conta); logado, mostra o status da sincronização, "Sincronizar agora" e Sair. Entrar e sair reiniciam o app (`AtualizacaoService.Reiniciar()`), para trocar para a pasta da conta e voltar (fase 4).
+- **`GarantirSessao()`:** usado pela sincronização; renova o token quando precisa e, se o servidor recusar, sai da conta.
 
-### Fase 3: Sincronização (`Services/SincronizacaoService.cs`)
+### Fase 3: Sincronização (`Services/SincronizacaoService.cs`) ✅ (falta testar com dois PCs)
 
 - **Gatilho:** `ArmazenamentoService.Salvar()` dispara um evento novo, com espera de 3 s para agrupar edições. Também roda ao abrir, ao voltar a internet e a cada 5 min.
 - **Envio:** compara cada coleção com `base.json` (última versão confirmada), item a item pelo `Id`.
   - Novos ou alterados: `POST /rest/v1/<tabela>?on_conflict=user_id,id` com `Prefer: resolution=merge-duplicates`.
   - Removidos: preenche `excluido_em`.
   - Ordem pais antes de filhos: `veiculos` → filhos; `quadros` → `colunas` → `cards`.
-  - Um `JsonSerializerOptions` com `SnakeCaseLower` mapeia os modelos atuais, sem DTOs. Só `Quadro.Colunas` precisa de tratamento à parte.
-- **Recebimento:** busca `atualizado_em=gt.<cursor>` por tabela (com margem de 1 min), aplica em `Dados`, grava local e atualiza `base.json`. A tela é atualizada pelo caminho já existente: `MudouPorFora` → `RecarregarDados` em `Layout/LayoutPrincipal.razor`.
+  - Um `JsonSerializerOptions` com `SnakeCaseLower` mapeia os modelos atuais, sem DTOs. Quadros, colunas (que no app ficam dentro do quadro) e o perfil usam records próprios (`QuadroLinha`, `ColunaLinha`, `PerfilLinha`).
+- **Recebimento:** busca `atualizado_em=gt.<cursor>` por tabela (com margem de 1 min), aplica em `Dados`, grava local e atualiza `base.json`. Só aplica o que difere da base (o que acabou de ser enviado volta igual e é ignorado). A tela é atualizada pelo evento `Recebeu` → `RecebeuDaConta` em `Layout/LayoutPrincipal.razor`, no mesmo estilo do `RecarregarDados`.
 - **Conflito:** por registro, a última gravação no servidor vence. Editar coisas diferentes em dois aparelhos não gera conflito, um ganho grande sobre o documento inteiro de hoje.
-- **Falha ou offline:** não incomoda o usuário. Mudanças ficam pendentes, porque o diff com `base.json` as recupera, e o status aparece no card "Conta".
+- **Falha ou offline:** não incomoda o usuário. Mudanças ficam pendentes, porque o diff com `base.json` as recupera, e o status aparece no card "Conta" (com o botão "Sincronizar agora").
 - **Pasta sincronizada:** logado, os botões de OneDrive ficam desativados, pois os dois mecanismos não devem rodar juntos. A estratégia do item 12 segue para quem não tem conta.
 
-### Fase 4: Primeiro login (migração)
+### Fase 4: Primeiro login (migração) ✅
 
-- Conta vazia: envia os dados locais.
-- Conta com dados: usa os da nuvem e guarda os locais como `dados.antes-sincronizar-*.json`, igual ao `UsarPasta` atual.
-- Sempre fazer um backup antes. Importar backup e "Apagar tudo" passam a refletir na nuvem pelo mesmo diff; "Apagar tudo" exige confirmação clara disso.
+- **Pasta por conta:** logado, `PastaDados` é `contas/<user_id>/` (`ArmazenamentoService.PorConta`). Ao entrar, `PrepararPastaDaConta` copia os dados e as capas atuais para lá (se a pasta ainda não existe) e o app reinicia. Ao sair, as mudanças pendentes são enviadas, o app reinicia e volta aos dados de antes do login; a pasta da conta fica como cache para o próximo login.
+- **Primeira sincronização** (sem `base.json` na pasta da conta): baixa tudo do servidor.
+  - Conta vazia: os dados copiados sobem.
+  - Conta com dados: eles substituem os copiados, que ficam guardados como `dados.antes-sincronizar-*.json` (os originais também continuam na pasta de antes do login).
+- Importar backup, dados de exemplo e "Apagar tudo" refletem na nuvem pelo mesmo diff; logado, as confirmações avisam disso.
+- **Detalhes da implementação:** as linhas são geradas dos modelos com `SnakeCaseLower` (quadros, colunas e perfil têm records próprios, com `ordem` = posição na lista). Filhos cujo pai não existe localmente não sobem, para não esbarrar nas chaves estrangeiras. O layout fornece `NaTela` (thread do Blazor) para ler e aplicar os dados; mudanças recebidas recriam a página aberta e reaplicam tema/cor.
 
-### Fase 5: Capas (Storage)
+### Fase 5: Capas (Storage) ⏸️ (adiada)
 
-Bucket privado `capas`, com caminho `<user_id>/<arquivo>` e políticas por dono. O `CapasService` envia a capa e baixa as que faltam no aparelho. A pasta local continua como cache. É separada porque a sincronização de dados funciona sem ela.
+Hoje as capas **não sincronizam**: a coluna `entretenimento.capa` leva só o nome do arquivo, e a imagem fica na pasta `capas/` de cada PC. Num PC novo, os itens aparecem sem capa (dá para buscar de novo pelo próprio item).
+
+**Decisão tomada (para quando retomar):**
+- A imagem **não** vai na mesma linha do Entretenimento: mudar a nota ou o status reenviaria a imagem, e a busca de "o que mudou" traria as imagens a cada sincronização (gasta a cota de tráfego de 5 GB/mês e pesa o `base.json`).
+- A capa fica **separada** e é enviada uma vez só: o nome do arquivo é único e nunca muda, então basta subir quando é nova e baixar quando falta.
+- **Preferência: Storage** (bucket privado `capas`, caminho `<user_id>/<arquivo>`, políticas por dono). Dá o mesmo trabalho que uma tabela `capas` no banco, não divide os 500 MB do banco (o Storage tem 1 GB no plano gratuito) e guarda o arquivo como ele é, sem base64. A alternativa no banco continua possível se preferir não usar o Storage.
+- Reduzir as capas importadas para ~600 px de largura antes de salvar (hoje o `CapasService` guarda a imagem original), para ficarem em ~100–200 KB.
+- O `CapasService` envia a capa nova, baixa as que faltam no aparelho e a pasta local continua como cache.
 
 ### Antes de abrir o login ao público (fora desta entrega)
 
+- **Cadastro:** hoje fechado no painel e sem botão no app. Abrir exige religar "Allow new users to sign up" e criar a tela de cadastro (com e-mail de verdade).
 - **Confirmação de e-mail:** desligada agora, para testar; ligar, com SMTP próprio e página de redefinição de senha (o desktop não recebe esse link).
 - **LGPD:** política de privacidade, exportação de dados e **excluir conta** (Edge Function com a secret key).
 - **Revisão de RLS:** rodar o Security Advisor do painel e testar com duas contas.
@@ -325,18 +351,22 @@ Bucket privado `capas`, com caminho `<user_id>/<arquivo>` e políticas por dono.
 ### Arquivos principais
 
 - **Novos:** `supabase/migrations/0001_esquema_inicial.sql`, `Services/SupabaseConfig.cs`, `Services/SupabaseCliente.cs`, `Services/ContaService.cs`, `Services/SincronizacaoService.cs`, `Services/CofreSessao.cs`, `Linux/Plataforma/CofreSessao.cs`.
-- **Alterados:** `Services/ArmazenamentoService.cs`, `Services/ConfigLocal.cs`, `Services/CapasService.cs`, `Pages/Configuracoes.razor`, `Layout/LayoutPrincipal.razor`, `App.xaml.cs`, `Linux/Program.cs`, `Linux/CrankoHub.Linux.csproj`.
+- **Alterados:** `Services/ArmazenamentoService.cs` (`PorConta`, `PastaDaConta`, `PrepararPastaDaConta`, evento `Salvou`, `Substituir`, `NormalizarESalvar`), `Services/ConfigLocal.cs`, `Pages/Configuracoes.razor`, `Layout/LayoutPrincipal.razor` (`NaTela`, `RecebeuDaConta`, texto do rodapé do menu), `App.xaml.cs`, `Linux/Program.cs`, `Linux/CrankoHub.Linux.csproj`.
+- **Fase 5 (depois):** `Services/CapasService.cs` e um SQL novo para o bucket.
 
-### O que fazer no painel do Supabase
+### O que fazer no painel do Supabase ✅ (feito)
 
-1. Copiar a **Project URL** e a **publishable key** (Connect ou Settings > API Keys).
-2. Rodar a migração no **SQL Editor**.
-3. Em Authentication, deixar "Confirm email" desligado durante os testes.
+1. Copiar a **Project URL** e a **publishable key** (Connect ou Settings > API Keys) para `Services/SupabaseConfig.cs`.
+2. Rodar `supabase/migrations/0001_esquema_inicial.sql` no **SQL Editor** e conferir o **Security Advisor** (nenhuma tabela sem RLS).
+3. Authentication → Sign In / Providers: **desligar "Allow new users to sign up"** (é isso que impede outras pessoas de criarem conta) e deixar "Confirm email" desligado.
+4. Authentication → Users → **Add user**: e-mail `diego@crankohub.local` (o usuário + `@crankohub.local`), a senha e "Auto Confirm User".
+5. (Opcional) Inserir a linha em `perfis` com `user_id` do usuário criado e `usuario = 'diego'`.
+6. Conferir que o cadastro está fechado: `curl -X POST <url>/auth/v1/signup -H "apikey: <publishable>" -H "Content-Type: application/json" -d '{"email":"x@exemplo.com","password":"12345678"}'` deve responder "Signups not allowed".
 
 ### Como testar
 
-1. `dotnet build` do `cranko-hub.slnx` (Windows e Linux) sem erros.
-2. **RLS:** com duas contas, a conta B não lê nem altera dados da conta A, e chamadas sem login não retornam nada.
+1. ✅ `dotnet build` do `cranko-hub.slnx` (Windows e Linux) sem erros.
+2. **RLS:** ✅ chamadas sem login não leem nem gravam nada (testado por `curl`). Falta: com duas contas, a conta B não lê nem altera dados da conta A.
 3. **Migração:** logar com os dados de exemplo e conferir no painel as contagens contra `Pages/Configuracoes.razor`.
 4. **Dois PCs (ou duas pastas de teste):** criar, editar e excluir em A e ver em B sem reiniciar.
 5. **Conflito:** editar registros diferentes em A e B ao mesmo tempo; as duas mudanças ficam.

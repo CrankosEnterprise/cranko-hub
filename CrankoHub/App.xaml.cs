@@ -57,6 +57,8 @@ public partial class App : Application
         bandeja.AplicarCor(Models.CorDestaque.DaConfig(store.Dados.Config.CorDestaque).Claro);
         avisos.Iniciar();
         Servicos.GetRequiredService<AtualizacaoService>().Iniciar();
+        _ = Servicos.GetRequiredService<ContaService>().Restaurar();
+        Servicos.GetRequiredService<SincronizacaoService>().Iniciar();
         if (atualizado)
             bandeja.Notificar("CrankoHub atualizado", $"Agora na versão {AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)}.");
     }
@@ -83,6 +85,9 @@ public partial class App : Application
         servicos.AddSingleton(http);
         servicos.AddSingleton<CapasService>();
         servicos.AddSingleton<EntretenimentoBusca>();
+        servicos.AddSingleton<SupabaseCliente>();
+        servicos.AddSingleton<ContaService>();
+        servicos.AddSingleton<SincronizacaoService>();
         return servicos.BuildServiceProvider();
     }
 

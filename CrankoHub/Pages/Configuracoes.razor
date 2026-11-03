@@ -9,6 +9,9 @@
 @inject IJSRuntime JS
 @inject BandejaService Bandeja
 @inject AtualizacaoService Atualizacao
+@inject ContaService Conta
+@inject SincronizacaoService Sincronizacao
+@implements IDisposable
 
 @{
     var d = Store.Dados;
@@ -75,6 +78,61 @@
 </section>
 
 <section class="card">
+    <div class="card-head"><div><h2>Conta</h2><p>Conta no servidor do CrankoHub, para os dados ficarem disponíveis em outros aparelhos.</p></div></div>
+    @if (!ContaService.Configurado)
+    {
+        <p class="muted">A conta ainda não está disponível nesta versão. Os dados ficam neste computador, como sempre.</p>
+    }
+    else if (Conta.Logado)
+    {
+        <p>Conectado como <b>@Conta.Usuario</b>@(Conta.Offline ? " (sem conexão agora)" : "").</p>
+        @if (!ArmazenamentoService.PorConta)
+        {
+            <p class="aviso-sincronia">Reinicie o app para começar a usar os dados da conta.</p>
+        }
+        else if (Sincronizacao.Problema is { } problema)
+        {
+            <p class="aviso-sincronia">@problema</p>
+        }
+        else
+        {
+            <p class="muted">@(Sincronizacao.Sincronizando ? "Sincronizando…" : Sincronizacao.Ultima is DateTime ultima ? $"Sincronizado às {ultima:HH:mm}. As mudanças vão sozinhas para os outros aparelhos." : "Preparando a sincronização…")</p>
+        }
+        <div class="form-actions">
+            @if (ArmazenamentoService.PorConta)
+            {
+                <button class="btn" type="button" disabled="@Sincronizacao.Sincronizando" @onclick="Sincronizacao.Sincronizar">Sincronizar agora</button>
+            }
+            <button class="btn" type="button" @onclick="SairDaConta">Sair</button>
+        </div>
+    }
+    else
+    {
+        @if (ArmazenamentoService.PorConta)
+        {
+            <p class="aviso-sincronia">A sessão da conta foi encerrada. Entre de novo para voltar a sincronizar.</p>
+        }
+        else
+        {
+            <p class="muted">Ao entrar, o app reinicia e passa a usar os dados da conta. Se ela estiver vazia, os dados deste computador sobem para ela; se já tiver dados, eles são usados aqui e os atuais ficam guardados. Ao sair, os dados de agora voltam.</p>
+        }
+        <form autocomplete="off" @onsubmit="EntrarNaConta">
+            <div class="form-grid">
+                <label class="field"><span>Usuário</span><input maxlength="60" autocapitalize="off" spellcheck="false" @bind="_usuario"></label>
+                <label class="field"><span>Senha</span><input type="password" maxlength="200" @bind="_senha"></label>
+            </div>
+            @if (_erroConta is not null)
+            {
+                <p class="aviso-sincronia">@_erroConta</p>
+            }
+            <div class="form-actions">
+                <button class="btn primary" type="submit" disabled="@_entrando">@(_entrando ? "Entrando…" : "Entrar")</button>
+            </div>
+        </form>
+    }
+</section>
+
+<section class="card">
     <div class="card-head"><div><h2>Armazenamento</h2><p>@ArmazenamentoService.CaminhoDados@(ArmazenamentoService.Sincronizada ? " · sincronizada" : "")</p></div></div>
     <div class="storage-stats">
         <div><span>Registros de peso</span><b>@d.Dieta.Registros.Count</b></div>
@@ -89,7 +147,11 @@
     </div>
     <div class="sincronia">
         <h3>Usar em mais de um computador</h3>
-        @if (ArmazenamentoService.Sincronizada)
+        @if (ArmazenamentoService.PorConta)
+        {
+            <p class="muted">Com a <b>conta</b> conectada, os dados já vão para os outros aparelhos pela conta, então a pasta sincronizada fica desativada. Ela volta a valer ao sair da conta.</p>
+        }
+        else if (ArmazenamentoService.Sincronizada)
         {
             <p class="muted">Os dados estão numa <b>pasta sincronizada</b>. Os outros computadores que apontarem para ela veem as mesmas informações, e mudanças feitas lá aparecem aqui sozinhas.</p>
         }
@@ -107,7 +169,10 @@
             <p class="aviso-sincronia">@conflitos.Count @Plural(conflitos.Count, "cópia", "cópias") de conflito na pasta (@string.Join(", ", conflitos.Select(Path.GetFileName))). Confira se falta algo e, se quiser, importe pelo backup abaixo; depois pode apagar.</p>
         }
         <div class="form-actions">
-            <button class="btn" type="button" @onclick="UsarPastaSincronizada">@(ArmazenamentoService.Sincronizada ? "Trocar pasta…" : "Usar pasta sincronizada…")</button>
+            @if (!ArmazenamentoService.PorConta)
+            {
+                <button class="btn" type="button" @onclick="UsarPastaSincronizada">@(ArmazenamentoService.Sincronizada ? "Trocar pasta…" : "Usar pasta sincronizada…")</button>
+            }
             @if (ArmazenamentoService.Sincronizada || ArmazenamentoService.PastaSincronizadaSumiu)
             {
                 <button class="btn" type="button" @onclick="VoltarParaLocal">Voltar para a pasta local</button>
@@ -237,6 +302,57 @@
         Store.Salvar();
         await JS.InvokeVoidAsync("crankohub.aplicarTema", tema);
         Janela.TemaMudou(tema);
+    }
+
+    private string _usuario = "", _senha = "";
+    private string? _erroConta;
+    private bool _entrando;
+
+    // A sessão é renovada em segundo plano ao abrir o app: redesenha quando terminar
+    private void ContaMudou() => InvokeAsync(StateHasChanged);
+
+    protected override void OnInitialized()
+    {
+        Conta.Mudou += ContaMudou;
+        Sincronizacao.Mudou += ContaMudou;
+    }
+
+    public void Dispose()
+    {
+        Conta.Mudou -= ContaMudou;
+        Sincronizacao.Mudou -= ContaMudou;
+    }
+
+    // Aviso nas confirmações que mexem em todos os dados: logado, a mudança vai junto para a conta
+    private static string NaConta => ArmazenamentoService.PorConta ? " Com a conta conectada, isso também vale para a nuvem e para os outros aparelhos." : "";
+
+    // O mesmo aviso, como explicação (segunda linha) de uma pergunta que só tem título
+    private static string ExplicacaoNaConta => NaConta.Length > 0 ? "\n" + NaConta.Trim() : "";
+
+    private async Task EntrarNaConta()
+    {
+        _erroConta = null;
+        _entrando = true;
+        try
+        {
+            await Conta.Entrar(_usuario, _senha);
+            _senha = "";
+            Toast.Ok($"Conectado como {Conta.Usuario}. Reiniciando…");
+            AtualizacaoService.Reiniciar();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _erroConta = ex.Message;
+        }
+        _entrando = false;
+    }
+
+    private async Task SairDaConta()
+    {
+        if (!await Dialogo.Confirmar("Sair da conta?\nAs mudanças pendentes são enviadas antes. O app reinicia e volta a usar os dados que estavam neste computador antes do login. Os dados da conta continuam na nuvem.")) return;
+        await Sincronizacao.Sincronizar();
+        await Conta.Sair();
+        AtualizacaoService.Reiniciar();
     }
 
     private void SalvarChave(ChangeEventArgs e, bool tmdb)
@@ -411,7 +527,7 @@
 
     private async Task Restaurar(FileInfo arquivo)
     {
-        if (!await Dialogo.Confirmar($"Substituir todos os dados atuais pelo backup \"{arquivo.Name}\"?")) return;
+        if (!await Dialogo.Confirmar($"Substituir todos os dados atuais pelo backup \"{arquivo.Name}\"?{ExplicacaoNaConta}")) return;
         try
         {
             Store.Importar(File.ReadAllText(arquivo.FullName));
@@ -428,7 +544,7 @@
         try
         {
             var json = File.ReadAllText(caminho);
-            if (!await Dialogo.Confirmar("Substituir todos os dados atuais pelo backup selecionado?")) return;
+            if (!await Dialogo.Confirmar($"Substituir todos os dados atuais pelo backup selecionado?{ExplicacaoNaConta}")) return;
             Store.Importar(json);
             Toast.Ok("Backup importado com sucesso!");
         }
@@ -446,14 +562,14 @@
     {
         var d = Store.Dados;
         var temDados = d.Dieta.Registros.Count > 0 || d.Carro.Abastecimentos.Count > 0 || d.Carro.Manutencoes.Count > 0 || d.Assinaturas.Count > 0 || d.Entretenimento.Count > 0 || d.Tarefas.Cards.Count > 0;
-        if (temDados && !await Dialogo.Confirmar("Carregar os dados de exemplo?\nIsso vai substituir seus dados atuais.")) return;
+        if (temDados && !await Dialogo.Confirmar($"Carregar os dados de exemplo?\nIsso vai substituir seus dados atuais.{NaConta}")) return;
         Store.CarregarExemplo();
         Toast.Ok("Dados de exemplo carregados. Dê uma olhada em Dieta, Carro, Assinaturas, Entretenimento e Tarefas!");
     }
 
     private async Task ApagarTudo()
     {
-        if (!await Dialogo.Confirmar("Apagar TODOS os dados?\nEssa ação não pode ser desfeita.")) return;
+        if (!await Dialogo.Confirmar($"Apagar TODOS os dados?\nEssa ação não pode ser desfeita.{NaConta}")) return;
         Store.Resetar();
         Toast.Ok("Todos os dados foram apagados.");
     }

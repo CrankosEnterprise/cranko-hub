@@ -7,6 +7,8 @@
 @inject NavegacaoService Navegacao
 @inject JanelaService Janela
 @inject ToastService Toast
+@inject SincronizacaoService Sincronizacao
+@inject BandejaService Bandeja
 
 <div class="app @(_menuAberto ? "menu-open" : "")">
     <aside class="sidebar">
@@ -23,7 +25,14 @@
             <div class="nav-sep"></div>
             <NavLink href="configuracoes">@Icones.Engrenagem<span>Configurações</span></NavLink>
         </nav>
-        <div class="sidebar-foot">Seus dados ficam salvos neste computador.<br>Faça backups em <b>Configurações</b>.</div>
+        <div class="sidebar-foot">@if (ArmazenamentoService.PorConta)
+            {
+                <text>Seus dados ficam na sua conta e são sincronizados com os outros aparelhos.</text>
+            }
+            else
+            {
+                <text>Seus dados ficam salvos neste computador.<br>Faça backups em <b>Configurações</b>.</text>
+            }</div>
     </aside>
     <div class="backdrop" @onclick="() => _menuAberto = false"></div>
 
@@ -65,7 +74,22 @@
         Navegacao.AoNavegar += AbrirPagina;
         Store.ModulosMudaram += AtualizarMenu;
         Store.MudouPorFora += RecarregarDados;
+        Sincronizacao.NaTela = acao => InvokeAsync(acao);
+        Sincronizacao.Recebeu += RecebeuDaConta;
     }
+
+    // Chegaram mudanças da conta (outro aparelho): os dados já foram aplicados; recria a página e reaplica tema e cor
+    private void RecebeuDaConta() => _ = InvokeAsync(async () =>
+    {
+        _recarregados++;
+        StateHasChanged();
+        Toast.Ok("Dados atualizados de outro aparelho.");
+        await JS.InvokeVoidAsync("crankohub.aplicarTema", Store.Dados.Tema);
+        Janela.TemaMudou(Store.Dados.Tema);
+        var cor = CorDestaque.DaConfig(Store.Dados.Config.CorDestaque);
+        await JS.InvokeVoidAsync("crankohub.aplicarDestaque", cor.Claro, cor.Escuro, cor.Texto);
+        Bandeja.AplicarCor(cor.Claro);
+    });
 
     private void AtualizarMenu() => _ = InvokeAsync(StateHasChanged);
 
@@ -115,5 +139,7 @@
         Navegacao.AoNavegar -= AbrirPagina;
         Store.ModulosMudaram -= AtualizarMenu;
         Store.MudouPorFora -= RecarregarDados;
+        Sincronizacao.Recebeu -= RecebeuDaConta;
+        Sincronizacao.NaTela = null;
     }
 }

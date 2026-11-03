@@ -43,6 +43,9 @@ http.DefaultRequestHeaders.UserAgent.ParseAdd(EntretenimentoBusca.UserAgent);
 servicos.AddSingleton(http);
 servicos.AddSingleton<CapasService>();
 servicos.AddSingleton<EntretenimentoBusca>();
+servicos.AddSingleton<SupabaseCliente>();
+servicos.AddSingleton<ContaService>();
+servicos.AddSingleton<SincronizacaoService>();
 builder.RootComponents.Add<Main>("#app");
 
 var app = builder.Build();
@@ -64,6 +67,8 @@ if (ConfigLocal.Atual.IniciarComWindows == true)
     try { InicializacaoWindows.Aplicar(true); } catch { }
 app.Services.GetRequiredService<AvisosService>().Iniciar();
 app.Services.GetRequiredService<AtualizacaoService>().Iniciar();
+_ = app.Services.GetRequiredService<ContaService>().Restaurar();
+app.Services.GetRequiredService<SincronizacaoService>().Iniciar();
 if (atualizado)
     Notificacao.Enviar("CrankoHub atualizado", $"Agora na versão {AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)}.");
 
