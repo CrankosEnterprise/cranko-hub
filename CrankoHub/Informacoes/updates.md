@@ -17,7 +17,7 @@ O que ainda vamos fazer no CrankoHub: itens em andamento e os que ainda não com
 - Remédios com horário (notificação pela bandeja), consultas e exames com data.
 - Resultados de exames ao longo do tempo (ex.: colesterol, glicemia) em gráfico de linha.
 
-## 11. Modo Carro (CarLink) 📝 (planejado, ainda não começado)
+## 11. Modo Carro (CarLink) 🚧 (primeira leva implementada; falta testar no celular)
 
 Um "Android Auto" caseiro para a central **Pioneer AVH-X2550BT**, dentro do app Android: navegação (Waze/Maps), player (Spotify ou outro) e a próxima curva, numa tela grande para o celular no suporte do carro. Fica num botão **"Modo carro"** na página Carro, que só aparece no Android. Origem: `Desktop\Meus Projetos\Projeto_Multimidia\PLANO_CarLink.md`.
 
@@ -25,7 +25,7 @@ Um "Android Auto" caseiro para a central **Pioneer AVH-X2550BT**, dentro do app 
 - A **USB não recebe vídeo nem toque**: só lê pendrive/iPod e carrega o celular. Nenhum app consegue "projetar a tela" por ela.
 - O **Bluetooth** (HFP + A2DP + AVRCP) é o canal que funciona: leva o áudio (música e voz do GPS), mostra **texto** no display (título/artista pelo AVRCP) e devolve os **botões** da central (próxima/anterior/play) para o celular.
 
-### Primeira leva (o que vamos fazer)
+### Primeira leva ✅ (implementada em 04/11/2026)
 
 **Compartilhado (Windows, Linux e Android)**
 - `Models/ModoCarro.cs`: `InstrucaoNavegacao` (texto, distância, app) e `MusicaAtual` (título, artista, capa em `data:` URI, tocando, app).
@@ -53,9 +53,11 @@ Um "Android Auto" caseiro para a central **Pioneer AVH-X2550BT**, dentro do app 
 - `Android/Platforms/Android/NavNotificationListener.cs`: `NotificationListenerService` (`BIND_NOTIFICATION_LISTENER_SERVICE`) que filtra Maps/Waze, passa pelo parser e atualiza o serviço; ao conectar, liga o controle de mídia.
 - `AndroidManifest.xml`: bloco `<queries>` com `com.waze`, `com.google.android.apps.maps` e `com.spotify.music` (visibilidade de pacotes no Android 11+).
 
+**Além do plano:** `AbrirInfoDoApp()` (botão "Info do app" no cartão de permissão, para o passo das configurações restritas), `Config.AppNavegacao` (escolha Waze/Maps dos atalhos, padrão Waze), ícones novos em `Components/Icones.cs` e, sem acesso às sessões de mídia, os botões do player mandam as teclas de mídia para o player ativo (sem capa/título).
+
 **Como testar**
-1. `dotnet build` dos três projetos sem erros; no Windows o botão "Modo carro" não aparece.
-2. Parser conferido com textos reais em pt-BR do Maps e do Waze (script C# de um arquivo).
+1. ✅ `dotnet build` dos três projetos sem erros nem avisos; no Windows/Linux o botão "Modo carro" não aparece (`Disponivel = false`) e `/carro/modo` só explica que é do celular.
+2. 🚧 Parser conferido com 13 exemplos de formatos prováveis (distância no título, no texto, no começo e no fim; notificações que não são de rota ficam de fora). Falta conferir com textos **reais**: o listener grava cada notificação do Maps/Waze no log (`adb logcat -s CrankoHub.Carro`).
 3. No celular, pelo cabo: APK de debug com `-p:EmbedAssembliesIntoApk=true` via `adb`; liberar as configurações restritas e o acesso às notificações; abrir o Modo Carro (paisagem, tela ligada); tocar Spotify (capa/título e botões); iniciar rota no Waze e no Maps (cartão mostra a próxima curva, conferir também no `adb logcat`); atalhos Casa/Trabalho/"Ir para…"; Sair volta a orientação.
 
 ### Segunda leva (mais para frente)

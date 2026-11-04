@@ -87,6 +87,7 @@ public partial class App : Application
         servicos.AddSingleton<SupabaseCliente>();
         servicos.AddSingleton<ContaService>();
         servicos.AddSingleton<SincronizacaoService>();
+        servicos.AddSingleton<ModoCarroService>();
         return servicos.BuildServiceProvider();
     }
 

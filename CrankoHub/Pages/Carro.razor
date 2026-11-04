@@ -3,6 +3,7 @@
 @inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject IDialogoService Dialogo
+@inject ModoCarroService ModoCarro
 
 @{
     var hoje = Hoje;
@@ -24,6 +25,10 @@
         <p>Abastecimentos, consumo e manutenção de cada veículo.</p>
     </div>
     <div class="veh">
+        @if (ModoCarro.Disponivel)
+        {
+            <a class="btn sm primary" href="carro/modo">@Icones.Navegacao Modo carro</a>
+        }
         <select class="select" aria-label="Veículo" value="@v.Id" @onchange="TrocarVeiculo">
             @foreach (var x in c.Veiculos)
             {

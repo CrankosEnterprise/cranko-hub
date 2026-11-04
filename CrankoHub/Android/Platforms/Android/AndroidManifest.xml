@@ -8,4 +8,10 @@
 	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 	<!-- Atualização: abre o instalador com o APK novo baixado do GitHub Releases -->
 	<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+	<!-- Modo Carro: abrir Waze, Maps e Spotify (visibilidade de pacotes no Android 11+) -->
+	<queries>
+		<package android:name="com.waze" />
+		<package android:name="com.google.android.apps.maps" />
+		<package android:name="com.spotify.music" />
+	</queries>
 </manifest>
