@@ -15,7 +15,7 @@ namespace CrankoHub.Services;
 /// </summary>
 public class AtualizacaoService(ArmazenamentoService store, BandejaService bandeja)
 {
-    private const string Repositorio = "DiegoOttani/cranko-hub";
+    private const string Repositorio = "CrankosEnterprise/cranko-hub";
     private const string PrefixoTag = "crankohub-v";
     private const string NomeArquivo = "CrankoHub-linux-x64.tar.gz";
 

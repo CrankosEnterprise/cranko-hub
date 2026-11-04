@@ -18,7 +18,7 @@ Lista do que ainda vamos fazer no CrankoHub. Cada item tem detalhes suficientes 
 - **Menu:** `Layout/LayoutPrincipal.razor` (NavLink + `TituloDaPagina`). Ícones em `Components/Icones.cs`.
 - **Publicar o .exe:** `dotnet publish -c Release -p:PublishProfile=win-x64` gera `publicar\CrankoHub.exe`.
 - **Lançar uma versão:** `git tag crankohub-v1.2.0` e `git push origin crankohub-v1.2.0`. O workflow `.github/workflows/crankohub-release.yml` compila e cria o Release com o `CrankoHub.exe`; a versão vem da tag.
-- **Atualizar os outros PCs:** Configurações → Aplicativo → Atualizações → "Verificar atualizações" → "Atualizar agora" (`Services/AtualizacaoService.cs`). Sem token: os Releases vêm do repositório público `DiegoOttani/cranko-hub`. PC novo: baixar o `CrankoHub.exe` do Releases.
+- **Atualizar os outros PCs:** Configurações → Aplicativo → Atualizações → "Verificar atualizações" → "Atualizar agora" (`Services/AtualizacaoService.cs`). Sem token: os Releases vêm do repositório público `CrankosEnterprise/cranko-hub`. PC novo: baixar o `CrankoHub.exe` do Releases.
 
 ---
 
@@ -170,7 +170,8 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 
 ## 11. Repositório público e atualização automática sem token ✅ (feito)
 
-- O CrankoHub agora mora no repositório público [DiegoOttani/cranko-hub](https://github.com/DiegoOttani/cranko-hub), com o histórico trazido do `MyProjs_`. Na raiz ficam o `cranko-hub.slnx` (Windows + Linux), o `.gitignore` e o workflow `crankohub-release.yml`.
+- O CrankoHub agora mora no repositório público [CrankosEnterprise/cranko-hub](https://github.com/CrankosEnterprise/cranko-hub), na organização Crankos Enterprise, com todo o histórico. Antes ficava em `DiegoOttani/cranko-hub`, e antes disso no `MyProjs_`. Na raiz ficam o `README.md` de apresentação, o `cranko-hub.slnx` (Windows + Linux), o `.gitignore` e o workflow `crankohub-release.yml`.
+- **Atenção (mudança para a organização, 03/11/2026):** as versões 1.0.x instaladas procuram atualizações em `DiegoOttani/cranko-hub`. Nesses PCs, instale uma vez manualmente o `.exe` do primeiro Release da organização; daí em diante ele se atualiza sozinho.
 - O `AtualizacaoService` (Windows e Linux) consulta os Releases **sem token**. O GitHub permite 60 consultas por hora por IP, de sobra para verificar uma vez por dia.
 - "Verificar sozinho" funciona sem configuração nenhuma, e o campo do token saiu de Configurações. `TokenGitHub` continua no modelo, sem uso, para não quebrar backups antigos.
 - O `UserAgent` da busca do Entretenimento aponta para o repositório novo.

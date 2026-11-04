@@ -191,7 +191,7 @@
 
         <section class="card">
             <div class="card-head">
-                <div><h2>Atualizações</h2><p>Versão instalada: <b>@AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)</b>. As versões novas vêm do Releases do GitHub (<b>DiegoOttani/cranko-hub</b>).</p></div>
+                <div><h2>Atualizações</h2><p>Versão instalada: <b>@AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)</b>. As versões novas vêm do Releases do GitHub (<b>CrankosEnterprise/cranko-hub</b>).</p></div>
                 <label class="check"><input type="checkbox" checked="@cfg.VerificarAtualizacoes" @onchange="@(e => Mudar(e, v => cfg.VerificarAtualizacoes = v))"> Verificar sozinho</label>
             </div>
             @if (Atualizacao.Disponivel is { } nova)
