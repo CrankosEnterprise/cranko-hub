@@ -281,3 +281,53 @@ O app é de uso pessoal e só uma conta existe no Supabase, então o modo sem co
 - **Configurações:** a aba "Dados e backup" virou **Conta** (usuário, status da sincronização, "Sincronizar agora", "Sair" e as contagens). O link `configuracoes?aba=dados` continua abrindo essa aba.
 - **Arquivos antigos:** o `dados.json` do modo local (na raiz de `%LocalAppData%\CrankoHub`) e os backups ficam no disco, só deixam de ser usados. Campos removidos (`BackupAutomatico`, `PastaBackup`, `BackupsMantidos`, `UltimoBackup`, `ConfigLocal.PastaDados`) são ignorados ao abrir.
 - **Fica no aparelho:** `local.json` (conta conectada e iniciar com o Windows) e as preferências que não sobem para o `perfis` (chaves TMDB/RAWG, bandeja, avisos).
+
+## 11. Modo Carro (CarLink) 📝 (planejado, ainda não começado)
+
+Um "Android Auto" caseiro para a central **Pioneer AVH-X2550BT**, dentro do app Android: navegação (Waze/Maps), player (Spotify ou outro) e a próxima curva, numa tela grande para o celular no suporte do carro. Fica num botão **"Modo carro"** na página Carro, que só aparece no Android. Origem: `Desktop\Meus Projetos\Projeto_Multimidia\PLANO_CarLink.md`.
+
+### Limitações da central (pesquisado)
+- A **USB não recebe vídeo nem toque**: só lê pendrive/iPod e carrega o celular. Nenhum app consegue "projetar a tela" por ela.
+- O **Bluetooth** (HFP + A2DP + AVRCP) é o canal que funciona: leva o áudio (música e voz do GPS), mostra **texto** no display (título/artista pelo AVRCP) e devolve os **botões** da central (próxima/anterior/play) para o celular.
+
+### Primeira leva (o que vamos fazer)
+
+**Compartilhado (Windows, Linux e Android)**
+- `Models/ModoCarro.cs`: `InstrucaoNavegacao` (texto, distância, app) e `MusicaAtual` (título, artista, capa em `data:` URI, tocando, app).
+- `Services/NavegacaoNotificacao.cs`: parser puro do título/texto das notificações do Maps (`com.google.android.apps.maps`) e do Waze (`com.waze`). Ex.: "200 m" + "Vire à direita na R. X" → distância + instrução.
+- `Services/ModoCarroService.cs`: versão vazia para Windows/Linux (`Disponivel = false`), com a mesma API da versão Android: `Instrucao`, `Musica`, `Mudou`, `TemAcessoNotificacoes`, `PedirAcessoNotificacoes()`, `Navegar(destino, app)`, `AbrirApp(app)`, `TocarPausar()`, `Proxima()`, `Anterior()`, `Entrar()`, `Sair()`. O Android exclui esse arquivo no `.csproj` e usa o dele (mesmo padrão do `BandejaService`).
+- `Models/Configuracoes.cs`: favoritos `CasaEndereco` e `TrabalhoEndereco` (ficam no aparelho).
+- `Layout/LayoutCarro.razor`: layout em tela cheia, sem a barra lateral.
+- `Pages/ModoCarro.razor` (`/carro/modo`): tema escuro, paisagem, botões grandes:
+  - **Navegação:** instrução atual e distância em letras grandes ("Sem navegação ativa" quando não há rota).
+  - **Player:** capa, título, artista, anterior / tocar-pausar / próxima.
+  - **Atalhos:** Casa, Trabalho (Waze ou Maps), abrir Waze, Maps e Spotify, e um campo "Ir para…". Casa/Trabalho editados com o `DialogoTexto`.
+  - **Barra de status:** hora e Sair.
+  - **Cartão de permissão** quando falta o acesso às notificações, com o passo do Android 13+: *Info do app → ⋮ → Permitir configurações restritas* (vale para apps instalados fora da Play Store) e um botão que abre a tela do sistema.
+- `Pages/Carro.razor`: botão "Modo carro" no topo, só quando `ModoCarro.Disponivel`.
+- `wwwroot/css/app.css`: seção `.modo-carro` (grade em paisagem; uma coluna em retrato).
+- Registrar o `ModoCarroService` no `App.xaml.cs`, `Linux/Program.cs` e `Android/MauiProgram.cs`.
+
+**Android**
+- `Android/Plataforma/ModoCarroService.cs` (`Disponivel = true`):
+  - Navegar: intents `google.navigation:q=…` (Maps) e `https://waze.com/ul?q=…&navigate=yes` (Waze); app não instalado → toast.
+  - Abrir app: `PackageManager.GetLaunchIntentForPackage`.
+  - Player: `MediaSessionManager.GetActiveSessions(componente do listener)` + `AddOnActiveSessionsChangedListener` + `MediaController.Callback` (metadados, estado, capa); comandos pelos `TransportControls`. Não precisa do SDK do Spotify.
+  - Acesso às notificações: `NotificationManagerCompat.GetEnabledListenerPackages`; pedir abre `Settings.ActionNotificationListenerSettings`.
+  - `Entrar()`/`Sair()`: tela sempre ligada (`KeepScreenOn`) e orientação em paisagem; ao sair, volta ao normal.
+- `Android/Platforms/Android/NavNotificationListener.cs`: `NotificationListenerService` (`BIND_NOTIFICATION_LISTENER_SERVICE`) que filtra Maps/Waze, passa pelo parser e atualiza o serviço; ao conectar, liga o controle de mídia.
+- `AndroidManifest.xml`: bloco `<queries>` com `com.waze`, `com.google.android.apps.maps` e `com.spotify.music` (visibilidade de pacotes no Android 11+).
+
+**Como testar**
+1. `dotnet build` dos três projetos sem erros; no Windows o botão "Modo carro" não aparece.
+2. Parser conferido com textos reais em pt-BR do Maps e do Waze (script C# de um arquivo).
+3. No celular, pelo cabo: APK de debug com `-p:EmbedAssembliesIntoApk=true` via `adb`; liberar as configurações restritas e o acesso às notificações; abrir o Modo Carro (paisagem, tela ligada); tocar Spotify (capa/título e botões); iniciar rota no Waze e no Maps (cartão mostra a próxima curva, conferir também no `adb logcat`); atalhos Casa/Trabalho/"Ir para…"; Sair volta a orientação.
+
+### Segunda leva (mais para frente)
+- **Display da Pioneer (AVRCP):** uma `MediaSession` própria do CrankoHub com metadados alternando entre a próxima curva (título) e a música (artista); os botões da central chegam nela e são repassados ao player real. *Risco:* a central mostra os metadados da sessão de áudio ativa; validar no carro se a sessão do app "ganha" sem cortar o áudio do Spotify. Plano B: falar a instrução por voz (TTS) pelo Bluetooth.
+- **Foreground service:** o Android não fecha o app durante a viagem.
+- **Abrir sozinho** quando o Bluetooth da Pioneer conectar (`BroadcastReceiver` de `ACTION_ACL_CONNECTED`, filtrando o nome/MAC da central).
+- **Fase 2, imagem e toque na tela da central (pesquisa):**
+  - Vídeo: o dashboard numa tela secundária (`Presentation` API) → HDMI → adaptador Pioneer CD-AH200 → entrada RGB (modo AppRadio). Exige um celular com saída de vídeo (Motorola/Xiaomi em geral não têm; serviria um Android barato com HDMI como unidade dedicada).
+  - Toque: no modo AppRadio volta ao celular pelo Bluetooth SPP com o protocolo da Pioneer (ver o projeto "AppRadio Unchained"); como vai para o nosso app, não precisa de root.
+  - Saída mais simples: entrada AV (vídeo composto) com conversor HDMI→AV, sem toque (os botões da central fazem o papel).
