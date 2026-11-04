@@ -37,8 +37,12 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     /// <summary>Última versão nova encontrada (null se está em dia ou ainda não verificou).</summary>
     public Novidade? Disponivel { get; private set; }
 
-    /// <summary>Só o .exe publicado (arquivo único) pode se substituir; rodando pelo Visual Studio, não.</summary>
-    public static bool PodeInstalar => string.IsNullOrEmpty(typeof(App).Assembly.Location) && Environment.ProcessPath is not null;
+    /// <summary>
+    /// Só o .exe publicado (arquivo único) pode se substituir; rodando pelo Visual Studio, não.
+    /// Pelo Visual Studio o CrankoHub.dll fica ao lado do .exe; no publicado ele está dentro do .exe.
+    /// (Assembly.Location não serve: com IncludeAllContentForSelfExtract ela aponta para a pasta extraída.)
+    /// </summary>
+    public static bool PodeInstalar => Environment.ProcessPath is string exe && !File.Exists(Path.ChangeExtension(exe, ".dll"));
 
     public static string Texto(Version v) => v.ToString(3);
 
