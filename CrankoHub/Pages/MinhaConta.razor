@@ -1,0 +1,82 @@
+@page "/conta"
+@page "/dados"
+@* Conta do usuário (aberta pelo nome no rodapé do menu lateral). As Configurações ficam só com o que é do aplicativo *@
+@implements IDisposable
+@inject ArmazenamentoService Store
+@inject IDialogoService Dialogo
+@inject ContaService Conta
+@inject SincronizacaoService Sincronizacao
+
+@{
+    var d = Store.Dados;
+}
+
+<div class="page-head">
+    <div>
+        <h1>Conta</h1>
+        <p>Os dados ficam na sua conta do CrankoHub e vão sozinhos para os outros aparelhos.</p>
+    </div>
+</div>
+
+<section class="card">
+    <div class="card-head">
+        <div><h2>@(Conta.Usuario ?? "Conta")</h2><p>Este aparelho guarda uma cópia para funcionar sem internet.</p></div>
+    </div>
+    <div class="storage-stats">
+        <div><span>Usuário</span><b>@Conta.Usuario</b></div>
+        <div><span>Sincronização</span><b>@StatusSincronizacao</b></div>
+    </div>
+    @if (Sincronizacao.Problema is not null)
+    {
+        <p class="aviso-sincronia">@Sincronizacao.Problema</p>
+    }
+    <div class="form-actions">
+        <button class="btn" type="button" disabled="@Sincronizacao.Sincronizando" @onclick="Sincronizacao.Sincronizar">Sincronizar agora</button>
+        <button class="btn danger" type="button" @onclick="Sair">Sair da conta</button>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-head"><div><h2>Na conta</h2><p>Quantidade de itens guardados.</p></div></div>
+    <div class="storage-stats">
+        <div><span>Registros de peso</span><b>@d.Dieta.Registros.Count</b></div>
+        <div><span>Abastecimentos</span><b>@d.Carro.Abastecimentos.Count</b></div>
+        <div><span>Manutenções</span><b>@d.Carro.Manutencoes.Count</b></div>
+        <div><span>Documentos</span><b>@d.Carro.Documentos.Count</b></div>
+        <div><span>Veículos</span><b>@d.Carro.Veiculos.Count</b></div>
+        <div><span>Assinaturas</span><b>@d.Assinaturas.Count</b></div>
+        <div><span>Entretenimento</span><b>@d.Entretenimento.Count</b></div>
+        <div><span>Tarefas</span><b>@d.Tarefas.Cards.Count</b></div>
+    </div>
+</section>
+
+@code {
+    private string StatusSincronizacao =>
+        Conta.Offline ? "Sem conexão" :
+        Sincronizacao.Problema is not null ? "Não sincronizado" :
+        Sincronizacao.Sincronizando ? "Sincronizando…" :
+        Sincronizacao.Ultima is DateTime u ? $"Às {u:HH:mm}" : "Preparando…";
+
+    // A sincronização roda em segundo plano: redesenha quando o status muda
+    private void Mudou() => InvokeAsync(StateHasChanged);
+
+    protected override void OnInitialized()
+    {
+        Conta.Mudou += Mudou;
+        Sincronizacao.Mudou += Mudou;
+    }
+
+    public void Dispose()
+    {
+        Conta.Mudou -= Mudou;
+        Sincronizacao.Mudou -= Mudou;
+    }
+
+    private async Task Sair()
+    {
+        if (!await Dialogo.Confirmar("Sair da conta?\nAs mudanças pendentes são enviadas antes. O app reinicia na tela de login. Os dados continuam na conta.")) return;
+        await Sincronizacao.Sincronizar();
+        await Conta.Sair();
+        AtualizacaoService.Reiniciar();
+    }
+}

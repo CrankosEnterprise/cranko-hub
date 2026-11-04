@@ -1,8 +1,9 @@
-@* Conta no rodapé da barra lateral: o nome abre um menu com a sincronização e Sair (o login é a TelaLogin) *@
+@* Conta no rodapé da barra lateral: o nome abre um menu com Informações (página da Conta), a sincronização e Sair (o login é a TelaLogin) *@
 @implements IDisposable
 @inject ContaService Conta
 @inject SincronizacaoService Sincronizacao
 @inject IDialogoService Dialogo
+@inject NavigationManager Nav
 
 <div class="conta" @onkeydown="AoTeclar">
     @if (Conta.Logado)
@@ -12,6 +13,7 @@
             <div class="conta-fundo" @onclick="() => _menu = false"></div>
             <div class="conta-menu" role="menu">
                 <p class="conta-status @(Sincronizacao.Problema is not null ? "problema" : "")">@StatusCompleto</p>
+                <button class="conta-opcao" type="button" role="menuitem" title="Ver os dados da conta e o que está guardado nela" @onclick="AbrirInformacoes">@Icones.Info<span>Informações</span></button>
                 <button class="conta-opcao" type="button" role="menuitem" disabled="@Sincronizacao.Sincronizando" @onclick="SincronizarAgora">@Icones.Sincronizar<span>Sincronizar agora</span></button>
                 <button class="conta-opcao perigo" type="button" role="menuitem" @onclick="Sair">@Icones.Sair<span>Sair</span></button>
             </div>
@@ -58,6 +60,12 @@
     private void AoTeclar(KeyboardEventArgs e)
     {
         if (e.Key == "Escape") _menu = false;
+    }
+
+    private void AbrirInformacoes()
+    {
+        _menu = false;
+        Nav.NavigateTo("conta");
     }
 
     private async Task SincronizarAgora()

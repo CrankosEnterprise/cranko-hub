@@ -1,11 +1,7 @@
 @page "/configuracoes"
-@page "/dados"
 @inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject IDialogoService Dialogo
-@inject ContaService Conta
-@inject SincronizacaoService Sincronizacao
-@implements IDisposable
 @inject AvisosService Avisos
 @inject JanelaService Janela
 @inject IJSRuntime JS
@@ -55,40 +51,6 @@
                     <input type="password" placeholder="Chave da API" value="@cfg.ChaveRawg" @onchange="e => SalvarChave(e, false)"></label>
             </div>
             <p class="muted" style="margin-top:10px">Sem chave, filmes, séries, animações e jogos vêm da <b>Wikipedia</b> e da <b>Wikidata</b> (pôsteres de séries pelo <b>TVmaze</b>); animes do <b>AniList</b> e livros da <b>Open Library</b>. Itens pouco conhecidos podem não estar lá: aí a chave ajuda (crie grátis em <b>themoviedb.org</b> → Configurações → API e em <b>rawg.io/apidocs</b>) ou cadastre manualmente.</p>
-        </section>
-        break;
-
-    case "dados":
-        <section class="card">
-            <div class="card-head">
-                <div><h2>Conta</h2><p>Os dados ficam na sua conta do CrankoHub e vão sozinhos para os outros aparelhos. Este aparelho guarda uma cópia para funcionar sem internet.</p></div>
-            </div>
-            <div class="storage-stats">
-                <div><span>Usuário</span><b>@Conta.Usuario</b></div>
-                <div><span>Sincronização</span><b>@StatusSincronizacao</b></div>
-            </div>
-            @if (Sincronizacao.Problema is not null)
-            {
-                <p class="aviso-sincronia">@Sincronizacao.Problema</p>
-            }
-            <div class="form-actions">
-                <button class="btn" type="button" disabled="@Sincronizacao.Sincronizando" @onclick="Sincronizacao.Sincronizar">Sincronizar agora</button>
-                <button class="btn danger" type="button" @onclick="Sair">Sair da conta</button>
-            </div>
-        </section>
-
-        <section class="card">
-            <div class="card-head"><div><h2>Na conta</h2><p>Quantidade de itens guardados.</p></div></div>
-            <div class="storage-stats">
-                <div><span>Registros de peso</span><b>@d.Dieta.Registros.Count</b></div>
-                <div><span>Abastecimentos</span><b>@d.Carro.Abastecimentos.Count</b></div>
-                <div><span>Manutenções</span><b>@d.Carro.Manutencoes.Count</b></div>
-                <div><span>Documentos</span><b>@d.Carro.Documentos.Count</b></div>
-                <div><span>Veículos</span><b>@d.Carro.Veiculos.Count</b></div>
-                <div><span>Assinaturas</span><b>@d.Assinaturas.Count</b></div>
-                <div><span>Entretenimento</span><b>@d.Entretenimento.Count</b></div>
-                <div><span>Tarefas</span><b>@d.Tarefas.Cards.Count</b></div>
-            </div>
         </section>
         break;
 
@@ -183,7 +145,6 @@
         ("aparencia", "Aparência"),
         ("modulos", "Módulos"),
         ("integracoes", "Integrações"),
-        ("dados", "Conta"),
         ("aplicativo", "Aplicativo"),
     ];
 
@@ -193,7 +154,7 @@
     // Aba aberta, mantida enquanto o app estiver aberto
     private static string _aba = "aparencia";
 
-    /// <summary>Permite abrir uma aba direto pelo link (ex.: configuracoes?aba=dados).</summary>
+    /// <summary>Permite abrir uma aba direto pelo link (ex.: configuracoes?aba=aplicativo).</summary>
     [SupplyParameterFromQuery(Name = "aba")] public string? AbaInicial { get; set; }
 
     private string? _abaDoLink;
@@ -214,35 +175,6 @@
         Store.Salvar();
         await JS.InvokeVoidAsync("crankohub.aplicarTema", tema);
         Janela.TemaMudou(tema);
-    }
-
-    private string StatusSincronizacao =>
-        Conta.Offline ? "Sem conexão" :
-        Sincronizacao.Problema is not null ? "Não sincronizado" :
-        Sincronizacao.Sincronizando ? "Sincronizando…" :
-        Sincronizacao.Ultima is DateTime u ? $"Às {u:HH:mm}" : "Preparando…";
-
-    // A sincronização roda em segundo plano: redesenha quando o status muda
-    private void Mudou() => InvokeAsync(StateHasChanged);
-
-    protected override void OnInitialized()
-    {
-        Conta.Mudou += Mudou;
-        Sincronizacao.Mudou += Mudou;
-    }
-
-    public void Dispose()
-    {
-        Conta.Mudou -= Mudou;
-        Sincronizacao.Mudou -= Mudou;
-    }
-
-    private async Task Sair()
-    {
-        if (!await Dialogo.Confirmar("Sair da conta?\nAs mudanças pendentes são enviadas antes. O app reinicia na tela de login. Os dados continuam na conta.")) return;
-        await Sincronizacao.Sincronizar();
-        await Conta.Sair();
-        AtualizacaoService.Reiniciar();
     }
 
     private void SalvarChave(ChangeEventArgs e, bool tmdb)
