@@ -70,7 +70,8 @@
     <RazorComponent Include="..\Components\**\*.razor" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
     <RazorComponent Include="..\Layout\**\*.razor" Link="Layout\%(RecursiveDir)%(Filename)%(Extension)" />
 
-    <Content Include="..\wwwroot\**\*" Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- O index.html é o da pasta Android/wwwroot (com autostart="false"): o da versão Windows trava no "Carregando…" -->
+    <Content Include="..\wwwroot\**\*" Exclude="..\wwwroot\index.html" Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

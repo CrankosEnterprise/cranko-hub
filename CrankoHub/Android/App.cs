@@ -33,6 +33,11 @@ public class PaginaPrincipal : ContentPage
 {
     public PaginaPrincipal()
     {
+        // No .NET 10 a página vai de borda a borda e o topo do app ficava embaixo da barra de status.
+        // All: fica entre as barras do sistema e sobe junto com o teclado. A faixa atrás das barras usa a cor do app.
+        SafeAreaEdges = SafeAreaEdges.All;
+        BackgroundColor = Color.FromArgb("#3634A3");
+
         var web = new JanelaBlazor { HostPage = "wwwroot/index.html" };
         web.RootComponents.Add(new Microsoft.AspNetCore.Components.WebView.Maui.RootComponent
         {
