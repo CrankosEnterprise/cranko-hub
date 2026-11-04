@@ -114,7 +114,8 @@ cranko-hub/
 │   ├── wwwroot/                     # index.html, CSS, JavaScript e fontes
 │   ├── App.xaml / MainWindow.xaml   # Janela WPF com BlazorWebView
 │   ├── CrankoHub.csproj             # Projeto Windows (publica um único .exe)
-│   └── README.md                    # Roadmap e notas de desenvolvimento
+│   ├── Informacoes/                 # updates.md (o que falta fazer) e finalizados.md (o que já foi entregue)
+│   └── README.md                    # Referência rápida do projeto
 ├── .github/workflows/
 │   └── crankohub-release.yml        # Gera o .exe, o pacote Linux e o APK Android e publica no Releases
 ├── cranko-hub.slnx                  # Solução (Windows + Linux + Android)
