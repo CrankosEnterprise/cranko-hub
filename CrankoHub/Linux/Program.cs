@@ -46,6 +46,7 @@ servicos.AddSingleton<SupabaseCliente>();
 servicos.AddSingleton<ContaService>();
 servicos.AddSingleton<SincronizacaoService>();
 servicos.AddSingleton<ModoCarroService>();
+servicos.AddSingleton<RotaService>();
 builder.RootComponents.Add<Main>("#app");
 
 var app = builder.Build();

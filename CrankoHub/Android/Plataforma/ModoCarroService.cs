@@ -5,6 +5,7 @@ using Android.Media;
 using Android.Util;
 using Android.Views;
 using AndroidX.Core.Content;
+using AndroidX.Core.View;
 using CrankoHub.Models;
 
 namespace CrankoHub.Services;
@@ -57,6 +58,7 @@ public sealed class ModoCarroService(HttpClient http)
             if (Platform.CurrentActivity is { } a)
             {
                 a.Window?.AddFlags(WindowManagerFlags.KeepScreenOn);
+                TelaCheia(a, true);
                 a.RequestedOrientation = ScreenOrientation.SensorLandscape;
             }
             OuvirSpotify();
@@ -72,11 +74,25 @@ public sealed class ModoCarroService(HttpClient http)
             if (Platform.CurrentActivity is { } a)
             {
                 a.Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
+                TelaCheia(a, false);
                 a.RequestedOrientation = ScreenOrientation.Unspecified;
             }
             PararSpotify();
             DesligarGps();
         });
+    }
+
+    /// <summary>Esconde as barras do Android (status e navegação), como no Android Auto; deslizar da borda mostra de novo por um tempo.</summary>
+    private static void TelaCheia(global::Android.App.Activity a, bool ligar)
+    {
+        if (a.Window is not { } janela || janela.DecorView is null) return;
+        if (WindowCompat.GetInsetsController(janela, janela.DecorView) is not { } barras) return;
+        if (ligar)
+        {
+            barras.SystemBarsBehavior = WindowInsetsControllerCompat.BehaviorShowTransientBarsBySwipe;
+            barras.Hide(WindowInsetsCompat.Type.SystemBars());
+        }
+        else barras.Show(WindowInsetsCompat.Type.SystemBars());
     }
 
     // ===== GPS =====
@@ -200,6 +216,35 @@ public sealed class ModoCarroService(HttpClient http)
         public override void OnReceive(Context? context, Intent? intent)
         {
             if (intent is not null) modo.Recebeu(intent);
+        }
+    }
+
+    // ===== Voz (avisos da rota) =====
+
+    private Microsoft.Maui.Media.Locale? _voz;
+    private bool _procurouVoz;
+    private CancellationTokenSource? _falando;
+
+    /// <summary>Fala em pt-BR pela voz do sistema. Um aviso novo corta o que ainda estava sendo falado.</summary>
+    public async Task Falar(string texto)
+    {
+        try
+        {
+            if (!_procurouVoz)
+            {
+                _procurouVoz = true;
+                var vozes = await TextToSpeech.Default.GetLocalesAsync();
+                _voz = vozes.FirstOrDefault(v => v.Language == "pt" && v.Country == "BR")
+                    ?? vozes.FirstOrDefault(v => v.Language.StartsWith("pt", StringComparison.OrdinalIgnoreCase));
+            }
+            _falando?.Cancel();
+            _falando = new CancellationTokenSource();
+            await TextToSpeech.Default.SpeakAsync(texto, new SpeechOptions { Locale = _voz }, _falando.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            Log.Warn(Log_, $"Voz: {ex.Message}");
         }
     }
 

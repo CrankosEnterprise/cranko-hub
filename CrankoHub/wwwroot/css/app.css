@@ -858,7 +858,8 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 
 /* Mapa */
 .mc-mapa { position: relative; flex: 1; min-height: 0; border-radius: 22px; overflow: hidden; background: #111; box-shadow: inset 0 0 0 1px var(--mc-linha); }
-.mc-mapa-area { position: absolute; inset: 0; }
+/* O CSS do MapLibre põe position: relative no elemento do mapa (anula o inset): por isso o tamanho explícito */
+.mc-mapa-area { position: absolute; inset: 0; width: 100%; height: 100%; }
 .mc-mapa-aviso {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
   padding: 24px; text-align: center; background: rgba(0, 0, 0, .65); font-size: 17px;
@@ -878,8 +879,11 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 }
 .mc-carro { width: 40px; height: 40px; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .6)); }
 .mc-carro svg { width: 40px; height: 40px; fill: var(--accent); stroke: #fff; stroke-width: 2.5; }
-.mc-mapa .maplibregl-ctrl-attrib { background: rgba(0, 0, 0, .55); color: #ccc; }
+.mc-mapa .maplibregl-ctrl.maplibregl-ctrl-attrib, .mc-mapa .maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact { background: rgba(22, 22, 24, .8); color: #bbb; }
+.mc-mapa .maplibregl-ctrl-attrib-button { filter: invert(1); background-color: transparent; outline: none; }
 .mc-mapa .maplibregl-ctrl-attrib a { color: #ddd; }
+/* A velocidade fica no canto esquerdo: créditos à direita, em cima */
+.mc-mapa .maplibregl-ctrl-bottom-right { bottom: auto; top: 0; }
 
 /* Coluna do Spotify e dos atalhos */
 .mc-lado { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
@@ -910,6 +914,112 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 }
 .mc-app svg { width: 26px; height: 26px; color: var(--accent); }
 .mc-redondo:active, .mc-app:active, .mc-btn:active, .mc-sair:active, .mc-recentralizar:active { transform: scale(.96); }
+
+/* Rota: cartão da manobra (em cima), barra da viagem (embaixo), busca de destino (por cima do mapa) */
+.mc-manobra {
+  position: absolute; left: 12px; top: 12px; max-width: calc(100% - 84px); display: flex; align-items: center; gap: 14px;
+  padding: 12px 18px 12px 12px; border-radius: 20px; background: #0f5132; color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+}
+.mc-manobra.chegou { background: #1e3a8a; }
+.mc-manobra-seta { display: grid; place-items: center; flex: none; width: 60px; height: 60px; }
+.mc-manobra-seta svg { width: 54px; height: 54px; stroke-width: 2.6; }
+.mc-manobra-texto { min-width: 0; }
+.mc-manobra-texto b { display: block; font-size: 30px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.mc-manobra-texto p { font-size: 17px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mc-recalculando {
+  position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%); padding: 8px 16px; border-radius: 14px;
+  background: rgba(22, 22, 24, .9); color: #ffd60a; font-weight: 700; pointer-events: none;
+}
+.mc-para-onde {
+  position: absolute; left: 12px; top: 12px; display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 0 22px 0 16px;
+  border: 0; border-radius: 27px; background: rgba(22, 22, 24, .94); color: var(--mc-texto); font: inherit; font-size: 18px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, .5), inset 0 0 0 1px var(--mc-linha);
+}
+.mc-para-onde svg { width: 22px; height: 22px; color: var(--accent); stroke-width: 2.4; }
+.mc-viagem {
+  position: absolute; left: 102px; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 6px; min-height: 76px; padding: 8px 8px 8px 18px;
+  border-radius: 22px; background: rgba(22, 22, 24, .95); box-shadow: 0 6px 20px rgba(0, 0, 0, .5), inset 0 0 0 1px var(--mc-linha);
+}
+.mc-viagem > div { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.mc-viagem b { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.mc-viagem small { font-size: 12px; color: var(--mc-texto-2); }
+.mc-viagem > div:first-child b { color: #30d158; }
+.mc-viagem-destino b { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.mc-encerrar {
+  display: flex; align-items: center; gap: 6px; flex: none; min-height: 58px; padding: 0 16px; border: 0; border-radius: 16px;
+  background: #3a1517; color: #ff6b6b; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.mc-encerrar svg { width: 20px; height: 20px; stroke-width: 2.6; }
+.mc-mapa.navegando .mc-recentralizar { bottom: 100px; }
+.mc-busca { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; background: rgba(10, 10, 12, .97); }
+.mc-busca-topo { display: flex; align-items: center; gap: 10px; padding: 12px; }
+.mc-busca-icone { display: grid; place-items: center; width: 40px; color: var(--accent); }
+.mc-busca-campo {
+  flex: 1; min-width: 0; height: 54px; padding: 0 16px; border: 0; border-radius: 16px; outline: none;
+  background: var(--mc-card-2); color: var(--mc-texto); font: inherit; font-size: 19px;
+}
+.mc-busca-lista { flex: 1; overflow-y: auto; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+.mc-busca-titulo { padding: 6px 4px 2px; color: var(--mc-texto-2); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 12px; }
+.mc-busca-vazio { padding: 16px 4px; color: var(--mc-texto-2); font-size: 16px; }
+.mc-lugar {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 16px; border: 0; border-radius: 14px;
+  background: var(--mc-card); color: var(--mc-texto); font: inherit; text-align: left; cursor: pointer; min-height: 60px; justify-content: center;
+}
+.mc-lugar b { font-size: 17px; }
+.mc-lugar span { color: var(--mc-texto-2); font-size: 14px; }
+.mc-lugar:active, .mc-para-onde:active, .mc-encerrar:active { transform: scale(.97); }
+
+/* Prévia da rota (coluna da direita): opções, "Evitar pedágios", Iniciar */
+.mc-previa { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+/* Na prévia a hora e o Sair somem (o Cancelar faz o papel) para caberem as opções */
+.mc-lado.previa .mc-status { display: none; }
+.mc-previa-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.mc-previa-topo > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mc-previa-topo small { color: var(--mc-texto-2); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.mc-previa-topo b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-opcoes { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.mc-previa-calculando { color: var(--mc-texto-2); padding: 12px 2px; }
+.mc-opcao { min-height: 0;
+  display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border: 0; border-radius: 14px; text-align: left; flex: none;
+  background: var(--mc-card-2); color: var(--mc-texto); font: inherit; cursor: pointer; box-shadow: inset 0 0 0 2px transparent;
+}
+.mc-opcao.ativa { box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--mc-card-2)); }
+.mc-opcao-linha { display: flex; align-items: baseline; gap: 8px 10px; flex-wrap: wrap; font-size: 13px; color: var(--mc-texto-2); }
+.mc-opcao-linha b { font-size: 20px; color: var(--mc-texto); font-variant-numeric: tabular-nums; }
+.mc-opcao-linha em { margin-left: auto; font-style: normal; font-size: 12px; font-weight: 700; color: #30d158; }
+.mc-com-pedagio { display: inline-flex; align-items: center; gap: 6px; color: #ffb300; font-weight: 700; }
+.mc-sem-pedagio { color: #30d158; font-weight: 700; }
+.mc-pedagio-ponto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ffb300; box-shadow: 0 0 0 2px #fff; flex: none; }
+.mc-evitar {
+  display: flex; align-items: center; gap: 8px; flex: none; min-height: 44px; padding: 0 2px; border: 0; background: none;
+  color: var(--mc-texto); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-align: left;
+}
+.mc-evitar:disabled { opacity: .5; }
+.mc-chave { position: relative; width: 46px; height: 28px; border-radius: 14px; background: #48484e; flex: none; transition: background .2s; }
+.mc-chave::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.mc-evitar.ligado .mc-chave { background: #30d158; }
+.mc-evitar.ligado .mc-chave::after { transform: translateX(18px); }
+.mc-previa-acoes { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
+.mc-previa-acoes .mc-btn { justify-content: center; min-height: 50px; font-size: 17px; }
+.mc-previa-acoes .mc-btn svg { width: 22px; height: 22px; }
+.mc-previa-acoes .mc-btn:disabled { opacity: .5; }
+/* Alertas da viagem (radar em vermelho, pedágio em âmbar), empilhados acima da barra da viagem */
+.mc-alertas { position: absolute; left: 102px; bottom: 100px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+.mc-alerta {
+  display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 14px;
+  background: rgba(22, 22, 24, .94); color: #ffb300; font-weight: 700; font-size: 15px; box-shadow: 0 4px 14px rgba(0, 0, 0, .45);
+}
+.mc-alerta.radar { color: #ff6961; }
+.mc-radar-ponto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 0 2px #fff; flex: none; }
+.mc-com-radar { display: inline-flex; align-items: center; gap: 6px; color: #ff6961; font-weight: 700; }
+/* Limite da via: placa redonda (branca com borda vermelha) acima do velocímetro; o velocímetro fica vermelho acima dele */
+.mc-limite {
+  position: absolute; left: 22px; bottom: 98px; display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%;
+  background: #fff; box-shadow: inset 0 0 0 6px #e53935, 0 4px 14px rgba(0, 0, 0, .45);
+}
+.mc-limite b { color: #111; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.mc-velocidade.acima { background: #c62828; box-shadow: inset 0 0 0 2px #ff8a80; }
+.mc-velocidade.acima small { color: #ffd6d2; }
 
 /* Paisagem: mapa à esquerda, coluna à direita */
 @media (orientation: landscape) {

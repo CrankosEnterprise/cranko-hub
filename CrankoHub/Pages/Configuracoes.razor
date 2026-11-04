@@ -73,6 +73,17 @@
             </div>
         </section>
 
+        @if (Android)
+        {
+            <section class="card">
+                <div class="card-head"><div><h2>Modo Carro</h2><p>Navegação dentro do app (página Carro → Modo carro).</p></div></div>
+                <div class="opcoes">
+                    <label class="check"><input type="checkbox" checked="@cfg.VozModoCarro" @onchange="@(e => Mudar(e, v => cfg.VozModoCarro = v))"> <span>Avisos por voz na rota <span class="muted">· manobras, radares, pedágios e limite de velocidade</span></span></label>
+                    <label class="check"><input type="checkbox" checked="@cfg.EvitarPedagios" @onchange="@(e => Mudar(e, v => cfg.EvitarPedagios = v))"> <span>Evitar pedágios nas rotas <span class="muted">· também dá para mudar na escolha da rota</span></span></label>
+                </div>
+            </section>
+        }
+
         <section class="card">
             <div class="card-head">
                 <div><h2>Atualizações</h2><p>Versão instalada: <b>@AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)</b>. As versões novas vêm do Releases do GitHub (<b>CrankosEnterprise/cranko-hub</b>).</p></div>

@@ -36,6 +36,7 @@ public static class MauiProgram
         servicos.AddSingleton<ContaService>();
         servicos.AddSingleton<SincronizacaoService>();
         servicos.AddSingleton<ModoCarroService>();
+        servicos.AddSingleton<RotaService>();
 
         return builder.Build();
     }

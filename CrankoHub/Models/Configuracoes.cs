@@ -35,4 +35,13 @@ public class Configuracoes
     public bool VerificarAtualizacoes { get; set; } = true;
 
     public DateOnly? UltimaVerificacaoAtualizacao { get; set; }
+
+    /// <summary>Modo Carro: últimos destinos das rotas (fica no aparelho).</summary>
+    public List<LugarBusca> DestinosRecentes { get; set; } = [];
+
+    /// <summary>Modo Carro: avisos por voz na navegação (manobras, pedágios, radares e limite). Opcional, ligado em Configurações → Aplicativo.</summary>
+    public bool VozModoCarro { get; set; }
+
+    /// <summary>Modo Carro: calcular as rotas evitando pedágios.</summary>
+    public bool EvitarPedagios { get; set; }
 }

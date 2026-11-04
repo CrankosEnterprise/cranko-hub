@@ -30,6 +30,22 @@ public static class Icones
     public static readonly MarkupString Anterior = new("""<svg viewBox="0 0 24 24"><path d="M19 5v14L9 12zM5 5v14"/></svg>""");
     public static readonly MarkupString Musica = new("""<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>""");
     public static readonly MarkupString Navegacao = new("""<svg viewBox="0 0 24 24"><path d="M12 2.5 19.5 21 12 17l-7.5 4z"/></svg>""");
+    public static readonly MarkupString Busca = new("""<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>""");
+    public static readonly MarkupString Fechar = new("""<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>""");
+
+    /// <summary>Seta da manobra da rota (chaves do <c>RotaService</c>).</summary>
+    public static MarkupString Manobra(string chave) => chave switch
+    {
+        "esquerda" => new("""<svg viewBox="0 0 24 24"><path d="M17 21v-8a4 4 0 0 0-4-4H5"/><path d="M9 5 5 9l4 4"/></svg>"""),
+        "direita" => new("""<svg viewBox="0 0 24 24"><path d="M7 21v-8a4 4 0 0 1 4-4h8"/><path d="m15 5 4 4-4 4"/></svg>"""),
+        "leve-esquerda" => new("""<svg viewBox="0 0 24 24"><path d="M15 21v-7L8 7"/><path d="M8 13V7h6"/></svg>"""),
+        "leve-direita" => new("""<svg viewBox="0 0 24 24"><path d="M9 21v-7l7-7"/><path d="M10 7h6v6"/></svg>"""),
+        "retorno" => new("""<svg viewBox="0 0 24 24"><path d="M17 21V9a4.5 4.5 0 0 0-9 0v7"/><path d="m4 12 4 4 4-4"/></svg>"""),
+        "rotatoria" => new("""<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4.5"/><path d="M12 21v-7.5M15.2 5.8 19 2M15 2h4v4"/></svg>"""),
+        "chegada" => new("""<svg viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4.5L17 13H6"/></svg>"""),
+        _ => new("""<svg viewBox="0 0 24 24"><path d="M12 21V4"/><path d="m6 10 6-6 6 6"/></svg>"""),
+    };
+
     public static readonly MarkupString Seta =new("""<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>""");
     public static readonly MarkupString Balanca = new("""<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9a5 5 0 0 1 8 0l-2.5 2.5"/><circle cx="12" cy="12.5" r=".8"/></svg>""");
     public static readonly MarkupString Bomba = new("""<svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16M3 21h13M4 10h11"/><path d="M15 8h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg>""");

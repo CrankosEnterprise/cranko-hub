@@ -165,6 +165,7 @@ public class ArmazenamentoService
         s.Config ??= new Configuracoes();
         s.Config.AvisosEnviados ??= [];
         s.Config.ModulosOcultos ??= [];
+        s.Config.DestinosRecentes ??= [];
         s.Config.ModulosOcultos.RemoveAll(id => Modulo.Buscar(id) is null);
         s.Assinaturas ??= []; // backups antigos (e do app web) não têm assinaturas
         s.Assinaturas.RemoveAll(a => a is null);

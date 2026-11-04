@@ -1,5 +1,8 @@
 @* Layout do Modo Carro: tela cheia, sem a barra lateral nem a barra de cima *@
 @inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Nav
+@inject NavegacaoService Navegacao
 
 <div class="layout-carro">
     @Body
@@ -7,3 +10,12 @@
 
 <Toasts />
 <Confirmacao />
+
+@code {
+    // Pedido vindo de fora do Blazor (ex.: toque numa notificação), como no LayoutPrincipal
+    protected override void OnInitialized() => Navegacao.AoNavegar += AbrirPagina;
+
+    private void AbrirPagina(string link) => _ = InvokeAsync(() => Nav.NavigateTo(link));
+
+    public void Dispose() => Navegacao.AoNavegar -= AbrirPagina;
+}

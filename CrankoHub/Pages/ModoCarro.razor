@@ -1,12 +1,14 @@
 @page "/carro/modo"
 @layout LayoutCarro
-@* Modo Carro (CarLink): mapa próprio (OpenStreetMap, seguindo o GPS) + Spotify + atalhos, para o celular no suporte do carro.
+@* Modo Carro (CarLink): mapa próprio (OpenStreetMap, seguindo o GPS) com rota (RotaService) + Spotify + atalhos, para o celular no suporte do carro.
    Só funciona no Android (ModoCarroService); no Windows/Linux a página explica isso e o mapa nem é carregado. *@
 @implements IAsyncDisposable
 @inject ModoCarroService Modo
 @inject ToastService Toast
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject RotaService Rota
+@inject ArmazenamentoService Store
 
 @{
     var musica = Modo.Musica;
@@ -28,8 +30,110 @@
     }
     else
     {
-        <div class="mc-mapa">
+        var pr = Rota.Atual is not null ? Rota.Progresso : null;
+        <div class="mc-mapa @(Rota.Atual is not null ? "navegando" : "")">
             <div id="mc-mapa" class="mc-mapa-area"></div>
+
+            @if (pr is not null)
+            {
+                <div class="mc-manobra @(pr.Chegou ? "chegou" : "")">
+                    <span class="mc-manobra-seta">@Icones.Manobra(pr.Chegou ? "chegada" : pr.Proximo.Icone)</span>
+                    <div class="mc-manobra-texto">
+                        @if (!pr.Chegou)
+                        {
+                            <b>@RotaService.TextoDistancia(pr.DistanciaProximo)</b>
+                        }
+                        <p>@(pr.Chegou ? "Você chegou ao destino" : pr.Proximo.Instrucao)</p>
+                    </div>
+                </div>
+            }
+            else if (Rota.Atual is not null)
+            {
+                <div class="mc-manobra"><div class="mc-manobra-texto"><p>Rota para @Rota.Atual.Destino.Nome</p></div></div>
+            }
+            else if (Rota.Destino is null && pos is not null && !_buscando)
+            {
+                <button class="mc-para-onde" type="button" @onclick="AbrirBusca">@Icones.Busca<span>Para onde?</span></button>
+            }
+            @if (Rota.Calculando && Rota.Atual is not null)
+            {
+                <div class="mc-recalculando">Recalculando…</div>
+            }
+            @if (pr is not null && !pr.Chegou && (pr.RadarEm is <= 1000 || pr.PedagioEm is <= 2000))
+            {
+                <div class="mc-alertas">
+                    @if (pr is { Radar: { } radar, RadarEm: <= 1000 and var radarEm })
+                    {
+                        <div class="mc-alerta radar"><span class="mc-radar-ponto"></span>Radar a @RotaService.TextoDistancia(radarEm)@(radar.Kmh is { } k ? $" · {k} km/h" : "")</div>
+                    }
+                    @if (pr is { PedagioEm: <= 2000 and var pedagioEm })
+                    {
+                        <div class="mc-alerta"><span class="mc-pedagio-ponto"></span>Pedágio a @RotaService.TextoDistancia(pedagioEm)</div>
+                    }
+                </div>
+            }
+
+            @if (Rota.Atual is { } rota)
+            {
+                <div class="mc-viagem">
+                    @if (pr is not null)
+                    {
+                        <div><b>@pr.Chegada.ToString("HH:mm")</b><small>chegada</small></div>
+                        <div><b>@TempoTexto(pr.TempoRestante)</b><small>@(pr.TempoRestante.TotalMinutes >= 60 ? "h" : "min")</small></div>
+                        <div><b>@KmTexto(pr.Restante)</b><small>km</small></div>
+                    }
+                    else
+                    {
+                        <div class="mc-viagem-destino"><b>@rota.Destino.Nome</b></div>
+                    }
+                    <button class="mc-encerrar" type="button" aria-label="Encerrar a rota" @onclick="Encerrar">@Icones.Fechar<span>Encerrar</span></button>
+                </div>
+            }
+
+            @if (_buscando)
+            {
+                <div class="mc-busca">
+                    <div class="mc-busca-topo">
+                        <span class="mc-busca-icone">@Icones.Busca</span>
+                        <input @ref="_campoBusca" class="mc-busca-campo" type="search" placeholder="Para onde?" autocomplete="off" enterkeyhint="search"
+                               @oninput="Digitou" />
+                        <button class="mc-btn" type="button" @onclick="FecharBusca">Cancelar</button>
+                    </div>
+                    <div class="mc-busca-lista">
+                        @if (string.IsNullOrWhiteSpace(_termo))
+                        {
+                            @if (Rota.Recentes.Count == 0)
+                            {
+                                <p class="mc-busca-vazio">Digite um endereço, um lugar ou um estabelecimento.</p>
+                            }
+                            else
+                            {
+                                <small class="mc-busca-titulo">Recentes</small>
+                                @foreach (var l in Rota.Recentes)
+                                {
+                                    <button class="mc-lugar" type="button" @onclick="() => Ir(l)"><b>@l.Nome</b><span>@Detalhe(l)</span></button>
+                                }
+                            }
+                        }
+                        else if (_procurando && _resultados.Count == 0)
+                        {
+                            <p class="mc-busca-vazio">Procurando…</p>
+                        }
+                        else if (_resultados.Count == 0)
+                        {
+                            <p class="mc-busca-vazio">@(_erroBusca ?? "Nada encontrado. Tente com a cidade, ex.: \"Rua Augusta, São Paulo\".")</p>
+                        }
+                        else
+                        {
+                            @foreach (var l in _resultados)
+                            {
+                                <button class="mc-lugar" type="button" @onclick="() => Ir(l)"><b>@l.Nome</b><span>@Detalhe(l)</span></button>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+
             @if (Modo.SemLocalizacao)
             {
                 <div class="mc-mapa-aviso">
@@ -43,7 +147,12 @@
             }
             @if (pos is not null)
             {
-                <div class="mc-velocidade"><b>@Num(pos.VelocidadeKmh, 0)</b><small>km/h</small></div>
+                var limite = pr?.LimiteKmh;
+                <div class="mc-velocidade @(limite is { } l && pos.VelocidadeKmh > l + 3 ? "acima" : "")"><b>@Num(pos.VelocidadeKmh, 0)</b><small>km/h</small></div>
+                @if (limite is { } lim)
+                {
+                    <div class="mc-limite" title="Limite da via"><b>@lim</b></div>
+                }
             }
             @if (!_seguindo)
             {
@@ -51,12 +160,66 @@
             }
         </div>
 
-        <aside class="mc-lado">
+        <aside class="mc-lado @(Rota.Atual is null && Rota.Destino is not null ? "previa" : "")">
             <header class="mc-status">
                 <b class="mc-hora">@DateTime.Now.ToString("HH:mm")</b>
                 <button class="mc-sair" type="button" @onclick="Sair">@Icones.Sair<span>Sair</span></button>
             </header>
 
+            @if (Rota.Atual is null && Rota.Destino is { } destino)
+            {
+                @* Prévia: escolher a rota antes de iniciar (no lugar do player) *@
+                <section class="mc-card mc-previa">
+                    <div class="mc-previa-topo">
+                        <div><small>Rotas para</small><b>@destino.Nome</b></div>
+                        <button class="mc-evitar @(Rota.EvitarPedagios ? "ligado" : "")" type="button" role="switch" aria-checked="@Rota.EvitarPedagios"
+                                disabled="@Rota.Calculando" @onclick="Rota.AlternarEvitarPedagios">
+                            <span class="mc-chave"></span>Sem pedágio
+                        </button>
+                    </div>
+                    <div class="mc-opcoes">
+                        @if (Rota.Opcoes is { } opcoes)
+                        {
+                            @for (var i = 0; i < opcoes.Count; i++)
+                            {
+                                var indice = i;
+                                var o = opcoes[i];
+                                <button class="mc-opcao @(i == Rota.Escolhida ? "ativa" : "")" type="button" @onclick="() => Rota.Escolher(indice)">
+                                    <span class="mc-opcao-linha"><b>@RotaService.TextoTempo(TimeSpan.FromSeconds(o.Duracao))</b><span>@KmTexto(o.Distancia) km</span>@if (i == 0) {<em>Mais rápida</em>}</span>
+                                    <span class="mc-opcao-linha"><span>Chegada @((DateTime.Now + TimeSpan.FromSeconds(o.Duracao)).ToString("HH:mm"))</span>
+                                        @if (o.Pedagios.Count > 0)
+                                        {
+                                            <span class="mc-com-pedagio"><span class="mc-pedagio-ponto"></span>@(o.Pedagios.Count == 1 ? "1 pedágio" : $"{o.Pedagios.Count} pedágios")</span>
+                                        }
+                                        else if (o.TemPedagio)
+                                        {
+                                            <span class="mc-com-pedagio"><span class="mc-pedagio-ponto"></span>Com pedágio</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="mc-sem-pedagio">Sem pedágio</span>
+                                        }
+                                        @if (o.Radares.Count > 0)
+                                        {
+                                            <span class="mc-com-radar"><span class="mc-radar-ponto"></span>@(o.Radares.Count == 1 ? "1 radar" : $"{o.Radares.Count} radares")</span>
+                                        }
+                                    </span>
+                                </button>
+                            }
+                        }
+                        else
+                        {
+                            <p class="mc-previa-calculando">Calculando as rotas…</p>
+                        }
+                    </div>
+                    <div class="mc-previa-acoes">
+                        <button class="mc-btn" type="button" @onclick="Encerrar">Cancelar</button>
+                        <button class="mc-btn primario" type="button" disabled="@(Rota.Opcoes is null)" @onclick="Rota.Iniciar">@Icones.Navegacao Iniciar</button>
+                    </div>
+                </section>
+            }
+            else
+            {
             <section class="mc-card mc-player">
                 <div class="mc-capa">
                     @if (musica?.Capa is { } capa)
@@ -94,6 +257,7 @@
                 <button class="mc-app" type="button" @onclick="() => Abrir(AppsCarro.Maps)">@Icones.Navegacao<span>Maps</span></button>
                 <button class="mc-app" type="button" @onclick="() => Abrir(AppsCarro.Waze)">@Icones.Navegacao<span>Waze</span></button>
             </nav>
+            }
         </aside>
     }
 </div>
@@ -103,11 +267,14 @@
     private DotNetObjectReference<ModoCarro>? _ref;
     private bool _mapaPronto, _seguindo = true;
     private PosicaoCarro? _enviada;
+    private int _versaoEnviada = -1;
+
 
     protected override async Task OnInitializedAsync()
     {
         if (!Modo.Disponivel) return;
         Modo.Mudou += Mudou;
+        Rota.Mudou += Mudou;
         // Hora da barra de cima
         _relogio = new System.Threading.Timer(_ => Mudou(), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
         await Modo.Entrar();
@@ -133,6 +300,12 @@
                 return;
             }
         }
+        if (_focarBusca)
+        {
+            _focarBusca = false;
+            await JS.InvokeVoidAsync("crankohub.focar", _campoBusca);
+        }
+        await EnviarRota();
         await EnviarPosicao();
     }
 
@@ -141,9 +314,28 @@
     {
         if (!_mapaPronto || Modo.Posicao is not { } p || p == _enviada) return;
         _enviada = p;
+        Rota.Atualizar(p);
         try
         {
             await JS.InvokeVoidAsync("modoCarro.posicao", p.Latitude, p.Longitude, p.Direcao, p.VelocidadeKmh);
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    // A linha da rota só vai ao mapa quando muda (rota nova, recalculada ou encerrada)
+    private async Task EnviarRota()
+    {
+        if (!_mapaPronto || Rota.Versao == _versaoEnviada) return;
+        _versaoEnviada = Rota.Versao;
+        // Prévia: todas as opções (pedágios da marcada); navegando: só a rota escolhida
+        var (lista, marcada, modo) = Rota.Atual is { } atual ? (new[] { atual }, 0, "navegando")
+            : Rota.Opcoes is { } opcoes ? (opcoes.ToArray(), Rota.Escolhida, "previa")
+            : (Array.Empty<RotaAtiva>(), 0, (string?)null);
+        var pracas = lista.Length > 0 ? lista[marcada].Pedagios.Select(p => new[] { p.Longitude, p.Latitude }).ToArray() : [];
+        var radares = lista.Length > 0 ? lista[marcada].Radares.Select(r => new[] { r.Longitude, r.Latitude }).ToArray() : [];
+        try
+        {
+            await JS.InvokeVoidAsync("modoCarro.rotas", lista.Select(r => r.Coordenadas).ToArray(), marcada, pracas, radares, modo);
         }
         catch (JSDisconnectedException) { }
     }
@@ -158,6 +350,88 @@
 
     private async Task Recentralizar() => await JS.InvokeVoidAsync("modoCarro.seguir");
 
+    // ===== Busca de destino =====
+
+    private bool _buscando, _procurando, _focarBusca;
+    private string _termo = "";
+    private string? _erroBusca;
+    private List<LugarBusca> _resultados = [];
+    private CancellationTokenSource? _busca;
+    private ElementReference _campoBusca;
+
+    private void AbrirBusca()
+    {
+        _buscando = _focarBusca = true;
+        _termo = "";
+        _resultados = [];
+    }
+
+    private void FecharBusca()
+    {
+        _busca?.Cancel();
+        _buscando = false;
+    }
+
+    // Procura enquanto digita, esperando uma pausa de 450 ms (não pesa o serviço gratuito)
+    private async Task Digitou(ChangeEventArgs e)
+    {
+        _termo = e.Value?.ToString() ?? "";
+        _busca?.Cancel();
+        _erroBusca = null;
+        if (_termo.Trim().Length < 3)
+        {
+            _resultados = [];
+            _procurando = false;
+            return;
+        }
+        var busca = _busca = new CancellationTokenSource();
+        _procurando = true;
+        try
+        {
+            await Task.Delay(450, busca.Token);
+            _resultados = await Rota.Buscar(_termo.Trim(), Modo.Posicao, busca.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch
+        {
+            _resultados = [];
+            _erroBusca = "Não foi possível buscar agora. Confira a internet.";
+        }
+        _procurando = false;
+    }
+
+    private async Task Ir(LugarBusca lugar)
+    {
+        FecharBusca();
+        if (Modo.Posicao is not { } origem)
+        {
+            Toast.Erro("Esperando o GPS para calcular a rota.");
+            return;
+        }
+        if (!await Rota.Planejar(lugar, origem))
+            Toast.Erro("Não foi possível calcular a rota até esse lugar. Confira a internet ou tente outro destino.");
+    }
+
+    private void Encerrar() => Rota.Encerrar();
+
+    // Distância em linha reta na frente do endereço, para escolher o certo entre nomes iguais
+    private string? Detalhe(LugarBusca l)
+    {
+        if (Modo.Posicao is not { } p) return l.Detalhe;
+        var longe = RotaService.TextoDistancia(RotaService.Distancia(p.Latitude, p.Longitude, l.Latitude, l.Longitude));
+        return l.Detalhe is null ? longe : $"{longe} · {l.Detalhe}";
+    }
+
+    private static string TempoTexto(TimeSpan t) =>
+        t.TotalMinutes >= 60 ? $"{(int)t.TotalHours}:{t.Minutes:00}" : Math.Max(1, Math.Round(t.TotalMinutes)).ToString("0");
+
+    private static string KmTexto(double metros) => (metros / 1000).ToString(metros < 100_000 ? "0.0" : "0", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+
+    // ===== Resto =====
+
     private void Mudou() => _ = InvokeAsync(StateHasChanged);
 
     private void Sair() => Nav.NavigateTo("carro");
@@ -170,8 +444,10 @@
     public async ValueTask DisposeAsync()
     {
         Modo.Mudou -= Mudou;
+        Rota.Mudou -= Mudou;
+        _busca?.Cancel();
         _relogio?.Dispose();
-        // Também ao sair pelo botão voltar do Android
+        // Também ao sair pelo botão voltar do Android. A rota continua no RotaService e volta ao abrir de novo.
         Modo.Sair();
         if (_mapaPronto)
         {

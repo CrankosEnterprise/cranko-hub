@@ -29,6 +29,9 @@ public sealed class ModoCarroService
     /// <summary>Pede a permissão de localização de novo e liga o GPS.</summary>
     public Task LigarGps() => Task.CompletedTask;
 
+    /// <summary>Fala o texto (avisos da rota).</summary>
+    public Task Falar(string texto) => Task.CompletedTask;
+
     public void TocarPausar() { }
 
     public void Proxima() { }
