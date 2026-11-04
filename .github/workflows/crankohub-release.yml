@@ -91,7 +91,22 @@ jobs:
             echo "::error::Falta o secret ANDROID_KEYSTORE_BASE64 (veja a seção Android do README)."
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/crankohub.keystore"
+          echo "$KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/crankohub.keystore"
+
+      # Confere chave, senha e alias antes do build: se algo estiver errado, o apksigner só diz
+      # '"java" exited with code 2', sem o motivo. O keytool mostra a mensagem de verdade.
+      - name: Conferir a chave
+        env:
+          KEYSTORE_SENHA: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_SENHA" ]; then
+            echo "::error::Falta o secret ANDROID_KEYSTORE_PASSWORD (veja a seção Android do README)."
+            exit 1
+          fi
+          if ! keytool -list -keystore "$RUNNER_TEMP/crankohub.keystore" -storepass:env KEYSTORE_SENHA -alias crankohub; then
+            echo "::error::Keystore, senha ou alias (crankohub) não batem. Veja a mensagem do keytool acima."
+            exit 1
+          fi
 
       - name: Publicar
         env:
