@@ -1,7 +1,6 @@
 using Android.App;
 using Android.Content;
 using AndroidX.Core.App;
-using AndroidX.Core.Content;
 
 namespace CrankoHub.Services;
 
@@ -25,14 +24,45 @@ public sealed class BandejaService : IDisposable
 
     public void AplicarCor(string hex) { }
 
+    // Pede a permissão (ou avisa que está bloqueada) no máximo uma vez por abertura do app
+    private static bool _jaPediu;
+
     public void Notificar(string titulo, string texto, string? link = null)
+    {
+        var ctx = global::Android.App.Application.Context;
+        if (!NotificationManagerCompat.From(ctx)!.AreNotificationsEnabled())
+        {
+            if (!_jaPediu)
+            {
+                _jaPediu = true;
+                _ = PermitirENotificar(titulo, texto, link);
+            }
+            return;
+        }
+        Mostrar(ctx, titulo, texto, link);
+    }
+
+    /// <summary>
+    /// O pedido feito ao abrir o app pode não aparecer (a tela ainda não estava pronta, ou o sistema bloqueia,
+    /// como no MIUI). Então pede de novo na hora de notificar; se continuar bloqueado, diz onde ativar.
+    /// </summary>
+    private static async Task PermitirENotificar(string titulo, string texto, string? link)
+    {
+        var ctx = global::Android.App.Application.Context;
+        await PedirPermissao();
+        if (NotificationManagerCompat.From(ctx)!.AreNotificationsEnabled())
+        {
+            Mostrar(ctx, titulo, texto, link);
+            return;
+        }
+        await MainThread.InvokeOnMainThreadAsync(() =>
+            global::Android.Widget.Toast.MakeText(ctx, "As notificações do CrankoHub estão desativadas. Ative em Configurações do Android → Apps → CrankoHub → Notificações.", global::Android.Widget.ToastLength.Long)!.Show());
+    }
+
+    private static void Mostrar(Context ctx, string titulo, string texto, string? link)
     {
         try
         {
-            var ctx = global::Android.App.Application.Context;
-            if (OperatingSystem.IsAndroidVersionAtLeast(33) &&
-                ContextCompat.CheckSelfPermission(ctx, global::Android.Manifest.Permission.PostNotifications) != global::Android.Content.PM.Permission.Granted)
-                return;
             CriarCanal(ctx);
 
             var abrir = ctx.PackageManager!.GetLaunchIntentForPackage(ctx.PackageName!)!;
@@ -69,7 +99,7 @@ public sealed class BandejaService : IDisposable
         if (!OperatingSystem.IsAndroidVersionAtLeast(26)) return;
         var gerenciador = (NotificationManager)ctx.GetSystemService(Context.NotificationService)!;
         if (gerenciador.GetNotificationChannel(Canal) is not null) return;
-        gerenciador.CreateNotificationChannel(new NotificationChannel(Canal, "Avisos", NotificationImportance.Default)
+        gerenciador.CreateNotificationChannel(new NotificationChannel(Canal, "Avisos", NotificationImportance.High)
         {
             Description = "Vencimentos de manutenção, documentos, assinaturas e tarefas",
         });
