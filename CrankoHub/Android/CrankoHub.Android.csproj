@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!--
+    Versão Android do CrankoHub (.NET MAUI Blazor Hybrid).
+    Usa as MESMAS telas, modelos e serviços do projeto Windows (arquivos da pasta acima, por link);
+    só a janela (BlazorWebView do MAUI) e as partes de plataforma são trocadas (pasta Plataforma).
+    Distribuído como APK no GitHub Releases (fora da Play Store).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CrankoHub</RootNamespace>
+    <AssemblyName>CrankoHub</AssemblyName>
+    <SupportedOSPlatformVersion>24.0</SupportedOSPlatformVersion>
+
+    <Version>1.0.0</Version>
+    <Product>CrankoHub</Product>
+    <Authors>Diego Ottani</Authors>
+    <Description>Painel pessoal de parâmetros: dieta, carro e mais.</Description>
+
+    <ApplicationTitle>CrankoHub</ApplicationTitle>
+    <ApplicationId>com.crankosenterprise.crankohub</ApplicationId>
+    <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
+    <!-- O Android compara versões por um número inteiro: 1.2.3 vira 10203 -->
+    <ApplicationVersion>$([MSBuild]::Add($([MSBuild]::Add($([MSBuild]::Multiply($([System.Version]::Parse($(Version)).Major), 10000)), $([MSBuild]::Multiply($([System.Version]::Parse($(Version)).Minor), 100)))), $([System.Math]::Max($([System.Version]::Parse($(Version)).Build), 0))))</ApplicationVersion>
+  </PropertyGroup>
+
+  <!-- Publicação: um APK só (todas as arquiteturas), assinado com a chave passada pelo CI -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidKeyStore Condition="'$(AndroidSigningKeyStore)' != ''">true</AndroidKeyStore>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+    <!-- Reduz as capas do Entretenimento (Services/CapasService.cs) -->
+    <PackageReference Include="SkiaSharp" Version="4.154.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="..\Linux\icone.png" Link="Resources\AppIcon\appicon.png" Color="#5856D6" ForegroundScale="0.75" />
+    <MauiSplashScreen Include="..\Linux\icone.png" Link="Resources\Splash\splash.png" Color="#5856D6" BaseSize="128,128" />
+  </ItemGroup>
+
+  <!-- Código compartilhado com a versão Windows -->
+  <ItemGroup>
+    <!-- O Link repete o caminho original: é dele que o Razor tira o namespace (CrankoHub.Pages...) -->
+    <Compile Include="..\Models\**\*.cs" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\Components\**\*.cs" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\Services\**\*.cs" Link="Services\%(RecursiveDir)%(Filename)%(Extension)"
+             Exclude="..\Services\BandejaService.cs;..\Services\DialogoService.cs;..\Services\InicializacaoWindows.cs;..\Services\AtualizacaoService.cs;..\Services\CofreSessao.cs" />
+    <!-- Peças da versão Linux que servem igual aqui -->
+    <Compile Include="..\Linux\Plataforma\DispatcherTimer.cs;..\Linux\Plataforma\ArquivosDoApp.cs" Link="Plataforma\%(Filename)%(Extension)" />
+
+    <!-- No MAUI os .razor são RazorComponent (não Content), senão o SDK os descarta -->
+    <RazorComponent Include="..\Main.razor;..\_Imports.razor" Link="%(Filename)%(Extension)" />
+    <RazorComponent Include="..\Pages\**\*.razor" Link="Pages\%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="..\Components\**\*.razor" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="..\Layout\**\*.razor" Link="Layout\%(RecursiveDir)%(Filename)%(Extension)" />
+
+    <Content Include="..\wwwroot\**\*" Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

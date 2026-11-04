@@ -11,7 +11,7 @@ public class DialogoService : IDialogoService
 
     public Task<bool> Confirmar(string mensagem) => AoConfirmar?.Invoke(mensagem) ?? Task.FromResult(false);
 
-    public string? SalvarBackup(string nomeSugerido)
+    public async Task<bool> SalvarBackup(string nomeSugerido, string conteudo)
     {
         var dialogo = new SaveFileDialog
         {
@@ -21,10 +21,13 @@ public class DialogoService : IDialogoService
             DefaultExt = ".json",
             OverwritePrompt = true,
         };
-        return Exibir(() => dialogo.ShowDialog(Application.Current.MainWindow) == true ? dialogo.FileName : null);
+        if (await Exibir(() => dialogo.ShowDialog(Application.Current.MainWindow) == true ? dialogo.FileName : null) is not string caminho)
+            return false;
+        await File.WriteAllTextAsync(caminho, conteudo);
+        return true;
     }
 
-    public string? AbrirBackup()
+    public Task<string?> AbrirBackup()
     {
         var dialogo = new OpenFileDialog
         {
@@ -35,7 +38,7 @@ public class DialogoService : IDialogoService
         return Exibir(() => dialogo.ShowDialog(Application.Current.MainWindow) == true ? dialogo.FileName : null);
     }
 
-    public string? AbrirImagem()
+    public Task<string?> AbrirImagem()
     {
         var dialogo = new OpenFileDialog
         {
@@ -46,7 +49,7 @@ public class DialogoService : IDialogoService
         return Exibir(() => dialogo.ShowDialog(Application.Current.MainWindow) == true ? dialogo.FileName : null);
     }
 
-    public string? EscolherPasta(string titulo, string? pastaInicial)
+    public Task<string?> EscolherPasta(string titulo, string? pastaInicial)
     {
         var dialogo = new OpenFolderDialog
         {
@@ -57,6 +60,6 @@ public class DialogoService : IDialogoService
     }
 
     // Os diálogos do WPF precisam rodar na thread da interface.
-    private static string? Exibir(Func<string?> abrir) =>
-        Application.Current.Dispatcher.Invoke(abrir);
+    private static Task<string?> Exibir(Func<string?> abrir) =>
+        Task.FromResult(Application.Current.Dispatcher.Invoke(abrir));
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+	<!-- allowBackup=false: a sessão da conta e os dados não vão para o backup do Google -->
+	<application android:allowBackup="false" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true" android:label="CrankoHub"></application>
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+	<!-- Avisos de vencimento (Android 13+) -->
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+	<!-- Atualização: abre o instalador com o APK novo baixado do GitHub Releases -->
+	<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+</manifest>

@@ -71,6 +71,8 @@
                 <div><span>Tarefas</span><b>@d.Tarefas.Cards.Count</b></div>
                 <div><span>Tamanho</span><b>@Num(Store.TamanhoKB(), 1) KB</b></div>
             </div>
+            @if (!Android)
+            {
             <div class="sincronia">
                 <h3>Usar em mais de um computador</h3>
                 @if (ArmazenamentoService.PorConta)
@@ -106,8 +108,15 @@
                     <button class="btn" type="button" @onclick="AbrirPastaDados">Abrir pasta</button>
                 </div>
             </div>
+            }
+            else
+            {
+                <p class="muted" style="margin-top:12px">Para usar os mesmos dados no computador e no celular, entre com a sua <b>conta</b>: a sincronização é automática.</p>
+            }
         </section>
 
+        @if (!Android)
+        {
         <section class="card">
             <div class="card-head">
                 <div><h2>Backup automático</h2><p>Uma cópia por dia, feita ao abrir o app. Dica: escolha uma pasta do OneDrive ou Google Drive para ter o backup também na nuvem.</p></div>
@@ -151,6 +160,7 @@
                 </div>
             }
         </section>
+        }
 
         <div class="grid-2">
             <section class="card action-card">
@@ -178,11 +188,17 @@
 
     case "aplicativo":
         <section class="card">
-            <div class="card-head"><div><h2>Aplicativo</h2><p>Ícone na bandeja do Windows (perto do relógio) e notificações dos vencimentos.</p></div></div>
+            <div class="card-head"><div><h2>Aplicativo</h2><p>@(Android ? "Notificações dos vencimentos (aparecem enquanto o app está aberto)." : "Ícone na bandeja do Windows (perto do relógio) e notificações dos vencimentos.")</p></div></div>
             <div class="opcoes">
-                <label class="check"><input type="checkbox" checked="@cfg.MinimizarParaBandeja" @onchange="@(e => Mudar(e, v => cfg.MinimizarParaBandeja = v))"> Ao fechar a janela, continuar rodando na bandeja</label>
+                @if (!Android)
+                {
+                    <label class="check"><input type="checkbox" checked="@cfg.MinimizarParaBandeja" @onchange="@(e => Mudar(e, v => cfg.MinimizarParaBandeja = v))"> Ao fechar a janela, continuar rodando na bandeja</label>
+                }
                 <label class="check"><input type="checkbox" checked="@cfg.Avisos" @onchange="@(e => Mudar(e, v => cfg.Avisos = v))"> Mostrar notificações (manutenção, documentos, assinaturas, peso, backup)</label>
-                <label class="check"><input type="checkbox" checked="@(ConfigLocal.Atual.IniciarComWindows == true)" @onchange="MudarInicioWindows"> Iniciar com o Windows (abre direto na bandeja)</label>
+                @if (!Android)
+                {
+                    <label class="check"><input type="checkbox" checked="@(ConfigLocal.Atual.IniciarComWindows == true)" @onchange="MudarInicioWindows"> Iniciar com o Windows (abre direto na bandeja)</label>
+                }
             </div>
             <div class="form-actions">
                 <button class="btn" type="button" @onclick="() => Avisos.Verificar(manual: true)">Testar notificação</button>
@@ -265,6 +281,9 @@
         ("aplicativo", "Aplicativo"),
     ];
 
+    // No celular não há bandeja, inicialização com o sistema nem pastas para escolher
+    private static bool Android => OperatingSystem.IsAndroid();
+
     // Aba aberta, mantida enquanto o app estiver aberto
     private static string _aba = "aparencia";
 
@@ -325,7 +344,7 @@
 
     private async Task Atualizar(AtualizacaoService.Novidade n)
     {
-        if (!await Dialogo.Confirmar($"Atualizar para a versão {AtualizacaoService.Texto(n.Versao)}?\nO CrankoHub vai baixar a versão nova, fechar e abrir de novo. Seus dados não são alterados.")) return;
+        if (!await Dialogo.Confirmar($"Atualizar para a versão {AtualizacaoService.Texto(n.Versao)}?\n{(Android ? "O CrankoHub vai baixar a versão nova e abrir o instalador do Android. Toque em Atualizar para concluir." : "O CrankoHub vai baixar a versão nova, fechar e abrir de novo.")} Seus dados não são alterados.")) return;
         _progresso = 0;
         // Redesenha só quando muda o percentual inteiro (o download avisa a cada 80 KB)
         var progresso = new Progress<double>(p =>
@@ -356,13 +375,11 @@
 
     private Task MudarCorPersonalizada(ChangeEventArgs e) => MudarCor(e.Value?.ToString()?.ToUpperInvariant() ?? "azul");
 
-    private void Exportar()
+    private async Task Exportar()
     {
-        var caminho = Dialogo.SalvarBackup($"crankohub-backup-{Iso(Hoje)}.json");
-        if (caminho is null) return;
         try
         {
-            File.WriteAllText(caminho, Store.Exportar());
+            if (!await Dialogo.SalvarBackup($"crankohub-backup-{Iso(Hoje)}.json", Store.Exportar())) return;
             Store.Dados.Config.UltimoBackup = Hoje;
             Store.Salvar();
             Toast.Ok("Backup salvo.");
@@ -404,10 +421,10 @@
         Backup.ExecutarSeNecessario();
     }
 
-    private void EscolherPasta()
+    private async Task EscolherPasta()
     {
         var cfg = Store.Dados.Config;
-        var pasta = Dialogo.EscolherPasta("Pasta para os backups automáticos", cfg.PastaBackup ?? BackupService.PastaSugerida);
+        var pasta = await Dialogo.EscolherPasta("Pasta para os backups automáticos", cfg.PastaBackup ?? BackupService.PastaSugerida);
         if (pasta is null) return;
         cfg.PastaBackup = pasta;
         cfg.UltimoBackup = null; // pasta nova: faz o primeiro backup nela
@@ -417,7 +434,7 @@
 
     private async Task UsarPastaSincronizada()
     {
-        var pasta = Dialogo.EscolherPasta("Pasta sincronizada para os dados (OneDrive, Google Drive...)", ConfigLocal.Atual.PastaDados);
+        var pasta = await Dialogo.EscolherPasta("Pasta sincronizada para os dados (OneDrive, Google Drive...)", ConfigLocal.Atual.PastaDados);
         if (pasta is null || Path.GetFullPath(pasta) == Path.GetFullPath(ArmazenamentoService.PastaDados)) return;
         var temDados = File.Exists(Path.Combine(pasta, "dados.json"));
         var pergunta = temDados
@@ -481,7 +498,7 @@
 
     private async Task Importar()
     {
-        var caminho = Dialogo.AbrirBackup();
+        var caminho = await Dialogo.AbrirBackup();
         if (caminho is null) return;
         try
         {

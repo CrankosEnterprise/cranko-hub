@@ -374,9 +374,9 @@
         _modo = Modo.Form;
     }
 
-    private void EscolherImagem()
+    private async Task EscolherImagem()
     {
-        if (Dialogo.AbrirImagem() is not string caminho) return;
+        if (await Dialogo.AbrirImagem() is not string caminho) return;
         if (CapasService.Importar(caminho) is not string arquivo) { Toast.Erro("Não foi possível usar essa imagem."); return; }
         _capasNovas.Add(arquivo);
         _fCapa = arquivo;

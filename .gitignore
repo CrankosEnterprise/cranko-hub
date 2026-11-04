@@ -402,3 +402,7 @@ FodyWeavers.xsd
 
 # Saída do perfil de publicação
 publicar/
+
+# Chave de assinatura do Android (fica s� nos secrets do GitHub)
+*.keystore
+*.jks

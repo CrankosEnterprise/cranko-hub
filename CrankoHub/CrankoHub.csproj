@@ -37,11 +37,11 @@
     <Using Remove="System.Drawing" />
   </ItemGroup>
 
-  <!-- A pasta Linux é outro projeto (versão Photino), que reaproveita estes arquivos -->
+  <!-- As pastas Linux e Android são outros projetos (Photino e MAUI), que reaproveitam estes arquivos -->
   <ItemGroup>
-    <Compile Remove="Linux\**" />
-    <Content Remove="Linux\**" />
-    <None Remove="Linux\**" />
+    <Compile Remove="Linux\**;Android\**" />
+    <Content Remove="Linux\**;Android\**" />
+    <None Remove="Linux\**;Android\**" />
   </ItemGroup>
 
   <ItemGroup>

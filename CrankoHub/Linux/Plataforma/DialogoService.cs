@@ -14,23 +14,25 @@ public class DialogoService : IDialogoService
 
     public Task<bool> Confirmar(string mensagem) => AoConfirmar?.Invoke(mensagem) ?? Task.FromResult(false);
 
-    public string? SalvarBackup(string nomeSugerido)
+    public async Task<bool> SalvarBackup(string nomeSugerido, string conteudo)
     {
         var pasta = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var caminho = Exibir(j => j.ShowSaveFile("Salvar backup", Path.Combine(pasta, nomeSugerido), FiltroJson));
-        if (string.IsNullOrEmpty(caminho)) return null;
-        return caminho.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? caminho : caminho + ".json";
+        if (string.IsNullOrEmpty(caminho)) return false;
+        if (!caminho.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) caminho += ".json";
+        await File.WriteAllTextAsync(caminho, conteudo);
+        return true;
     }
 
-    public string? AbrirBackup() =>
-        Exibir(j => j.ShowOpenFile("Escolha o backup para importar", null, false, FiltroJson).FirstOrDefault());
+    public Task<string?> AbrirBackup() =>
+        Task.FromResult(Exibir(j => j.ShowOpenFile("Escolha o backup para importar", null, false, FiltroJson).FirstOrDefault()));
 
-    public string? AbrirImagem() =>
-        Exibir(j => j.ShowOpenFile("Escolha a imagem da capa", null, false,
-            [("Imagens", ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif"])]).FirstOrDefault());
+    public Task<string?> AbrirImagem() =>
+        Task.FromResult(Exibir(j => j.ShowOpenFile("Escolha a imagem da capa", null, false,
+            [("Imagens", ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif"])]).FirstOrDefault()));
 
-    public string? EscolherPasta(string titulo, string? pastaInicial) =>
-        Exibir(j => j.ShowOpenFolder(titulo, pastaInicial is not null && Directory.Exists(pastaInicial) ? pastaInicial : null, false).FirstOrDefault());
+    public Task<string?> EscolherPasta(string titulo, string? pastaInicial) =>
+        Task.FromResult(Exibir(j => j.ShowOpenFolder(titulo, pastaInicial is not null && Directory.Exists(pastaInicial) ? pastaInicial : null, false).FirstOrDefault()));
 
     private static string? Exibir(Func<PhotinoWindow, string?> abrir)
     {

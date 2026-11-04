@@ -16,7 +16,8 @@ public class BackupService(ArmazenamentoService store, ToastService toast)
     public void ExecutarSeNecessario()
     {
         var c = store.Dados.Config;
-        if (c.BackupAutomatico && !string.IsNullOrWhiteSpace(c.PastaBackup) && c.UltimoBackup != Formatacao.Hoje)
+        // No Android não há pasta de backup (os dados vão pela conta ou pelo backup manual)
+        if (!OperatingSystem.IsAndroid() && c.BackupAutomatico && !string.IsNullOrWhiteSpace(c.PastaBackup) && c.UltimoBackup != Formatacao.Hoje)
             FazerAgora();
     }
 

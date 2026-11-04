@@ -1,7 +1,8 @@
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Expõe para o Blazor as janelas nativas do Windows (confirmação, abrir/salvar arquivo).
+/// Expõe para o Blazor as janelas nativas (confirmação, abrir/salvar arquivo).
+/// Os métodos são assíncronos porque no Android os seletores de arquivo não bloqueiam a tela.
 /// </summary>
 public interface IDialogoService
 {
@@ -14,15 +15,18 @@ public interface IDialogoService
     /// <summary>Avisa o componente de confirmação que há uma pergunta para mostrar.</summary>
     event Func<string, Task<bool>>? AoConfirmar;
 
-    /// <summary>Pergunta onde salvar o backup .json. Retorna null se cancelar.</summary>
-    string? SalvarBackup(string nomeSugerido);
+    /// <summary>
+    /// Pergunta onde salvar o backup .json e grava o conteúdo (no Android, abre o compartilhamento).
+    /// Retorna false se o usuário cancelar.
+    /// </summary>
+    Task<bool> SalvarBackup(string nomeSugerido, string conteudo);
 
     /// <summary>Escolhe um backup .json para importar. Retorna null se cancelar.</summary>
-    string? AbrirBackup();
+    Task<string?> AbrirBackup();
 
     /// <summary>Escolhe uma imagem (capa). Retorna null se cancelar.</summary>
-    string? AbrirImagem();
+    Task<string?> AbrirImagem();
 
-    /// <summary>Escolhe uma pasta. Retorna null se cancelar.</summary>
-    string? EscolherPasta(string titulo, string? pastaInicial);
+    /// <summary>Escolhe uma pasta. Retorna null se cancelar (ou se a plataforma não tiver pastas, como o Android).</summary>
+    Task<string?> EscolherPasta(string titulo, string? pastaInicial);
 }
