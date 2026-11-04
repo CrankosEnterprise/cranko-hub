@@ -310,11 +310,11 @@ public class ArmazenamentoService
     private static EstadoApp Novo()
     {
         var veiculo = new Veiculo { Id = NovoId(), Nome = "Meu carro" };
-        var quadro = TarefasCalculos.NovoQuadro("Pessoal", "🏠");
+        // Tarefas começa sem quadros: o usuário cria os seus
         return new EstadoApp
         {
             Carro = new DadosCarro { Veiculos = [veiculo], Ativo = veiculo.Id },
-            Tarefas = new DadosTarefas { Quadros = [quadro], Ativo = quadro.Id },
+            Tarefas = new DadosTarefas { Quadros = [], Ativo = Quadro.Hoje },
         };
     }
 
@@ -354,7 +354,7 @@ public class ArmazenamentoService
         foreach (var a in s.Assinaturas.Where(a => string.IsNullOrEmpty(a.Id))) a.Id = NovoId();
         foreach (var e in s.Entretenimento.Where(e => string.IsNullOrEmpty(e.Id))) e.Id = NovoId();
 
-        // Tarefas: backups antigos não têm; sempre deixa pelo menos um quadro com colunas
+        // Tarefas: backups antigos não têm; todo quadro precisa de pelo menos uma coluna
         var t = s.Tarefas ??= new DadosTarefas();
         t.Quadros ??= [];
         t.Quadros.RemoveAll(q => q is null);
@@ -366,10 +366,8 @@ public class ArmazenamentoService
             foreach (var c in q.Colunas.Where(c => string.IsNullOrEmpty(c.Id))) c.Id = NovoId();
             if (q.Colunas.Count == 0) q.Colunas = TarefasCalculos.NovoQuadro(q.Nome).Colunas;
         }
-        if (t.Quadros.Count == 0)
-            t.Quadros.Add(TarefasCalculos.NovoQuadro("Pessoal", "🏠"));
         if (t.Ativo != Quadro.Hoje && t.Quadros.All(q => q.Id != t.Ativo))
-            t.Ativo = t.Quadros[0].Id;
+            t.Ativo = t.Quadros.Count > 0 ? t.Quadros[0].Id : Quadro.Hoje;
         t.Cards ??= [];
         t.Cards.RemoveAll(c => c is null || t.Quadros.All(q => q.Id != c.QuadroId));
         foreach (var c in t.Cards)

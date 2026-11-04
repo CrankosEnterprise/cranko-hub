@@ -41,7 +41,7 @@
 <section class="card">
     <div class="quadros-barra">
         <div class="tabs">
-            <button type="button" class="tab @(emHoje ? "active" : "")" @onclick="() => Abrir(Quadro.Hoje)">☀️ Hoje
+            <button type="button" class="tab @(emHoje ? "active" : "")" @onclick="() => Abrir(Quadro.Hoje)">Hoje
                 @if (resumo.ParaHoje.Count + resumo.Atrasados.Count > 0)
                 {
                     <span class="tab-count @(resumo.Atrasados.Count > 0 ? "alerta" : "")">@(resumo.ParaHoje.Count + resumo.Atrasados.Count)</span>
@@ -100,7 +100,11 @@
     @if (emHoje)
     {
         var lista = TarefasCalculos.DeHoje(t, hoje).Where(Passa).ToList();
-        @if (lista.Count == 0)
+        @if (t.Quadros.Count == 0)
+        {
+            <div class="chart-empty">Você ainda não tem quadros. Clique em "+ Quadro" para criar o primeiro.</div>
+        }
+        else if (lista.Count == 0)
         {
             <div class="chart-empty">Nada para hoje. Cards com prazo até hoje ou marcados como foco (☆) aparecem aqui.</div>
         }
@@ -282,7 +286,7 @@
             <div class="tarefa-meta">
                 @if (mostrarQuadro && q is not null)
                 {
-                    <span class="badge">@TarefasCalculos.NomeQuadro(q)</span>
+                    <span class="badge">@q.Nome</span>
                 }
                 @if (c.Concluido is DateOnly f)
                 {
@@ -371,11 +375,10 @@
     private async Task ExcluirQuadro(Quadro q)
     {
         var n = Dados.Cards.Count(c => c.QuadroId == q.Id);
-        if (Dados.Quadros.Count == 1) { Toast.Erro("Você precisa ter pelo menos um quadro."); return; }
         if (!await Dialogo.Confirmar($"Excluir o quadro \"{TarefasCalculos.NomeQuadro(q)}\"?\n{(n > 0 ? $"As {n} tarefas dele também serão apagadas." : "Ele está vazio.")}")) return;
         Dados.Cards.RemoveAll(c => c.QuadroId == q.Id);
         Dados.Quadros.Remove(q);
-        Abrir(Dados.Quadros[0].Id);
+        Abrir(Dados.Quadros.Count > 0 ? Dados.Quadros[0].Id : Quadro.Hoje);
         Toast.Ok("Quadro excluído.");
     }
 
