@@ -16,13 +16,17 @@
             <span class="brand-name">CrankoHub</span>
         </div>
         <nav class="nav">
-            <NavLink href="" Match="NavLinkMatch.All">@Icones.Inicio<span>Início</span></NavLink>
+            <NavLink href="" Match="NavLinkMatch.All"><span class="tile">@Icones.Inicio</span><span>Início</span></NavLink>
+            @if (Modulo.Visiveis(Store.Dados.Config).Any())
+            {
+                <div class="nav-titulo">Áreas</div>
+            }
             @foreach (var m in Modulo.Visiveis(Store.Dados.Config))
             {
-                <NavLink @key="m.Id" href="@m.Link">@m.Icone<span>@m.Nome</span></NavLink>
+                <NavLink @key="m.Id" href="@m.Link"><span class="tile" style="--c:@m.Cor">@m.Icone</span><span>@m.Nome</span></NavLink>
             }
             <div class="nav-sep"></div>
-            <NavLink href="configuracoes">@Icones.Engrenagem<span>Configurações</span></NavLink>
+            <NavLink href="configuracoes"><span class="tile" style="--c:#8e8e93">@Icones.Engrenagem</span><span>Configurações</span></NavLink>
         </nav>
         @if (ContaService.Configurado)
         {
@@ -32,15 +36,26 @@
     <div class="backdrop" @onclick="() => _menuAberto = false"></div>
 
     <div class="main">
-        <header class="topbar">
-            <button class="icon-btn menu-btn" aria-label="Mostrar ou ocultar o menu" title="Mostrar ou ocultar o menu" @onclick="AlternarMenu">@Icones.Menu</button>
-            <div class="crumb"><span class="crumb-root">CrankoHub</span><span class="crumb-sep">/</span><span>@TituloDaPagina</span></div>
-            <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
-        </header>
-        @* A chave recria o container a cada navegação, reiniciando a animação de entrada *@
-        <main class="content enter" @key="(_caminho, _recarregados)">
-            @Body
-        </main>
+        @* O palco é quem rola; a barra de vidro fica fixa no topo dele, com a página passando por baixo *@
+        <div class="palco" id="palco">
+            <header class="topbar">
+                <button class="icon-btn menu-btn" aria-label="Mostrar ou ocultar o menu" title="Mostrar ou ocultar o menu" @onclick="AlternarMenu">@Icones.Menu</button>
+                <div class="crumb"><span class="crumb-root">CrankoHub</span><span class="crumb-sep">/</span><span>@TituloDaPagina</span></div>
+                <nav class="atalhos" aria-label="Atalhos">
+                    <NavLink href="" Match="NavLinkMatch.All" title="Início">@Icones.Inicio</NavLink>
+                    @foreach (var m in Modulo.Visiveis(Store.Dados.Config))
+                    {
+                        <NavLink @key="m.Id" href="@m.Link" title="@m.Nome" style="@($"--c:{m.Cor}")">@m.Icone</NavLink>
+                    }
+                    <NavLink href="configuracoes" title="Configurações">@Icones.Engrenagem</NavLink>
+                </nav>
+                <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
+            </header>
+            @* A chave recria o container a cada navegação, reiniciando a animação de entrada *@
+            <main class="content enter" @key="(_caminho, _recarregados)">
+                @Body
+            </main>
+        </div>
     </div>
 </div>
 

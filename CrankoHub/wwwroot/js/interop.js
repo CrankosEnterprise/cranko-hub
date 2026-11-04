@@ -25,7 +25,8 @@ window.crankohub = {
     s.setProperty('--destaque-texto', texto);
   },
 
-  rolarParaTopo() { window.scrollTo(0, 0); },
+  // Quem rola é o "palco" (ver LayoutPrincipal), não a janela
+  rolarParaTopo() { document.getElementById('palco')?.scrollTo(0, 0); },
 
   // Mesmo limite do CSS em que o menu lateral passa a abrir por cima
   telaPequena() { return matchMedia('(max-width: 860px)').matches; },

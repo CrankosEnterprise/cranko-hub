@@ -24,6 +24,19 @@ public record Modulo(string Id, string Nome, string Descricao, MarkupString Icon
     /// <summary>O link do módulo é o próprio Id (ex.: "dieta").</summary>
     public string Link => Id;
 
+    /// <summary>Cor do ícone do módulo no menu e nos cartões do Início (cores do sistema da Apple).</summary>
+    public string Cor => CorDe(Id);
+
+    public static string CorDe(string id) => id switch
+    {
+        Dieta => "#ff2d55",
+        Carro => "#007aff",
+        Assinaturas => "#af52de",
+        Entretenimento => "#ff9500",
+        Tarefas => "#34c759",
+        _ => "var(--accent)",
+    };
+
     public static Modulo? Buscar(string id) => Todos.FirstOrDefault(m => m.Id == id);
 
     public static bool Visivel(Configuracoes cfg, string id) => !cfg.ModulosOcultos.Contains(id);

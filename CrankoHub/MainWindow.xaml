@@ -9,7 +9,7 @@
         MinHeight="600" MinWidth="960"
         WindowStartupLocation="CenterScreen"
         Icon="Assets/icone.ico"
-        Background="#F5F5F7">
+        Background="#E8E8ED">
 
     <!-- Tira a barra de título do Windows; a nossa (estilo Mac) fica na primeira linha do Grid -->
     <WindowChrome.WindowChrome>
@@ -66,7 +66,8 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border x:Name="barraTitulo" Background="#FFFFFF" BorderBrush="#E5E5EA" BorderThickness="0,0,0,1">
+        <!-- Sem fundo próprio: mostra a moldura da janela (translúcida no Windows 11), como a barra de título do macOS -->
+        <Border x:Name="barraTitulo" Background="Transparent">
             <Grid>
                 <StackPanel x:Name="semaforo" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center"
                             Margin="12,0,0,0" Background="Transparent" WindowChrome.IsHitTestVisibleInChrome="True">

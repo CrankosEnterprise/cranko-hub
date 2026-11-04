@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 
 namespace CrankoHub.Components;
 
@@ -9,7 +9,7 @@ public static class Icones
     public static readonly MarkupString Logo = new("""<svg viewBox="0 0 24 24" class="logo-grade"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2.2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2.2" opacity=".85"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2.2" opacity=".85"/><rect x="13" y="13" width="7.5" height="7.5" rx="2.2" opacity=".65"/></svg>""");
     public static readonly MarkupString Inicio = new("""<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>""");
     public static readonly MarkupString Dieta = new("""<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.3-9.6C1.4 7.6 4 4 7.6 4c2 0 3.4 1.1 4.4 2.6C13 5.1 14.4 4 16.4 4 20 4 22.6 7.6 21.3 11.4 19.5 16.4 12 21 12 21z"/><polyline points="6 12 9.5 12 11 9.5 13 14.5 14.5 12 18 12"/></svg>""");
-    public static readonly MarkupString Carro = new("""<svg viewBox="0 0 24 24"><path d="M3 16.5v-4L5.5 7h13l2.5 5.5v4h-2M8.5 16.5h7M3 16.5h2M3 12.5h18"/><circle cx="7" cy="16.5" r="2"/><circle cx="17" cy="16.5" r="2"/></svg>""");
+    public static readonly MarkupString Carro = new("""<svg viewBox="0 0 24 24"><path d="M4.5 15.5H3.3a.8.8 0 0 1-.8-.8v-2c0-.6.4-1.1 1-1.3l3.5-.9 2.6-3.2c.4-.5 1-.8 1.6-.8H15c.6 0 1.2.3 1.6.8l2.6 3.2 1.6.4c.6.2 1.1.7 1.1 1.4v2.4a.8.8 0 0 1-.8.8H19M8.5 15.5H15M7 10.5h12.2M12.5 6.5v4"/><circle cx="6.5" cy="15.5" r="2"/><circle cx="17" cy="15.5" r="2"/></svg>""");
     public static readonly MarkupString Assinaturas = new("""<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8.5 14.5h3"/></svg>""");
     public static readonly MarkupString Entretenimento = new("""<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M7.5 4l2 5M13 4l2 5"/><path d="m10.5 12.5 4 2.5-4 2.5z"/></svg>""");
     public static readonly MarkupString Tarefas = new("""<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16M15 4v16"/><path d="M5.5 8h1.5M11 8h2M11 11.5h2M17 8h1.5"/></svg>""");

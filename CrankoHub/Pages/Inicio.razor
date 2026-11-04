@@ -81,7 +81,7 @@
     </section>
     @if (verAssin)
     {
-        <a class="card link-card" href="assinaturas">
+        <a class="card link-card" href="assinaturas" style="--c:@Modulo.CorDe(Modulo.Assinaturas)">
             <div class="link-head">
                 <span class="link-icon">@Icones.Assinaturas</span>
                 <div><h2>Assinaturas</h2><p>Serviços recorrentes e cobranças</p></div>
@@ -118,7 +118,7 @@
     <div class="grid-2 @(verDieta && verCarro ? "" : "um")">
         @if (verDieta)
         {
-            <a class="card link-card" href="dieta">
+            <a class="card link-card" href="dieta" style="--c:@Modulo.CorDe(Modulo.Dieta)">
                 <div class="link-head">
                     <span class="link-icon">@Icones.Coracao</span>
                     <div><h2>Dieta</h2><p>Peso, medidas, IMC e meta</p></div>
@@ -135,7 +135,7 @@
         }
         @if (verCarro)
         {
-            <a class="card link-card" href="carro">
+            <a class="card link-card" href="carro" style="--c:@Modulo.CorDe(Modulo.Carro)">
                 <div class="link-head">
                     <span class="link-icon">@Icones.Carro</span>
                     <div><h2>Carro</h2><p>@veic.Nome · consumo e custos</p></div>
@@ -155,7 +155,7 @@
 
 @if (verTarefas)
 {
-    <a class="card link-card" href="tarefas?quadro=hoje">
+    <a class="card link-card" href="tarefas?quadro=hoje" style="--c:@Modulo.CorDe(Modulo.Tarefas)">
         <div class="link-head">
             <span class="link-icon">@Icones.Tarefas</span>
             <div><h2>Tarefas de hoje</h2><p>Resumo do dia em todos os quadros</p></div>
@@ -197,7 +197,7 @@
 
 @if (verEnt)
 {
-    <a class="card link-card" href="entretenimento">
+    <a class="card link-card" href="entretenimento" style="--c:@Modulo.CorDe(Modulo.Entretenimento)">
         <div class="link-head">
             <span class="link-icon">@Icones.Entretenimento</span>
             <div><h2>Entretenimento</h2><p>@d.Entretenimento.Count @Plural(d.Entretenimento.Count, "item", "itens") na estante · @d.Entretenimento.Count(e => e.Status == "concluido" && e.Data?.Year == Hoje.Year) em @Hoje.Year</p></div>

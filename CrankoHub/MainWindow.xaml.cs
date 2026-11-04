@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Shell;
 using CrankoHub.Services;
 using Microsoft.AspNetCore.Components.WebView;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,15 +13,27 @@ namespace CrankoHub;
 
 public partial class MainWindow : Window
 {
+    /// <summary>Windows 11 22H2+: a moldura da janela fica translúcida (Mica), como o vidro do macOS.</summary>
+    private static readonly bool VidroDisponivel = Environment.OSVersion.Version.Build >= 22621;
+
+    private bool _vidro;
+
     public MainWindow()
     {
         Resources.Add("services", App.Servicos);
+        // Com o vidro, o WebView nasce transparente: a barra lateral (sem fundo no CSS) mostra a moldura translúcida
+        if (VidroDisponivel) Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00000000");
         InitializeComponent();
 
         AplicarTema(App.Servicos.GetRequiredService<ArmazenamentoService>().Dados.Tema);
         App.Servicos.GetRequiredService<JanelaService>().AoMudarTema += tema => Dispatcher.Invoke(() => AplicarTema(tema));
         StateChanged += (_, _) => AjustarMaximizada();
-        SourceInitialized += (_, _) => ArredondarCantos();
+        SourceInitialized += (_, _) =>
+        {
+            ArredondarCantos();
+            AplicarVidro();
+            AplicarTema(App.Servicos.GetRequiredService<ArmazenamentoService>().Dados.Tema);
+        };
     }
 
     private void AoInicializarWebView(object? sender, BlazorWebViewInitializingEventArgs e)
@@ -36,6 +49,15 @@ public partial class MainWindow : Window
         Directory.CreateDirectory(CapasService.Pasta);
         e.WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(CapasService.Host, CapasService.Pasta,
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+
+        // Avisa o CSS (html.vidro) para deixar o fundo da moldura transparente
+        if (_vidro)
+        {
+            const string marcar = "document.documentElement.classList.add('vidro')";
+            _ = e.WebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
+                $"document.addEventListener('DOMContentLoaded', () => {marcar});");
+            e.WebView.CoreWebView2.NavigationCompleted += (_, _) => _ = e.WebView.CoreWebView2.ExecuteScriptAsync(marcar);
+        }
     }
 
     // ---- Barra de título estilo Mac ----
@@ -62,11 +84,19 @@ public partial class MainWindow : Window
     {
         var escuro = tema switch { "dark" => true, "light" => false, _ => WindowsEstaEscuro() };
         Color Cor(string hex) => (Color)ColorConverter.ConvertFromString(hex);
-        barraTitulo.Background = new SolidColorBrush(Cor(escuro ? "#2C2C2E" : "#FFFFFF"));
-        barraTitulo.BorderBrush = new SolidColorBrush(Cor(escuro ? "#3D3D41" : "#E5E5EA"));
-        tituloJanela.Foreground = new SolidColorBrush(Cor(escuro ? "#D1D1D6" : "#48484A"));
+        tituloJanela.Foreground = new SolidColorBrush(Cor(escuro ? "#C7C7CC" : "#48484A"));
         Resources["BolinhaInativa"] = new SolidColorBrush(Cor(escuro ? "#4A4A4A" : "#CFCFCF"));
-        Background = new SolidColorBrush(Cor(escuro ? "#1C1C1E" : "#F5F5F7"));
+        // Mesma cor da moldura no CSS (--window); com o vidro, transparente para o Mica aparecer
+        Background = _vidro ? Brushes.Transparent : new SolidColorBrush(Cor(escuro ? "#0E0E10" : "#E8E8ED"));
+
+        // Modo escuro da moldura (o Mica fica escuro também)
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd != IntPtr.Zero)
+        {
+            const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+            var valor = escuro ? 1 : 0;
+            _ = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref valor, sizeof(int));
+        }
     }
 
     private static bool WindowsEstaEscuro()
@@ -83,8 +113,41 @@ public partial class MainWindow : Window
         _ = DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref preferencia, sizeof(int));
     }
 
+    // Mica: o Windows desenha o fundo translúcido atrás da janela inteira; o WPF e o WebView deixam o fundo transparente
+    private void AplicarVidro()
+    {
+        if (!VidroDisponivel) return;
+        var hwnd = new WindowInteropHelper(this).Handle;
+        const int DWMWA_SYSTEMBACKDROP_TYPE = 38, DWMSBT_MAINWINDOW = 2;
+        var tipo = DWMSBT_MAINWINDOW;
+        if (DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref tipo, sizeof(int)) != 0) return;
+
+        if (HwndSource.FromHwnd(hwnd)?.CompositionTarget is { } alvo) alvo.BackgroundColor = Colors.Transparent;
+        // O WindowChrome reaplica a "moldura de vidro" sozinho; -1 = a janela inteira
+        WindowChrome.GetWindowChrome(this).GlassFrameThickness = new Thickness(-1);
+        var margens = new Margens { Esquerda = -1, Direita = -1, Topo = -1, Base = -1 };
+        _ = DwmExtendFrameIntoClientArea(hwnd, ref margens);
+
+        // Com a moldura estendida, o Windows desenharia os botões dele (–, □, X) por cima; sem o menu de sistema eles somem
+        const int GWL_STYLE = -16, WS_SYSMENU = 0x80000;
+        SetWindowLong(hwnd, GWL_STYLE, GetWindowLong(hwnd, GWL_STYLE) & ~WS_SYSMENU);
+        _vidro = true;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr hwnd, int indice);
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowLong(IntPtr hwnd, int indice, int valor);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Margens { public int Esquerda, Direita, Topo, Base; }
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int atributo, ref int valor, int tamanho);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref Margens margens);
 
     // ---- Fechar ----
 
