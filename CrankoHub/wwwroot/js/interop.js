@@ -27,6 +27,9 @@ window.crankohub = {
 
   rolarParaTopo() { window.scrollTo(0, 0); },
 
+  // Mesmo limite do CSS em que o menu lateral passa a abrir por cima
+  telaPequena() { return matchMedia('(max-width: 860px)').matches; },
+
   rolarAte(el) { el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); },
 
   focar(el) { el?.focus(); el?.select?.(); },

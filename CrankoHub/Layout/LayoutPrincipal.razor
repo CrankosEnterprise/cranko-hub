@@ -9,7 +9,7 @@
 @inject SincronizacaoService Sincronizacao
 @inject BandejaService Bandeja
 
-<div class="app @(_menuAberto ? "menu-open" : "")">
+<div class="app @(_menuAberto ? "menu-open" : "") @(Store.Dados.Config.MenuOculto ? "menu-oculto" : "")">
     <aside class="sidebar">
         <div class="brand">
             <span class="logo">@Icones.Logo</span>
@@ -33,7 +33,7 @@
 
     <div class="main">
         <header class="topbar">
-            <button class="icon-btn menu-btn" aria-label="Abrir menu" @onclick="() => _menuAberto = !_menuAberto">@Icones.Menu</button>
+            <button class="icon-btn menu-btn" aria-label="Mostrar ou ocultar o menu" title="Mostrar ou ocultar o menu" @onclick="AlternarMenu">@Icones.Menu</button>
             <div class="crumb"><span class="crumb-root">CrankoHub</span><span class="crumb-sep">/</span><span>@TituloDaPagina</span></div>
             <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
         </header>
@@ -110,6 +110,18 @@
         StateHasChanged();
         await JS.InvokeVoidAsync("crankohub.rolarParaTopo");
     });
+
+    // Tela estreita (celular): o menu abre por cima e fecha ao navegar. Tela larga: o menu some e a página ocupa o espaço (fica guardado)
+    private async Task AlternarMenu()
+    {
+        if (await JS.InvokeAsync<bool>("crankohub.telaPequena"))
+        {
+            _menuAberto = !_menuAberto;
+            return;
+        }
+        Store.Dados.Config.MenuOculto = !Store.Dados.Config.MenuOculto;
+        Store.Salvar();
+    }
 
     private async Task AlternarTema()
     {

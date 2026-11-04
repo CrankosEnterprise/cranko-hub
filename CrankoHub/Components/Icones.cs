@@ -5,7 +5,8 @@ namespace CrankoHub.Components;
 /// <summary>Ícones SVG (traço) usados na interface.</summary>
 public static class Icones
 {
-    public static readonly MarkupString Logo = new("""<svg viewBox="0 0 24 24"><polyline points="3 13 7 13 10 5 14 19 17 12 21 12"/></svg>""");
+    // Mesmo desenho do ícone do app (Assets/icone.ico, Linux/icone.png): quatro quadrados arredondados
+    public static readonly MarkupString Logo = new("""<svg viewBox="0 0 24 24" class="logo-grade"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2.2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2.2" opacity=".85"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2.2" opacity=".85"/><rect x="13" y="13" width="7.5" height="7.5" rx="2.2" opacity=".65"/></svg>""");
     public static readonly MarkupString Inicio = new("""<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>""");
     public static readonly MarkupString Dieta = new("""<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.3-9.6C1.4 7.6 4 4 7.6 4c2 0 3.4 1.1 4.4 2.6C13 5.1 14.4 4 16.4 4 20 4 22.6 7.6 21.3 11.4 19.5 16.4 12 21 12 21z"/><polyline points="6 12 9.5 12 11 9.5 13 14.5 14.5 12 18 12"/></svg>""");
     public static readonly MarkupString Carro = new("""<svg viewBox="0 0 24 24"><path d="M3 16.5v-4L5.5 7h13l2.5 5.5v4h-2M8.5 16.5h7M3 16.5h2M3 12.5h18"/><circle cx="7" cy="16.5" r="2"/><circle cx="17" cy="16.5" r="2"/></svg>""");

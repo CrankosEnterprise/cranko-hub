@@ -3,11 +3,14 @@ namespace CrankoHub.Models;
 /// <summary>Preferências do aplicativo. Só a cor de destaque e os módulos ocultos vão para a conta (tabela perfis).</summary>
 public class Configuracoes
 {
-    /// <summary>O X da janela esconde o app na bandeja (perto do relógio) em vez de fechar.</summary>
     /// <summary>Cor de destaque: chave da paleta (ver <see cref="Models.CorDestaque"/>) ou "#RRGGBB".</summary>
     public string CorDestaque { get; set; } = "azul";
 
+    /// <summary>O X da janela esconde o app na bandeja (perto do relógio) em vez de fechar.</summary>
     public bool MinimizarParaBandeja { get; set; } = true;
+
+    /// <summary>Menu lateral escondido no computador (no celular ele já fica fechado e abre por cima).</summary>
+    public bool MenuOculto { get; set; }
 
     /// <summary>Já avisou que o app continua rodando na bandeja.</summary>
     public bool DicaBandejaMostrada { get; set; }

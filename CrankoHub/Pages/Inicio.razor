@@ -1,5 +1,7 @@
 @page "/"
+@implements IDisposable
 @inject ArmazenamentoService Store
+@inject ContaService Conta
 
 @{
     var d = Store.Dados;
@@ -23,6 +25,7 @@
 
     var agora = DateTime.Now;
     var saudacao = agora.Hour < 12 ? "Bom dia" : agora.Hour < 18 ? "Boa tarde" : "Boa noite";
+    if (Conta.Usuario is { Length: > 0 } nome) saudacao += ", " + char.ToUpper(nome[0]) + nome[1..];
 
     var atividades = (Modulo.Visivel(d.Config, Modulo.Dieta) ? rs : []).TakeLast(6)
         .Select(r => (r.Data, Icone: Icones.Balanca, Texto: $"{Num(r.Peso)} kg registrados", Sub: string.IsNullOrEmpty(r.Obs) ? "Dieta" : r.Obs))
@@ -245,4 +248,14 @@
     <section class="card">
         <div class="chart-empty"><span>Todos os módulos estão escondidos. Escolha o que mostrar em <a href="configuracoes?aba=modulos">Configurações</a>.</span></div>
     </section>
+}
+
+@code {
+    // O Início pode ficar aberto por horas (o app fica na bandeja): redesenha a cada minuto para a saudação e a data acompanharem
+    private System.Threading.Timer? _relogio;
+
+    protected override void OnInitialized() =>
+        _relogio = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+
+    public void Dispose() => _relogio?.Dispose();
 }
