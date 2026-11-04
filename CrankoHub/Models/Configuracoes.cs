@@ -36,9 +36,6 @@ public class Configuracoes
     /// <summary>Chave da API do RAWG (jogos).</summary>
     public string? ChaveRawg { get; set; }
 
-    /// <summary>Token do GitHub (só leitura) para baixar atualizações do repositório privado.</summary>
-    public string? TokenGitHub { get; set; }
-
     /// <summary>Módulos escondidos do menu, do Início e dos avisos (os dados continuam salvos).</summary>
     public List<string> ModulosOcultos { get; set; } = [];
 

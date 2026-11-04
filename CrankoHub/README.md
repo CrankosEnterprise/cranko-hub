@@ -84,7 +84,7 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 - O CrankoHub agora mora no repositório público [CrankosEnterprise/cranko-hub](https://github.com/CrankosEnterprise/cranko-hub), na organização Crankos Enterprise, com todo o histórico. Antes ficava em `DiegoOttani/cranko-hub`, e antes disso no `MyProjs_`. Na raiz ficam o `README.md` de apresentação, o `cranko-hub.slnx` (Windows + Linux), o `.gitignore` e o workflow `crankohub-release.yml`.
 - **Atenção (mudança para a organização, 03/11/2026):** as versões 1.0.x instaladas procuram atualizações em `DiegoOttani/cranko-hub`. Nesses PCs, instale uma vez manualmente o `.exe` do primeiro Release da organização; daí em diante ele se atualiza sozinho.
 - O `AtualizacaoService` (Windows e Linux) consulta os Releases **sem token**. O GitHub permite 60 consultas por hora por IP, de sobra para verificar uma vez por dia.
-- "Verificar sozinho" funciona sem configuração nenhuma, e o campo do token saiu de Configurações. `TokenGitHub` continua no modelo, sem uso, para não quebrar backups antigos.
+- "Verificar sozinho" funciona sem configuração nenhuma, e o campo do token saiu de Configurações. O `TokenGitHub` também saiu do modelo: backups antigos que ainda o tenham continuam abrindo (o campo é ignorado), e ele some do arquivo de dados na próxima gravação.
 - O `UserAgent` da busca do Entretenimento aponta para o repositório novo.
 - **Atenção:** quem já tem o app instalado de antes continua olhando o `MyProjs_`. Nesses PCs, instale uma vez manualmente o `.exe` do primeiro Release do repositório novo; daí em diante ele se atualiza sozinho.
 - Ideia futura, para ficar como o ai-usagebar: item "Verificar atualizações" no menu da bandeja (`BandejaService`).
