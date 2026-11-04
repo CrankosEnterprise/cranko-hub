@@ -49,8 +49,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <MauiIcon Include="..\Linux\icone.png" Link="Resources\AppIcon\appicon.png" Color="#5856D6" ForegroundScale="0.75" />
-    <MauiSplashScreen Include="..\Linux\icone.png" Link="Resources\Splash\splash.png" Color="#5856D6" BaseSize="128,128" />
+    <!-- Barras "/" no Link: no Linux (CI) a "\" não é separador e o Resizetizer leria "Resources\Splash\splash" como nome -->
+    <MauiIcon Include="../Linux/icone.png" Link="Resources/AppIcon/appicon.png" Color="#5856D6" ForegroundScale="0.75" />
+    <MauiSplashScreen Include="../Linux/icone.png" Link="Resources/Splash/splash.png" Color="#5856D6" BaseSize="128,128" />
   </ItemGroup>
 
   <!-- Código compartilhado com a versão Windows -->
