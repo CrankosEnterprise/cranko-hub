@@ -55,7 +55,7 @@ Baixe a versão oficial do **CrankoHub**:
 - **Consumo:** km/l e custo por km por período, com gráficos.
 - **Manutenção:** histórico, mais lembretes por km ou por data.
 - **Documentos:** IPVA, licenciamento, seguro e CNH, com vencimento e opção de marcar como pago.
-- **Calculadoras:** *Etanol × Gasolina* e *Custo de viagem*.
+- **Calculadoras:** *Custo de viagem*.
 
 ### 4. Assinaturas
 - Streaming, softwares e serviços com ciclo de cobrança (mensal, anual...), próximo vencimento e custo total por mês.
