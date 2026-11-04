@@ -10,15 +10,14 @@ using CrankoHub.Models;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Sincroniza os dados da conta com o Supabase (README, item 14, fases 3 a 5). O dados.json continua sendo a
-/// cópia local e as telas continuam lendo <see cref="ArmazenamentoService.Dados"/>; este serviço trabalha por trás:
+/// Sincroniza os dados da conta com o Supabase (README, item 14, fases 3 a 5). O dados.json é só o cache
+/// local (para abrir sem internet) e as telas continuam lendo <see cref="ArmazenamentoService.Dados"/>; este serviço trabalha por trás:
 /// <list type="bullet">
 /// <item>Envio: compara os dados com base.json (a última versão confirmada pelo servidor), item a item pelo Id,
 /// e manda só o que mudou. Itens removidos ganham excluido_em no servidor.</item>
 /// <item>Recebimento: busca o que mudou no servidor desde a última vez (atualizado_em) e aplica nos dados.</item>
 /// <item>Conflito: por registro, vale a última gravação no servidor.</item>
-/// <item>Primeira vez (sem base.json): conta vazia recebe os dados deste computador; conta com dados
-/// substitui os daqui, que ficam guardados em "dados.antes-sincronizar-*.json".</item>
+/// <item>Primeira vez (sem base.json): conta vazia recebe os dados deste aparelho; conta com dados substitui o cache daqui.</item>
 /// <item>Capas: as imagens vão à parte, para o Storage, uma vez cada (ver <see cref="Capas"/>).</item>
 /// </list>
 /// Roda 3 s depois de cada gravação, ao abrir, quando a internet volta e a cada 5 minutos.
@@ -462,11 +461,9 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         // Só o perfil não conta: ele é criado sozinho
         if (doServidor.Any(l => !l.T.Perfil))
         {
-            // Conta com dados: eles substituem os deste computador, que ficam guardados
+            // Conta com dados: eles substituem o cache deste aparelho
             await NaTela!(() =>
             {
-                try { File.Copy(ArmazenamentoService.CaminhoDados, Path.Combine(ArmazenamentoService.PastaDados, $"dados.antes-sincronizar-{DateTime.Now:yyyyMMdd-HHmmss}.json"), overwrite: true); }
-                catch { }
                 var novo = new EstadoApp { Tema = store.Dados.Tema, Config = store.Dados.Config };
                 foreach (var (t, id, linha) in doServidor)
                     t.Aplicar(novo, linha.Deserialize(t.Tipo, Json), id);

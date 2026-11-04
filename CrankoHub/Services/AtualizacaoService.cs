@@ -131,6 +131,7 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
         _timer.Tick += async (_, _) =>
         {
             _timer.Interval = TimeSpan.FromHours(6);
+            if (!ArmazenamentoService.PorConta) return; // tela de login: verifica depois de entrar
             var cfg = store.Dados.Config;
             if (!cfg.VerificarAtualizacoes || cfg.UltimaVerificacaoAtualizacao == Formatacao.Hoje)
                 return;

@@ -4,10 +4,10 @@ using CrankoHub.Models;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// De hora em hora (e logo depois de abrir) faz o backup do dia e manda notificações
+/// De hora em hora (e logo depois de abrir) manda notificações
 /// com os alertas do Início, cada um no máximo uma vez por dia.
 /// </summary>
-public class AvisosService(ArmazenamentoService store, BackupService backup, BandejaService bandeja)
+public class AvisosService(ArmazenamentoService store, BandejaService bandeja)
 {
     private DispatcherTimer? _timer;
 
@@ -25,7 +25,7 @@ public class AvisosService(ArmazenamentoService store, BackupService backup, Ban
     /// <param name="manual">Pedido pelo usuário: avisa tudo de novo e diz quando não há nada.</param>
     public void Verificar(bool manual = false)
     {
-        backup.ExecutarSeNecessario();
+        if (!ArmazenamentoService.PorConta) return; // tela de login: ainda não há dados
         var cfg = store.Dados.Config;
         if (!cfg.Avisos && !manual) return;
 

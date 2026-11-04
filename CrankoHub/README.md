@@ -5,13 +5,13 @@ Lista do que ainda vamos fazer no CrankoHub. Cada item tem detalhes suficientes 
 ## Como o projeto funciona (referência rápida)
 
 - **Tecnologia:** WPF + Blazor Hybrid (`BlazorWebView`), .NET 10. As telas são `.razor` em `Pages/`, a lógica fica em C# em `Services/` e os modelos em `Models/`.
-- **Dados:** um único arquivo JSON em `%LocalAppData%\CrankoHub\dados.json`, gerenciado por `Services/ArmazenamentoService.cs`.
+- **Dados:** ficam na conta do Supabase (item 9). O app exige login (item 10) e guarda só um cache da conta em `%LocalAppData%\CrankoHub\contas\<user_id>\dados.json`, para abrir sem internet. Gerenciado por `Services/ArmazenamentoService.cs` e sincronizado por `Services/SincronizacaoService.cs`.
   - Raiz: `EstadoApp` (`Models/EstadoApp.cs`).
   - Campo novo exige três passos:
     - adicionar no modelo;
     - tratar no `Normalizar` (`??= []`, remover nulos, gerar ids faltando);
-    - se fizer sentido, incluir nos dados de exemplo (`Exemplo`) e nos contadores de `Pages/Dados.razor`.
-  - Campos novos devem ser opcionais, para backups antigos continuarem importando.
+    - criar a coluna no Supabase (migration nova em `supabase/migrations/`) e, se precisar, incluir nos contadores da aba Conta em `Pages/Configuracoes.razor`.
+  - Campos novos devem ser opcionais, para o cache antigo continuar abrindo.
 - **Gráficos:** `Components/GraficoLinha.cs` e `Components/GraficoBarras.cs` (dados em `Models/Graficos.cs`: `BarraDado`, `SerieLinha`, `FormatoNumero`).
 - **Formatação pt-BR:** `Services/Formatacao.cs` (`Money`, `Num`, `Pf` para ler "1.234,56", `DataBR`, `MesLabel`, `UltimosMeses`, `Plural`, `Hoje`).
 - **Alertas:** `Services/Alertas.cs` é a fonte única do card "Precisa de atenção" do Início e das notificações do Windows (`Services/AvisosService.cs`).
@@ -46,10 +46,10 @@ Lista do que ainda vamos fazer no CrankoHub. Cada item tem detalhes suficientes 
 
 - Card **Módulos** em Configurações: um interruptor para Dieta, Carro, Assinaturas, Entretenimento e Tarefas.
 - Um módulo desligado some do menu, dos cards do Início, do "Precisa de atenção" e das notificações (inclusive o resumo noturno das Tarefas).
-- **Os dados não são apagados**: ligar de novo traz tudo de volta, e o backup continua com tudo. A página ainda abre pelo endereço.
+- **Os dados não são apagados**: ligar de novo traz tudo de volta. A página ainda abre pelo endereço.
 - Fica salvo em `config.modulosOcultos`, uma lista dos **escondidos**, para que módulos novos já apareçam ligados.
 - No Início, quando só um card de uma dupla está visível, ele ocupa a linha inteira.
-- **Abas nas Configurações** (mesmo padrão do Carro, com `?aba=` no link): **Aparência**, **Módulos**, **Integrações** (chaves TMDB/RAWG), **Dados e backup** (armazenamento, pasta sincronizada, backup automático, exportar/importar, exemplo, apagar tudo) e **Aplicativo** (bandeja, notificações, iniciar com o Windows, atualizações). A aba escolhida fica guardada enquanto o app está aberto. Os links do Início, o aviso de backup e a notificação de versão nova abrem direto na aba certa. A conta saiu daqui e foi para o rodapé da barra lateral (item 14).
+- **Abas nas Configurações** (mesmo padrão do Carro, com `?aba=` no link): **Aparência**, **Módulos**, **Integrações** (chaves TMDB/RAWG), **Conta** (antes "Dados e backup"; ver item 10) e **Aplicativo** (bandeja, notificações, iniciar com o Windows, atualizações). A aba escolhida fica guardada enquanto o app está aberto. Os links do Início e a notificação de versão nova abrem direto na aba certa. A conta saiu daqui e foi para o rodapé da barra lateral (item 14).
 
 ## 6. Versão para Linux (Linux Mint) ✅ (feito e testado no Mint)
 
@@ -66,7 +66,7 @@ Lista do que ainda vamos fazer no CrankoHub. Cada item tem detalhes suficientes 
 | Mutex de instância única | Arquivo de trava em `~/.local/share/CrankoHub/instancia.lock` |
 | Capas em `https://capas.crankohub/` (WebView2) | Pasta das capas servida em `capas/` (`CapasService.Prefixo`) |
 
-Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows importam direto.
+O cache da conta fica em `~/.local/share/CrankoHub/contas/<user_id>/`.
 
 ### Publicação e instalação
 - O workflow `crankohub-release.yml` ganhou o job `linux`, que anexa o `CrankoHub-linux-x64.tar.gz` ao mesmo Release. O pacote é autossuficiente e não precisa instalar o .NET.
@@ -84,12 +84,12 @@ Os dados ficam em `~/.local/share/CrankoHub/dados.json`, e os backups do Windows
 - O CrankoHub agora mora no repositório público [CrankosEnterprise/cranko-hub](https://github.com/CrankosEnterprise/cranko-hub), na organização Crankos Enterprise, com todo o histórico. Antes ficava em `DiegoOttani/cranko-hub`, e antes disso no `MyProjs_`. Na raiz ficam o `README.md` de apresentação, o `cranko-hub.slnx` (Windows + Linux), o `.gitignore` e o workflow `crankohub-release.yml`.
 - **Atenção (mudança para a organização, 03/11/2026):** as versões 1.0.x instaladas procuram atualizações em `DiegoOttani/cranko-hub`. Nesses PCs, instale uma vez manualmente o `.exe` do primeiro Release da organização; daí em diante ele se atualiza sozinho.
 - O `AtualizacaoService` (Windows e Linux) consulta os Releases **sem token**. O GitHub permite 60 consultas por hora por IP, de sobra para verificar uma vez por dia.
-- "Verificar sozinho" funciona sem configuração nenhuma, e o campo do token saiu de Configurações. O `TokenGitHub` também saiu do modelo: backups antigos que ainda o tenham continuam abrindo (o campo é ignorado), e ele some do arquivo de dados na próxima gravação.
+- "Verificar sozinho" funciona sem configuração nenhuma, e o campo do token saiu de Configurações. O `TokenGitHub` também saiu do modelo: arquivos antigos que ainda o tenham continuam abrindo (o campo é ignorado), e ele some do arquivo de dados na próxima gravação.
 - O `UserAgent` da busca do Entretenimento aponta para o repositório novo.
 - **Atenção:** quem já tem o app instalado de antes continua olhando o `MyProjs_`. Nesses PCs, instale uma vez manualmente o `.exe` do primeiro Release do repositório novo; daí em diante ele se atualiza sozinho.
 - Ideia futura, para ficar como o ai-usagebar: item "Verificar atualizações" no menu da bandeja (`BandejaService`).
 
-## 8. Usar em mais de um computador ✅ (feito, falta testar com dois PCs)
+## 8. Usar em mais de um computador ❌ (removido no item 10: a conta faz esse papel)
 
 **Abordagem:** pasta sincronizada (OneDrive, Google Drive, Dropbox), sem servidor e sem login. Cada pessoa usa a própria nuvem, então funciona igual no app público, sem custo nem dados de terceiros com a gente.
 
@@ -262,8 +262,8 @@ A coluna `entretenimento.capa` continua levando só o nome do arquivo. A imagem 
 4. **Dois PCs (ou duas pastas de teste):** criar, editar e excluir em A e ver em B sem reiniciar.
 5. **Conflito:** editar registros diferentes em A e B ao mesmo tempo; as duas mudanças ficam.
 6. **Offline:** editar sem internet, reconectar e confirmar o envio.
-7. **Sem conta:** o app segue funcionando como hoje.
-8. **Sessão:** reiniciar mantém o login; sair volta aos dados locais, sem misturar contas.
+7. **Sem conta:** o app abre na tela de login (item 10).
+8. **Sessão:** reiniciar mantém o login; sair volta para a tela de login, sem misturar contas.
 9. **Capas:** ✅ redução testada (1500×2250 → 600×900). Falta:
    - adicionar um item com capa e vê-la em `capas/<user_id>/` no Storage;
    - apagar uma imagem de `contas/<user_id>/capas/` e ver que ela volta na próxima sincronização, sem reiniciar;
@@ -271,4 +271,13 @@ A coluna `entretenimento.capa` continua levando só o nome do arquivo. A imagem 
    - sem login, `curl <url>/storage/v1/object/authenticated/capas/<user_id>/<arquivo> -H "apikey: <publishable>"` é recusado;
    - no Linux, conferir que a redução funciona (biblioteca nativa do Skia).
 
+## 10. Só com a conta: tela de login e fim do JSON local ✅ (feito)
 
+O app é de uso pessoal e só uma conta existe no Supabase, então o modo sem conta saiu.
+
+- **Tela de login** (`Components/TelaLogin.razor`): sem conta conectada, o `Main.razor` mostra só ela, em tela cheia. Se o servidor recusar a sessão (senha trocada, sessão revogada), ela volta sozinha. Depois de entrar, o app reinicia para abrir na pasta da conta.
+- **Cache invisível:** continua o `dados.json` + `base.json` em `contas/<user_id>/`, só para abrir sem internet e enviar as mudanças depois. Sem conta, `ArmazenamentoService.Salvar` não grava nada. Um aparelho novo começa vazio e a primeira sincronização traz tudo.
+- **Removido:** modo sem conta, pasta sincronizada (item 8), backup automático (`BackupService`), exportar/importar backup, dados de exemplo, "Apagar tudo" e o alerta de backup. Os diálogos de salvar/abrir backup e de escolher pasta saíram do `IDialogoService` nas três plataformas.
+- **Configurações:** a aba "Dados e backup" virou **Conta** (usuário, status da sincronização, "Sincronizar agora", "Sair" e as contagens). O link `configuracoes?aba=dados` continua abrindo essa aba.
+- **Arquivos antigos:** o `dados.json` do modo local (na raiz de `%LocalAppData%\CrankoHub`) e os backups ficam no disco, só deixam de ser usados. Campos removidos (`BackupAutomatico`, `PastaBackup`, `BackupsMantidos`, `UltimoBackup`, `ConfigLocal.PastaDados`) são ignorados ao abrir.
+- **Fica no aparelho:** `local.json` (conta conectada e iniciar com o Windows) e as preferências que não sobem para o `perfis` (chaves TMDB/RAWG, bandeja, avisos).

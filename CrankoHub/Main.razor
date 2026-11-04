@@ -1,10 +1,29 @@
-<Router AppAssembly="@typeof(Main).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(LayoutPrincipal)" />
-    </Found>
-    <NotFound>
-        <LayoutView Layout="@typeof(LayoutPrincipal)">
-            <p>Página não encontrada.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+@* Sem conta conectada, só a tela de login. Se a sessão for recusada pelo servidor, ela volta sozinha. *@
+@implements IDisposable
+@inject ContaService Conta
+
+@if (!Conta.Logado)
+{
+    <TelaLogin />
+}
+else
+{
+    <Router AppAssembly="@typeof(Main).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(LayoutPrincipal)" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(LayoutPrincipal)">
+                <p>Página não encontrada.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+}
+
+@code {
+    private void Mudou() => InvokeAsync(StateHasChanged);
+
+    protected override void OnInitialized() => Conta.Mudou += Mudou;
+
+    public void Dispose() => Conta.Mudou -= Mudou;
+}

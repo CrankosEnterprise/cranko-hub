@@ -7,8 +7,9 @@ using CrankoHub.Models;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Guarda os dados do aplicativo em %LocalAppData%\CrankoHub\dados.json e cuida de
-/// backup (exportar/importar), dados de exemplo e "apagar tudo".
+/// Cache local dos dados da conta, em %LocalAppData%\CrankoHub\contas\&lt;user_id&gt;\dados.json.
+/// Os dados de verdade ficam no Supabase (<see cref="SincronizacaoService"/>); este arquivo só existe para o app
+/// abrir sem internet e guardar as mudanças até elas subirem. Sem conta conectada não há dados: o app mostra o login.
 /// </summary>
 public class ArmazenamentoService
 {
@@ -18,46 +19,24 @@ public class ArmazenamentoService
     /// <summary>Havia uma conta conectada ao abrir o app: os dados são os dela (contas/&lt;user_id&gt;/), sincronizados com o servidor.</summary>
     public static readonly bool PorConta = ConfigLocal.Atual.ContaId is not null;
 
-    /// <summary>Pasta dos dados: a da conta, uma sincronizada (se ainda existir) ou a local. Muda só reiniciando o app.</summary>
-    public static readonly string PastaDados =
-        ConfigLocal.Atual.ContaId is { } conta ? PastaDaConta(conta)
-        : ConfigLocal.Atual.PastaDados is { } p && Directory.Exists(p) ? p : PastaLocal;
+    /// <summary>Pasta do cache da conta. Sem conta, nada é gravado (o app fica na tela de login). Muda só reiniciando o app.</summary>
+    public static readonly string PastaDados = ConfigLocal.Atual.ContaId is { } conta ? PastaDaConta(conta) : PastaLocal;
 
     public static readonly string CaminhoDados = Path.Combine(PastaDados, "dados.json");
 
-    /// <summary>Os dados estão numa pasta do OneDrive/Google Drive (item 12), não na de uma conta.</summary>
-    public static bool Sincronizada => !PorConta && PastaDados != PastaLocal;
-
-    /// <summary>A pasta sincronizada escolhida não foi encontrada (ex.: OneDrive desconectado) e os dados locais estão em uso.</summary>
-    public static bool PastaSincronizadaSumiu => !PorConta && ConfigLocal.Atual.PastaDados is not null && !Sincronizada;
-
     public static string PastaDaConta(string userId) => Path.Combine(PastaLocal, "contas", userId);
 
-    /// <summary>
-    /// Ao entrar numa conta: se este computador ainda não tem a pasta dela, começa com uma cópia dos dados atuais
-    /// (e das capas). A primeira sincronização decide depois se eles sobem (conta vazia) ou dão lugar aos da nuvem.
-    /// Os dados atuais continuam onde estão e voltam ao sair da conta.
-    /// </summary>
-    public static void PrepararPastaDaConta(string userId)
-    {
-        var pasta = PastaDaConta(userId);
-        Directory.CreateDirectory(pasta);
-        var destino = Path.Combine(pasta, "dados.json");
-        if (File.Exists(destino)) return;
-        if (File.Exists(CaminhoDados)) File.Copy(CaminhoDados, destino);
-        CopiarCapas(CapasService.Pasta, Path.Combine(pasta, "capas"));
-    }
+    /// <summary>Ao entrar numa conta: cria a pasta do cache. Um aparelho novo começa vazio e a primeira sincronização traz os dados.</summary>
+    public static void PrepararPastaDaConta(string userId) => Directory.CreateDirectory(PastaDaConta(userId));
 
-    // Mesmo formato (camelCase, datas "AAAA-MM-DD") do antigo app web, para os backups serem compatíveis
     private static readonly JsonSerializerOptions OpcoesJson = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // mantém acentos legíveis no arquivo
+        WriteIndented = true,
     };
-
-    private static readonly JsonSerializerOptions OpcoesJsonIndentado = new(OpcoesJson) { WriteIndented = true };
 
     private readonly ToastService _toast;
 
@@ -73,112 +52,14 @@ public class ArmazenamentoService
             local.IniciarComWindows = Dados.Config.IniciarComWindows;
             try { local.Salvar(); } catch { }
         }
-
-        if (Sincronizada) Vigiar();
     }
 
     public EstadoApp Dados { get; private set; }
 
-    // Data de modificação do dados.json da última vez que este app leu ou gravou
-    private DateTime _versaoNoDisco;
-    private FileSystemWatcher? _vigia;
-    private Timer? _espera;
-
-    /// <summary>O dados.json mudou por fora (o outro computador sincronizou). Quem ouve chama <see cref="Recarregar"/>.</summary>
-    public event Action? MudouPorFora;
-
-    private void Vigiar()
-    {
-        _vigia = new FileSystemWatcher(PastaDados, "dados.json") { NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size };
-        // O OneDrive grava em etapas: espera o arquivo parar de mudar
-        _espera = new Timer(_ =>
-        {
-            try { if (File.GetLastWriteTimeUtc(CaminhoDados) != _versaoNoDisco) MudouPorFora?.Invoke(); } catch { }
-        });
-        FileSystemEventHandler mudou = (_, _) => _espera.Change(1500, Timeout.Infinite);
-        _vigia.Changed += mudou;
-        _vigia.Created += mudou;
-        _vigia.Renamed += (_, _) => _espera.Change(1500, Timeout.Infinite);
-        _vigia.EnableRaisingEvents = true;
-    }
-
-    /// <summary>Lê de novo o dados.json. Retorna false se o arquivo estiver incompleto (ainda sincronizando).</summary>
-    public bool Recarregar()
-    {
-        try
-        {
-            var lido = File.GetLastWriteTimeUtc(CaminhoDados);
-            if (lido == _versaoNoDisco) return false;
-            var estado = JsonSerializer.Deserialize<EstadoApp>(File.ReadAllText(CaminhoDados), OpcoesJson);
-            if (estado is null) return false;
-            Dados = Normalizar(estado);
-            _versaoNoDisco = lido;
-            return true;
-        }
-        catch { return false; }
-    }
-
-    /// <summary>Cópias de conflito na pasta dos dados (nossas e as do OneDrive, ex.: "dados-PC-TRABALHO.json").</summary>
-    public static List<string> Conflitos()
-    {
-        try
-        {
-            return Directory.GetFiles(PastaDados, "dados*.json")
-                .Where(f => !string.Equals(Path.GetFileName(f), "dados.json", StringComparison.OrdinalIgnoreCase)
-                            && !Path.GetFileName(f).StartsWith("dados.antes-", StringComparison.OrdinalIgnoreCase))
-                .Order()
-                .ToList();
-        }
-        catch { return []; }
-    }
-
-    /// <summary>
-    /// Passa a usar uma pasta sincronizada. Se ela já tem dados (o outro PC), usa os de lá
-    /// e guarda os daqui como "dados.antes-sincronizar-*.json"; senão, leva os daqui para lá.
-    /// Depois é preciso reiniciar o app.
-    /// </summary>
-    public void UsarPasta(string pasta)
-    {
-        var destino = Path.Combine(pasta, "dados.json");
-        if (File.Exists(destino))
-            File.Copy(CaminhoDados, Path.Combine(PastaDados, $"dados.antes-sincronizar-{DateTime.Now:yyyyMMdd-HHmmss}.json"), overwrite: true);
-        else
-            File.WriteAllText(destino, JsonSerializer.Serialize(Dados, OpcoesJsonIndentado));
-        CopiarCapas(CapasService.Pasta, Path.Combine(pasta, "capas"));
-        ConfigLocal.Atual.PastaDados = pasta;
-        ConfigLocal.Atual.Salvar();
-    }
-
-    /// <summary>Traz os dados da pasta sincronizada de volta para este computador. Depois é preciso reiniciar o app.</summary>
-    public void VoltarParaLocal()
-    {
-        if (Sincronizada)
-        {
-            var local = Path.Combine(PastaLocal, "dados.json");
-            if (File.Exists(local))
-                File.Copy(local, Path.Combine(PastaLocal, $"dados.antes-sincronizar-{DateTime.Now:yyyyMMdd-HHmmss}.json"), overwrite: true);
-            File.WriteAllText(local, JsonSerializer.Serialize(Dados, OpcoesJsonIndentado));
-            CopiarCapas(CapasService.Pasta, Path.Combine(PastaLocal, "capas"));
-        }
-        ConfigLocal.Atual.PastaDados = null;
-        ConfigLocal.Atual.Salvar();
-    }
-
-    private static void CopiarCapas(string de, string para)
-    {
-        if (!Directory.Exists(de) || Path.GetFullPath(de) == Path.GetFullPath(para)) return;
-        Directory.CreateDirectory(para);
-        foreach (var f in Directory.GetFiles(de))
-        {
-            var alvo = Path.Combine(para, Path.GetFileName(f));
-            if (!File.Exists(alvo)) File.Copy(f, alvo);
-        }
-    }
-
     /// <summary>Os dados foram gravados (a sincronização com a conta espera uns segundos e envia as mudanças).</summary>
     public event Action? Salvou;
 
-    /// <summary>Substitui todos os dados (ex.: pelos da conta, na primeira sincronização) e grava.</summary>
+    /// <summary>Substitui todos os dados (pelos da conta, na primeira sincronização) e grava.</summary>
     public void Substituir(EstadoApp novo)
     {
         Dados = Normalizar(novo);
@@ -217,21 +98,14 @@ public class ArmazenamentoService
 
     public void Salvar()
     {
+        if (!PorConta) return; // tela de login: não há conta para guardar
         try
         {
             Directory.CreateDirectory(PastaDados);
-            // O outro computador mudou o arquivo e ainda não recarregamos: guarda a versão dele antes de sobrescrever
-            if (Sincronizada && File.Exists(CaminhoDados) && File.GetLastWriteTimeUtc(CaminhoDados) != _versaoNoDisco)
-            {
-                var copia = Path.Combine(PastaDados, $"dados.conflito-{DateTime.Now:yyyyMMdd-HHmmss}.json");
-                File.Copy(CaminhoDados, copia, overwrite: true);
-                _toast.Erro($"Os dados foram mudados em outro computador ao mesmo tempo. A versão de lá foi guardada em {Path.GetFileName(copia)}.");
-            }
             // Grava num arquivo temporário e troca no final, para nunca deixar o arquivo pela metade
             var temporario = CaminhoDados + ".tmp";
-            File.WriteAllText(temporario, JsonSerializer.Serialize(Dados, OpcoesJsonIndentado));
+            File.WriteAllText(temporario, JsonSerializer.Serialize(Dados, OpcoesJson));
             File.Move(temporario, CaminhoDados, overwrite: true);
-            _versaoNoDisco = File.GetLastWriteTimeUtc(CaminhoDados);
         }
         catch (Exception ex)
         {
@@ -241,68 +115,18 @@ public class ArmazenamentoService
         Salvou?.Invoke();
     }
 
-    public void Resetar()
+    private static EstadoApp Carregar()
     {
-        var (tema, config) = (Dados.Tema, Dados.Config);
-        Dados = Novo();
-        Dados.Tema = tema;
-        Dados.Config = config;
-        Salvar();
-    }
-
-    public void CarregarExemplo()
-    {
-        var config = Dados.Config;
-        Dados = Exemplo(Dados.Tema);
-        Dados.Config = config;
-        Salvar();
-    }
-
-    /// <summary>Substitui todos os dados pelo conteúdo de um backup .json.</summary>
-    /// <exception cref="InvalidDataException">Se o arquivo não for um backup válido.</exception>
-    public void Importar(string json)
-    {
-        EstadoApp? estado;
+        if (!PorConta) return Novo();
         try
         {
-            using var doc = JsonDocument.Parse(json);
-            var raiz = doc.RootElement;
-            if (raiz.ValueKind != JsonValueKind.Object || !raiz.TryGetProperty("dieta", out _) || !raiz.TryGetProperty("carro", out _))
-                throw new InvalidDataException("Arquivo não parece ser um backup do CrankoHub.");
-            estado = raiz.Deserialize<EstadoApp>(OpcoesJson);
-        }
-        catch (JsonException)
-        {
-            throw new InvalidDataException("Arquivo inválido.");
-        }
-
-        // As configurações (pasta de backup etc.) são deste computador: não vêm do arquivo
-        var config = Dados.Config;
-        Dados = Normalizar(estado ?? throw new InvalidDataException("Arquivo inválido."));
-        Dados.Config = config;
-        Salvar();
-    }
-
-    public string Exportar() => JsonSerializer.Serialize(Dados, OpcoesJsonIndentado);
-
-    public double TamanhoKB() => Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(Dados, OpcoesJson)) / 1024.0;
-
-    private EstadoApp Carregar()
-    {
-        try
-        {
-            if (File.Exists(CaminhoDados))
-            {
-                _versaoNoDisco = File.GetLastWriteTimeUtc(CaminhoDados);
-                var estado = JsonSerializer.Deserialize<EstadoApp>(File.ReadAllText(CaminhoDados), OpcoesJson);
-                if (estado is not null)
-                    return Normalizar(estado);
-            }
+            if (File.Exists(CaminhoDados) && JsonSerializer.Deserialize<EstadoApp>(File.ReadAllText(CaminhoDados), OpcoesJson) is { } estado)
+                return Normalizar(estado);
         }
         catch
         {
-            // Arquivo corrompido: guarda uma cópia para não perder nada e começa do zero
-            try { File.Copy(CaminhoDados, CaminhoDados + $".corrompido-{DateTime.Now:yyyyMMdd-HHmmss}", overwrite: true); } catch { }
+            // Cache corrompido: começa do zero e a sincronização traz tudo de novo do servidor
+            try { File.Delete(Path.Combine(PastaDados, "base.json")); } catch { }
         }
         return Novo();
     }
@@ -379,146 +203,6 @@ public class ArmazenamentoService
             var q = t.Quadros.First(q => q.Id == c.QuadroId);
             if (q.Colunas.All(col => col.Id != c.ColunaId)) c.ColunaId = q.Colunas[0].Id;
         }
-        return s;
-    }
-
-    /// <summary>~5 meses de pesos, ~8 meses de abastecimentos e manutenções e algumas assinaturas fictícias para explorar o app.</summary>
-    private static EstadoApp Exemplo(string? tema)
-    {
-        var s = Novo();
-        s.Tema = tema;
-        var hoje = Formatacao.Hoje;
-        var rnd = Random.Shared;
-        DateOnly Dia(int n) => hoje.AddDays(-n);
-        double R(double a, double b) => a + rnd.NextDouble() * (b - a);
-        string[] notas = ["Treino de perna", "Refeição livre no fim de semana", "Dormi mal", "Caminhada de 5 km", "Dia cheio, comi pouco"];
-
-        s.Dieta.Perfil = new PerfilDieta { Altura = 178, Meta = 80 };
-        var ultimaMedida = 999;
-        for (var d = 150; d >= 0; d -= 1 + rnd.Next(3))
-        {
-            var t = 150 - d;
-            var reg = new RegistroPeso { Id = NovoId(), Data = Dia(d), Peso = Math.Round(92.4 - t * 0.055 + R(-0.4, 0.4), 1) };
-            if (ultimaMedida - d >= 14 || ultimaMedida == 999)
-            {
-                reg.Gordura = Math.Round(27.8 - t * 0.04 + R(-0.3, 0.3), 1);
-                reg.Cintura = Math.Round(103 - t * 0.045 + R(-0.5, 0.5), 1);
-                ultimaMedida = d;
-            }
-            if (rnd.NextDouble() < 0.15) reg.Obs = notas[rnd.Next(notas.Length)];
-            s.Dieta.Registros.Add(reg);
-        }
-
-        var vid = s.Carro.Veiculos[0].Id;
-        string[] postos = ["Shell Centro", "Ipiranga Av. Brasil", "Posto BR Rodovia", "Ale Bairro"];
-        double odo = 48200;
-        for (var d = 240; d >= 0; d -= 6 + rnd.Next(5))
-        {
-            var t = 240 - d;
-            var gasolina = rnd.NextDouble() >= 0.35;
-            var litros = Math.Round(R(30, 42), 2);
-            var consumo = gasolina ? R(10.9, 12.7) : R(7.6, 8.8);
-            var preco = gasolina ? 5.79 + t * 0.0016 + R(-0.08, 0.08) : 3.99 + t * 0.0012 + R(-0.08, 0.08);
-            var km = Math.Round(litros * consumo, 1);
-            odo += km;
-            s.Carro.Abastecimentos.Add(new Abastecimento
-            {
-                Id = NovoId(), VeiculoId = vid, Data = Dia(d), Combustivel = gasolina ? "gasolina" : "etanol",
-                Odometro = Math.Round(odo), Km = km, Litros = litros, Valor = Math.Round(litros * preco, 2),
-                Posto = postos[rnd.Next(postos.Length)],
-            });
-        }
-
-        // Odômetro aproximado num dia (pelo abastecimento mais próximo antes dele)
-        double OdometroEm(int dias) =>
-            s.Carro.Abastecimentos.LastOrDefault(a => a.Data <= Dia(dias))?.Odometro ?? 48200;
-        Manutencao Manut(string tipo, int dias, double valor, string descricao, string local)
-        {
-            var t = TipoManutencao.Buscar(tipo);
-            return new()
-            {
-                Id = NovoId(), VeiculoId = vid, Tipo = tipo, Data = Dia(dias), Odometro = Math.Round(OdometroEm(dias)),
-                Valor = valor, Descricao = descricao, Local = local, IntervaloKm = t.Km, IntervaloMeses = t.Meses,
-            };
-        }
-        s.Carro.Manutencoes =
-        [
-            Manut("oleo", 230, 289.90, "Óleo 5W30 sintético + filtro de óleo", "Auto Center Silva"),
-            Manut("alinhamento", 200, 160.00, "Alinhamento e balanceamento das 4 rodas", "Pneus & Cia"),
-            Manut("revisao", 150, 780.00, "Revisão dos 50 mil km", "Concessionária"),
-            Manut("filtros", 150, 145.00, "Filtro de ar e de cabine", "Concessionária"),
-            Manut("oleo", 95, 299.90, "Óleo 5W30 sintético + filtro de óleo", "Auto Center Silva"),
-            Manut("pneus", 60, 80.00, "Rodízio dos pneus", "Pneus & Cia"),
-            Manut("bateria", 700, 520.00, "Bateria 60 Ah", "Loja de baterias"),
-        ];
-
-        DocumentoCarro Doc(string tipo, int diasAteVencer, double? valor, string? descricao, bool pago = false) =>
-            new() { Id = NovoId(), VeiculoId = tipo == "cnh" ? null : vid, Tipo = tipo, Vencimento = hoje.AddDays(diasAteVencer), Valor = valor, Descricao = descricao, Pago = pago };
-        s.Carro.Documentos =
-        [
-            Doc("ipva", -60, 812.40, "Parcela 1/3", pago: true),
-            Doc("ipva", -30, 812.40, "Parcela 2/3", pago: true),
-            Doc("ipva", 5, 812.40, "Parcela 3/3"),
-            Doc("licenciamento", 45, 160.22, null),
-            Doc("seguro", 120, 2890.00, "Porto Seguro · franquia R$ 3.500"),
-            Doc("cnh", 800, null, "Categoria B"),
-        ];
-
-        Assinatura Assin(string nome, double valor, string ciclo, int diasAteVencer, string categoria, string pagamento, bool ativa = true) =>
-            new() { Id = NovoId(), Nome = nome, Valor = valor, Ciclo = ciclo, Vencimento = hoje.AddDays(diasAteVencer), Categoria = categoria, Pagamento = pagamento, Ativa = ativa };
-        s.Assinaturas =
-        [
-            Assin("Netflix", 44.90, "mensal", 3, "Streaming", "Cartão de crédito"),
-            Assin("Spotify", 21.90, "mensal", 12, "Música", "Cartão de crédito"),
-            Assin("Disney+", 33.90, "mensal", 0, "Streaming", "Cartão de crédito"),
-            Assin("Google One 2 TB", 349.99, "anual", 140, "Nuvem", "Cartão de crédito"),
-            Assin("Microsoft 365", 319.00, "anual", 52, "Software", "Pix"),
-            Assin("Academia", 129.90, "mensal", 6, "Academia", "Débito automático"),
-            Assin("Xbox Game Pass", 59.99, "mensal", 21, "Jogos", "Cartão de crédito"),
-            Assin("Jornal digital", 9.90, "mensal", 17, "Notícias", "Cartão de crédito", ativa: false),
-        ];
-
-        ItemEntretenimento Ent(string cat, string titulo, int ano, int? diasAtras, double? nota, string status = "concluido", string? criadores = null) =>
-            new() { Id = NovoId(), Categoria = cat, Titulo = titulo, Ano = ano, Data = diasAtras is int d ? Dia(d) : null, Nota = nota, Status = status, Criadores = criadores };
-        s.Entretenimento =
-        [
-            Ent("filme", "Duna: Parte Dois", 2024, 12, 4.5, criadores: "Denis Villeneuve"),
-            Ent("filme", "Oppenheimer", 2023, 60, 4, criadores: "Christopher Nolan"),
-            Ent("serie", "Ruptura", 2022, 30, 5, criadores: "Dan Erickson"),
-            Ent("animacao", "Divertida Mente 2", 2024, 90, 3.5, criadores: "Kelsey Mann"),
-            Ent("anime", "Frieren", 2023, null, null, "andamento", "Madhouse"),
-            Ent("jogo", "Hollow Knight", 2017, 120, 5, criadores: "Team Cherry"),
-            Ent("jogo", "Elden Ring", 2022, null, null, "quero", "FromSoftware"),
-            Ent("livro", "Projeto Hail Mary", 2021, 45, 4.5, criadores: "Andy Weir"),
-        ];
-
-        var trabalho = TarefasCalculos.NovoQuadro("Trabalho", "💼");
-        var faculdade = TarefasCalculos.NovoQuadro("Faculdade", "🎓");
-        var setup = TarefasCalculos.NovoQuadro("Setup", "🖥️");
-        s.Tarefas = new DadosTarefas { Quadros = [trabalho, faculdade, setup], Ativo = trabalho.Id };
-        var ordem = 0;
-        CardTarefa Card(Quadro q, int coluna, string titulo, int? prazo = null, string prioridade = "media", int? concluido = null,
-            string[]? etiquetas = null, (string Texto, bool Feito)[]? checklist = null, bool foco = false) => new()
-        {
-            Id = NovoId(), QuadroId = q.Id, ColunaId = q.Colunas[coluna].Id, Titulo = titulo, Ordem = ordem++,
-            Prazo = prazo is int p ? hoje.AddDays(p) : null, Prioridade = prioridade, Foco = foco, Criado = Dia(10),
-            Concluido = concluido is int c ? Dia(c) : null, Etiquetas = [.. etiquetas ?? []],
-            Checklist = [.. (checklist ?? []).Select(i => new ItemChecklist { Texto = i.Texto, Feito = i.Feito })],
-        };
-        s.Tarefas.Cards =
-        [
-            Card(trabalho, 0, "Enviar relatório mensal", 0, "alta", etiquetas: ["relatório"]),
-            Card(trabalho, 0, "Revisar proposta do cliente", 3, etiquetas: ["cliente"]),
-            Card(trabalho, 0, "Responder e-mails pendentes", -1, "baixa"),
-            Card(trabalho, 1, "Apresentação da reunião de sexta", 2, "alta", checklist: [("Levantar números", true), ("Montar slides", false), ("Ensaiar", false)]),
-            Card(trabalho, 2, "Atualizar planilha de custos", prioridade: "baixa", concluido: 0),
-            Card(faculdade, 0, "Lista de exercícios de cálculo", 5, etiquetas: ["cálculo"]),
-            Card(faculdade, 1, "Trabalho em grupo de engenharia de software", 9, "alta", checklist: [("Dividir tarefas", true), ("Escrever introdução", false)]),
-            Card(faculdade, 2, "Prova de estatística", prioridade: "alta", concluido: 6),
-            Card(setup, 0, "Comprar monitor 27\"", etiquetas: ["compra"]),
-            Card(setup, 0, "Organizar cabos da mesa", prioridade: "baixa", foco: true, checklist: [("Comprar velcro", false), ("Suporte de cabos", false)]),
-            Card(setup, 2, "Cadeira ergonômica", concluido: 20, etiquetas: ["compra"]),
-        ];
         return s;
     }
 }

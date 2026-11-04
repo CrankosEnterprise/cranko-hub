@@ -19,9 +19,6 @@ public static class Alertas
     /// <summary>Lembrar de pesar depois de tantos dias sem registro.</summary>
     public const int DiasSemPeso = 7;
 
-    /// <summary>Lembrar de fazer backup depois de tantos dias (quando o automático está desligado).</summary>
-    public const int DiasSemBackup = 30;
-
     private static readonly string[] Urgencia = ["critical", "serious", "warning", ""];
 
     public static List<Alerta> Gerar(EstadoApp d, DateOnly hoje)
@@ -84,16 +81,6 @@ public static class Alertas
             var dias = hoje.DayNumber - up.DayNumber;
             lista.Add(new("peso", "Hora de se pesar", $"Último registro há {dias} dias ({Formatacao.DataBR(up)})",
                 $"{dias} dias", "", "dieta", Icones.Balanca));
-        }
-
-        // Backup manual esquecido
-        var cfg = d.Config;
-        var temDados = d.Dieta.Registros.Count + d.Carro.Abastecimentos.Count + d.Carro.Manutencoes.Count + d.Assinaturas.Count > 0;
-        if (temDados && !cfg.BackupAutomatico && (cfg.UltimoBackup is null || hoje.DayNumber - cfg.UltimoBackup.Value.DayNumber >= DiasSemBackup))
-        {
-            lista.Add(new("backup", "Faça um backup dos seus dados",
-                cfg.UltimoBackup is DateOnly ub ? $"Último backup em {Formatacao.DataBR(ub)}" : "Ative o backup automático para não perder nada",
-                "backup", "", "configuracoes?aba=dados", Icones.Dados));
         }
 
         return lista.OrderBy(a => Array.IndexOf(Urgencia, a.Classe)).ToList();

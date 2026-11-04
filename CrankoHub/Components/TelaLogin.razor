@@ -1,0 +1,63 @@
+@* Tela cheia de login: aparece no lugar do app enquanto não há conta conectada (ver Main.razor) *@
+@inject ContaService Conta
+@inject IJSRuntime JS
+
+<div class="tela-login">
+    <form class="card login-card" autocomplete="off" @onsubmit="Entrar">
+        <div class="login-marca">
+            <span class="logo">@Icones.Logo</span>
+            <span>CrankoHub</span>
+        </div>
+        @if (!ContaService.Configurado)
+        {
+            <p class="muted">A conta ainda não está disponível nesta versão.</p>
+        }
+        else
+        {
+            <p class="muted">Entre com a sua conta para ver os seus dados.</p>
+            <label class="field"><span>Usuário</span>
+                <input @ref="_campoUsuario" maxlength="60" autocapitalize="off" spellcheck="false" @bind="_usuario"></label>
+            <label class="field"><span>Senha</span>
+                <input type="password" maxlength="200" @bind="_senha"></label>
+            @if (_erro is not null)
+            {
+                <p class="aviso-sincronia">@_erro</p>
+            }
+            <button class="btn primary" type="submit" disabled="@_entrando">@(_entrando ? "Entrando…" : "Entrar")</button>
+        }
+    </form>
+</div>
+
+@code {
+    private bool _entrando;
+    private string _usuario = "", _senha = "";
+    private string? _erro;
+    private ElementReference _campoUsuario;
+
+    protected override void OnInitialized() => _usuario = Conta.Usuario ?? "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && ContaService.Configurado)
+            try { await JS.InvokeVoidAsync("crankohub.focar", _campoUsuario); } catch { }
+    }
+
+    private async Task Entrar()
+    {
+        if (_entrando) return;
+        _erro = null;
+        _entrando = true;
+        try
+        {
+            await Conta.Entrar(_usuario, _senha);
+            _senha = "";
+            // Reinicia para abrir na pasta da conta (o cache local dela)
+            AtualizacaoService.Reiniciar();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _erro = ex.Message;
+            _entrando = false;
+        }
+    }
+}

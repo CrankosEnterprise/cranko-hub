@@ -3,7 +3,6 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ArmazenamentoService Store
-@inject BackupService Backup
 @inject NavegacaoService Navegacao
 @inject JanelaService Janela
 @inject ToastService Toast
@@ -69,7 +68,6 @@
         Nav.LocationChanged += AoNavegar;
         Navegacao.AoNavegar += AbrirPagina;
         Store.ModulosMudaram += AtualizarMenu;
-        Store.MudouPorFora += RecarregarDados;
         Sincronizacao.NaTela = acao => InvokeAsync(acao);
         Sincronizacao.Recebeu += RecebeuDaConta;
     }
@@ -89,16 +87,8 @@
 
     private void AtualizarMenu() => _ = InvokeAsync(StateHasChanged);
 
-    // O outro computador sincronizou: relê os dados e recria a página aberta (descarta edições em andamento)
+    // Muda quando chegam dados de outro aparelho: recria a página aberta
     private int _recarregados;
-
-    private void RecarregarDados() => _ = InvokeAsync(() =>
-    {
-        if (!Store.Recarregar()) return;
-        _recarregados++;
-        StateHasChanged();
-        Toast.Ok("Dados atualizados de outro computador.");
-    });
 
     // Pedido vindo de fora do Blazor (ex.: clique numa notificação)
     private void AbrirPagina(string link) => _ = InvokeAsync(() => Nav.NavigateTo(link));
@@ -109,7 +99,6 @@
         await JS.InvokeVoidAsync("crankohub.aplicarTema", Store.Dados.Tema);
         var cor = CorDestaque.DaConfig(Store.Dados.Config.CorDestaque);
         await JS.InvokeVoidAsync("crankohub.aplicarDestaque", cor.Claro, cor.Escuro, cor.Texto);
-        Backup.ExecutarSeNecessario();
     }
 
     private string CaminhoAtual() => Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/').ToLowerInvariant();
@@ -134,7 +123,6 @@
         Nav.LocationChanged -= AoNavegar;
         Navegacao.AoNavegar -= AbrirPagina;
         Store.ModulosMudaram -= AtualizarMenu;
-        Store.MudouPorFora -= RecarregarDados;
         Sincronizacao.Recebeu -= RecebeuDaConta;
         Sincronizacao.NaTela = null;
     }

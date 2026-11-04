@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Ajustes só deste computador, em %LocalAppData%\CrankoHub\local.json: onde ficam os dados
-/// (que podem estar numa pasta sincronizada) e o que não deve ir para o outro PC.
+/// Ajustes só deste aparelho, em %LocalAppData%\CrankoHub\local.json: qual conta está conectada
+/// e o que não deve ir para os outros aparelhos.
 /// </summary>
 public class ConfigLocal
 {
@@ -16,9 +16,6 @@ public class ConfigLocal
     private static readonly JsonSerializerOptions Opcoes = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
 
     public static ConfigLocal Atual { get; } = Carregar();
-
-    /// <summary>Pasta dos dados (OneDrive, Google Drive...). null = a pasta local de sempre.</summary>
-    public string? PastaDados { get; set; }
 
     /// <summary>null até migrar a opção antiga, que ficava nos dados (e iria junto para o outro PC).</summary>
     public bool? IniciarComWindows { get; set; }

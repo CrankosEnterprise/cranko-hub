@@ -6,7 +6,7 @@
 [![UI](https://img.shields.io/badge/UI-Blazor%20Hybrid-purple.svg)]()
 [![Release](https://img.shields.io/github/v/release/CrankosEnterprise/cranko-hub?label=Vers%C3%A3o%20Oficial&color=8B5CF6)](https://github.com/CrankosEnterprise/cranko-hub/releases/latest)
 
-O **CrankoHub** é um aplicativo desktop para Windows e Linux que reúne num só lugar os parâmetros do dia a dia: dieta e peso, carro (abastecimentos, consumo, manutenção e documentos), assinaturas, entretenimento e tarefas. A interface é feita em Blazor Hybrid, os dados ficam salvos localmente e funcionam offline, e há a opção de entrar numa conta para sincronizar os dados entre computadores. Junto vêm alertas inteligentes, notificações do sistema, backup automático e atualização automática pelo GitHub Releases.
+O **CrankoHub** é um aplicativo desktop para Windows e Linux que reúne num só lugar os parâmetros do dia a dia: dieta e peso, carro (abastecimentos, consumo, manutenção e documentos), assinaturas, entretenimento e tarefas. A interface é feita em Blazor Hybrid, e os dados ficam numa conta (Supabase) sincronizada entre os aparelhos, com uma cópia local para funcionar offline. Junto vêm alertas inteligentes, notificações do sistema e atualização automática pelo GitHub Releases.
 
 ---
 
@@ -72,16 +72,15 @@ Baixe a versão oficial do **CrankoHub**:
 - Tema claro/escuro e **cor de destaque**.
 - **Módulos:** cada área pode ser escondida do menu, do Início e das notificações sem perder os dados.
 
-### 8. Dados, Backup e Sincronização
-- **Offline primeiro:** tudo fica num arquivo local (`%LocalAppData%\CrankoHub\dados.json` no Windows, `~/.local/share/CrankoHub/` no Linux).
-- **Backup automático**, exportar e importar o backup, e dados de exemplo para conhecer o app.
-- **Pasta sincronizada** (OneDrive, Google Drive, Dropbox) para usar em mais de um PC, sem servidor.
-- **Conta com login (Supabase):** os dados ficam centralizados por usuário e sincronizam item a item, inclusive as capas. As tabelas são protegidas por RLS, e a sessão fica guardada criptografada (DPAPI no Windows).
+### 8. Conta e Sincronização
+- **Login obrigatório (Supabase):** o app abre numa tela de login. Os usuários são criados à mão no painel do Supabase (o cadastro pelo app é fechado).
+- Os dados ficam centralizados por usuário e sincronizam item a item entre os aparelhos, inclusive as capas. As tabelas são protegidas por RLS, e a sessão fica guardada criptografada (DPAPI no Windows, Android Keystore no celular).
+- **Funciona offline:** cada aparelho guarda uma cópia da conta. Sem internet, o app abre com ela e envia as mudanças quando a conexão volta.
 
 ### 9. Aplicativo
 - **Atualização automática:** Configurações → Aplicativo → Atualizações consulta os Releases deste repositório, sem precisar de token.
 - **Bandeja do sistema**, iniciar com o Windows e instância única.
-- **Versão Linux** nativa (Photino + WebKitGTK), com os mesmos dados e telas. Os backups do Windows importam direto.
+- **Versão Linux** nativa (Photino + WebKitGTK), com os mesmos dados e telas.
 - **Versão Android** (APK pelo GitHub, fora da Play Store), com as mesmas telas. Os dados vão para o celular pela conta. A atualização baixa o APK novo e abre o instalador do Android, e as notificações aparecem enquanto o app está aberto.
 
 ---
@@ -95,15 +94,15 @@ cranko-hub/
 │   │   └── CarroAbas/               # Abas do Carro (Abastecimentos, Consumo, Manutenção, Documentos, Calculadoras)
 │   ├── Components/                  # Componentes reutilizáveis (gráficos, diálogos, toasts, ícones, conta)
 │   ├── Layout/                      # LayoutPrincipal.razor (menu lateral e rodapé da conta)
-│   ├── Models/                      # Modelos de dados (EstadoApp é a raiz do dados.json)
+│   ├── Models/                      # Modelos de dados (EstadoApp é a raiz dos dados da conta)
 │   ├── Services/                    # Regras de negócio, cálculos e serviços
-│   │   ├── ArmazenamentoService.cs  # Leitura/gravação do dados.json, pasta sincronizada e pasta por conta
+│   │   ├── ArmazenamentoService.cs  # Cache local da conta (para funcionar offline)
 │   │   ├── Alertas.cs               # Fonte única do "Precisa de atenção" e das notificações
 │   │   ├── AtualizacaoService.cs    # Atualização automática pelo GitHub Releases
 │   │   ├── SincronizacaoService.cs  # Sincronização com o Supabase (Data API + Storage)
 │   │   ├── ContaService.cs          # Login, sessão e conta
 │   │   ├── EntretenimentoBusca.cs   # Busca em TMDB, AniList, RAWG e Open Library
-│   │   └── ...                      # Cálculos de Carro, Dieta, Assinaturas, Tarefas, backup, bandeja...
+│   │   └── ...                      # Cálculos de Carro, Dieta, Assinaturas, Tarefas, bandeja...
 │   ├── Linux/                       # Projeto Linux (Photino.Blazor), que reaproveita os arquivos acima
 │   │   ├── Plataforma/              # Partes exclusivas do Linux (diálogos GTK, notify-send, autostart...)
 │   │   ├── Program.cs               # Ponto de entrada do app Linux

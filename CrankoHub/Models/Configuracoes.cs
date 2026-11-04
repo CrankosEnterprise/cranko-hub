@@ -1,18 +1,8 @@
 namespace CrankoHub.Models;
 
-/// <summary>Preferências do aplicativo (não fazem parte dos dados restaurados por um backup).</summary>
+/// <summary>Preferências do aplicativo. Só a cor de destaque e os módulos ocultos vão para a conta (tabela perfis).</summary>
 public class Configuracoes
 {
-    /// <summary>Faz uma cópia dos dados por dia, ao abrir o app.</summary>
-    public bool BackupAutomatico { get; set; }
-
-    public string? PastaBackup { get; set; }
-
-    /// <summary>Quantos backups automáticos manter na pasta (os mais antigos são apagados).</summary>
-    public int BackupsMantidos { get; set; } = 10;
-
-    public DateOnly? UltimoBackup { get; set; }
-
     /// <summary>O X da janela esconde o app na bandeja (perto do relógio) em vez de fechar.</summary>
     /// <summary>Cor de destaque: chave da paleta (ver <see cref="Models.CorDestaque"/>) ou "#RRGGBB".</summary>
     public string CorDestaque { get; set; } = "azul";

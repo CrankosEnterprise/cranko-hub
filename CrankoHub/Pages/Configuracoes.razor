@@ -3,7 +3,9 @@
 @inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject IDialogoService Dialogo
-@inject BackupService Backup
+@inject ContaService Conta
+@inject SincronizacaoService Sincronizacao
+@implements IDisposable
 @inject AvisosService Avisos
 @inject JanelaService Janela
 @inject IJSRuntime JS
@@ -57,9 +59,26 @@
         break;
 
     case "dados":
-        var backups = Backup.Listar();
         <section class="card">
-            <div class="card-head"><div><h2>Armazenamento</h2><p>@ArmazenamentoService.CaminhoDados@(ArmazenamentoService.Sincronizada ? " · sincronizada" : "")</p></div></div>
+            <div class="card-head">
+                <div><h2>Conta</h2><p>Os dados ficam na sua conta do CrankoHub e vão sozinhos para os outros aparelhos. Este aparelho guarda uma cópia para funcionar sem internet.</p></div>
+            </div>
+            <div class="storage-stats">
+                <div><span>Usuário</span><b>@Conta.Usuario</b></div>
+                <div><span>Sincronização</span><b>@StatusSincronizacao</b></div>
+            </div>
+            @if (Sincronizacao.Problema is not null)
+            {
+                <p class="aviso-sincronia">@Sincronizacao.Problema</p>
+            }
+            <div class="form-actions">
+                <button class="btn" type="button" disabled="@Sincronizacao.Sincronizando" @onclick="Sincronizacao.Sincronizar">Sincronizar agora</button>
+                <button class="btn danger" type="button" @onclick="Sair">Sair da conta</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><div><h2>Na conta</h2><p>Quantidade de itens guardados.</p></div></div>
             <div class="storage-stats">
                 <div><span>Registros de peso</span><b>@d.Dieta.Registros.Count</b></div>
                 <div><span>Abastecimentos</span><b>@d.Carro.Abastecimentos.Count</b></div>
@@ -69,121 +88,8 @@
                 <div><span>Assinaturas</span><b>@d.Assinaturas.Count</b></div>
                 <div><span>Entretenimento</span><b>@d.Entretenimento.Count</b></div>
                 <div><span>Tarefas</span><b>@d.Tarefas.Cards.Count</b></div>
-                <div><span>Tamanho</span><b>@Num(Store.TamanhoKB(), 1) KB</b></div>
             </div>
-            @if (!Android)
-            {
-            <div class="sincronia">
-                <h3>Usar em mais de um computador</h3>
-                @if (ArmazenamentoService.PorConta)
-                {
-                    <p class="muted">Com a <b>conta</b> conectada, os dados já vão para os outros aparelhos pela conta, então a pasta sincronizada fica desativada. Ela volta a valer ao sair da conta.</p>
-                }
-                else if (ArmazenamentoService.Sincronizada)
-                {
-                    <p class="muted">Os dados estão numa <b>pasta sincronizada</b>. Os outros computadores que apontarem para ela veem as mesmas informações, e mudanças feitas lá aparecem aqui sozinhas.</p>
-                }
-                else
-                {
-                    <p class="muted">Escolha uma pasta do <b>OneDrive</b>, <b>Google Drive</b> ou <b>Dropbox</b> (ex.: <code>OneDrive\CrankoHub</code>) e faça o mesmo no outro computador. Evite usar os dois ao mesmo tempo: se acontecer, nada se perde, a outra versão fica guardada como cópia de conflito.</p>
-                }
-                @if (ArmazenamentoService.PastaSincronizadaSumiu)
-                {
-                    <p class="aviso-sincronia">A pasta sincronizada <b>@ConfigLocal.Atual.PastaDados</b> não foi encontrada, então os dados locais estão em uso. Confira se o OneDrive/Google Drive está conectado e reinicie o app.</p>
-                }
-                @{ var conflitos = ArmazenamentoService.Conflitos(); }
-                @if (conflitos.Count > 0)
-                {
-                    <p class="aviso-sincronia">@conflitos.Count @Plural(conflitos.Count, "cópia", "cópias") de conflito na pasta (@string.Join(", ", conflitos.Select(Path.GetFileName))). Confira se falta algo e, se quiser, importe pelo backup abaixo; depois pode apagar.</p>
-                }
-                <div class="form-actions">
-                    @if (!ArmazenamentoService.PorConta)
-                    {
-                        <button class="btn" type="button" @onclick="UsarPastaSincronizada">@(ArmazenamentoService.Sincronizada ? "Trocar pasta…" : "Usar pasta sincronizada…")</button>
-                    }
-                    @if (ArmazenamentoService.Sincronizada || ArmazenamentoService.PastaSincronizadaSumiu)
-                    {
-                        <button class="btn" type="button" @onclick="VoltarParaLocal">Voltar para a pasta local</button>
-                    }
-                    <button class="btn" type="button" @onclick="AbrirPastaDados">Abrir pasta</button>
-                </div>
-            </div>
-            }
-            else
-            {
-                <p class="muted" style="margin-top:12px">Para usar os mesmos dados no computador e no celular, entre com a sua <b>conta</b>: a sincronização é automática.</p>
-            }
         </section>
-
-        @if (!Android)
-        {
-        <section class="card">
-            <div class="card-head">
-                <div><h2>Backup automático</h2><p>Uma cópia por dia, feita ao abrir o app. Dica: escolha uma pasta do OneDrive ou Google Drive para ter o backup também na nuvem.</p></div>
-                <label class="check"><input type="checkbox" checked="@cfg.BackupAutomatico" @onchange="AlternarAutomatico"> Ativado</label>
-            </div>
-            <div class="form-grid">
-                <div class="field full"><span>Pasta</span>
-                    <div class="linha-pasta">
-                        <input readonly value="@(cfg.PastaBackup ?? "")" placeholder="nenhuma pasta escolhida">
-                        <button class="btn" type="button" @onclick="EscolherPasta">Escolher…</button>
-                    </div></div>
-                <label class="field"><span>Manter os últimos</span>
-                    <select value="@cfg.BackupsMantidos" @onchange="MudarMantidos">
-                        @foreach (var n in new[] { 3, 5, 10, 15, 30 })
-                        {
-                            <option value="@n">@n backups</option>
-                        }
-                    </select></label>
-                <div class="field"><span>Último backup</span><b>@(cfg.UltimoBackup is DateOnly u ? DataBR(u) : "nunca")</b></div>
-            </div>
-            <div class="form-actions">
-                <button class="btn primary" type="button" disabled="@string.IsNullOrWhiteSpace(cfg.PastaBackup)" @onclick="FazerAgora">Fazer backup agora</button>
-            </div>
-            @if (backups.Count > 0)
-            {
-                <div class="table-wrap" style="margin-top:16px">
-                    <table>
-                        <thead><tr><th>Arquivo</th><th>Salvo em</th><th class="num">Tamanho</th><th></th></tr></thead>
-                        <tbody>
-                            @foreach (var f in backups)
-                            {
-                                <tr @key="f.Name">
-                                    <td>@f.Name</td>
-                                    <td>@f.LastWriteTime.ToString("dd/MM/yyyy HH:mm")</td>
-                                    <td class="num">@Num(f.Length / 1024.0, 1) KB</td>
-                                    <td><button class="btn sm" type="button" @onclick="() => Restaurar(f)">Restaurar</button></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </section>
-        }
-
-        <div class="grid-2">
-            <section class="card action-card">
-                <h2>Exportar backup</h2>
-                <p>Salva um arquivo <b>.json</b> com todos os seus dados. Guarde no Drive, e-mail ou pendrive.</p>
-                <button class="btn primary" type="button" @onclick="Exportar">Salvar backup…</button>
-            </section>
-            <section class="card action-card">
-                <h2>Importar backup</h2>
-                <p>Restaura um arquivo exportado antes (do CrankoHub ou do antigo ClaudeParameters). <b>Substitui</b> os dados atuais.</p>
-                <button class="btn" type="button" @onclick="Importar">Escolher arquivo…</button>
-            </section>
-            <section class="card action-card">
-                <h2>Dados de exemplo</h2>
-                <p>Preenche o app com ~5 meses de pesos e ~8 meses de abastecimentos e manutenções e algumas assinaturas fictícias para você explorar os gráficos. <b>Substitui</b> os dados atuais.</p>
-                <button class="btn" type="button" @onclick="CarregarExemplo">Carregar exemplo</button>
-            </section>
-            <section class="card action-card">
-                <h2>Apagar tudo</h2>
-                <p>Remove todos os registros, veículos, manutenções e assinaturas. Não dá para desfazer — exporte um backup antes.</p>
-                <button class="btn danger" type="button" @onclick="ApagarTudo">Apagar todos os dados</button>
-            </section>
-        </div>
         break;
 
     case "aplicativo":
@@ -277,11 +183,11 @@
         ("aparencia", "Aparência"),
         ("modulos", "Módulos"),
         ("integracoes", "Integrações"),
-        ("dados", "Dados e backup"),
+        ("dados", "Conta"),
         ("aplicativo", "Aplicativo"),
     ];
 
-    // No celular não há bandeja, inicialização com o sistema nem pastas para escolher
+    // No celular não há bandeja nem inicialização com o sistema
     private static bool Android => OperatingSystem.IsAndroid();
 
     // Aba aberta, mantida enquanto o app estiver aberto
@@ -310,11 +216,34 @@
         Janela.TemaMudou(tema);
     }
 
-    // Aviso nas confirmações que mexem em todos os dados: logado, a mudança vai junto para a conta
-    private static string NaConta => ArmazenamentoService.PorConta ? " Com a conta conectada, isso também vale para a nuvem e para os outros aparelhos." : "";
+    private string StatusSincronizacao =>
+        Conta.Offline ? "Sem conexão" :
+        Sincronizacao.Problema is not null ? "Não sincronizado" :
+        Sincronizacao.Sincronizando ? "Sincronizando…" :
+        Sincronizacao.Ultima is DateTime u ? $"Às {u:HH:mm}" : "Preparando…";
 
-    // O mesmo aviso, como explicação (segunda linha) de uma pergunta que só tem título
-    private static string ExplicacaoNaConta => NaConta.Length > 0 ? "\n" + NaConta.Trim() : "";
+    // A sincronização roda em segundo plano: redesenha quando o status muda
+    private void Mudou() => InvokeAsync(StateHasChanged);
+
+    protected override void OnInitialized()
+    {
+        Conta.Mudou += Mudou;
+        Sincronizacao.Mudou += Mudou;
+    }
+
+    public void Dispose()
+    {
+        Conta.Mudou -= Mudou;
+        Sincronizacao.Mudou -= Mudou;
+    }
+
+    private async Task Sair()
+    {
+        if (!await Dialogo.Confirmar("Sair da conta?\nAs mudanças pendentes são enviadas antes. O app reinicia na tela de login. Os dados continuam na conta.")) return;
+        await Sincronizacao.Sincronizar();
+        await Conta.Sair();
+        AtualizacaoService.Reiniciar();
+    }
 
     private void SalvarChave(ChangeEventArgs e, bool tmdb)
     {
@@ -375,21 +304,6 @@
 
     private Task MudarCorPersonalizada(ChangeEventArgs e) => MudarCor(e.Value?.ToString()?.ToUpperInvariant() ?? "azul");
 
-    private async Task Exportar()
-    {
-        try
-        {
-            if (!await Dialogo.SalvarBackup($"crankohub-backup-{Iso(Hoje)}.json", Store.Exportar())) return;
-            Store.Dados.Config.UltimoBackup = Hoje;
-            Store.Salvar();
-            Toast.Ok("Backup salvo.");
-        }
-        catch (Exception ex)
-        {
-            Toast.Erro($"Não foi possível salvar o backup: {ex.Message}");
-        }
-    }
-
     private void Mudar(ChangeEventArgs e, Action<bool> aplicar)
     {
         aplicar(e.Value is true);
@@ -409,127 +323,5 @@
         {
             Toast.Erro($"Não foi possível alterar a inicialização: {ex.Message}");
         }
-    }
-
-    private void AlternarAutomatico(ChangeEventArgs e)
-    {
-        var cfg = Store.Dados.Config;
-        cfg.BackupAutomatico = e.Value is true;
-        if (cfg.BackupAutomatico && string.IsNullOrWhiteSpace(cfg.PastaBackup))
-            cfg.PastaBackup = BackupService.PastaSugerida;
-        Store.Salvar();
-        Backup.ExecutarSeNecessario();
-    }
-
-    private async Task EscolherPasta()
-    {
-        var cfg = Store.Dados.Config;
-        var pasta = await Dialogo.EscolherPasta("Pasta para os backups automáticos", cfg.PastaBackup ?? BackupService.PastaSugerida);
-        if (pasta is null) return;
-        cfg.PastaBackup = pasta;
-        cfg.UltimoBackup = null; // pasta nova: faz o primeiro backup nela
-        Store.Salvar();
-        Backup.ExecutarSeNecessario();
-    }
-
-    private async Task UsarPastaSincronizada()
-    {
-        var pasta = await Dialogo.EscolherPasta("Pasta sincronizada para os dados (OneDrive, Google Drive...)", ConfigLocal.Atual.PastaDados);
-        if (pasta is null || Path.GetFullPath(pasta) == Path.GetFullPath(ArmazenamentoService.PastaDados)) return;
-        var temDados = File.Exists(Path.Combine(pasta, "dados.json"));
-        var pergunta = temDados
-            ? "Usar os dados que já estão nessa pasta?\nEla já tem dados do CrankoHub (de outro computador). Eles passam a ser usados aqui, e os dados atuais deste computador ficam guardados como cópia. O app vai reiniciar."
-            : "Levar os dados para essa pasta?\nOs dados e as capas deste computador são copiados para lá, e o app passa a usá-los. Faça o mesmo no outro computador. O app vai reiniciar.";
-        if (!await Dialogo.Confirmar(pergunta)) return;
-        try
-        {
-            Store.UsarPasta(pasta);
-            AtualizacaoService.Reiniciar();
-        }
-        catch (Exception ex)
-        {
-            Toast.Erro($"Não foi possível usar a pasta: {ex.Message}");
-        }
-    }
-
-    private async Task VoltarParaLocal()
-    {
-        if (!await Dialogo.Confirmar("Voltar a guardar os dados só neste computador?\nOs dados atuais são copiados para a pasta local. A pasta sincronizada não é apagada. O app vai reiniciar.")) return;
-        try
-        {
-            Store.VoltarParaLocal();
-            AtualizacaoService.Reiniciar();
-        }
-        catch (Exception ex)
-        {
-            Toast.Erro($"Não foi possível voltar para a pasta local: {ex.Message}");
-        }
-    }
-
-    private void AbrirPastaDados()
-    {
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ArmazenamentoService.PastaDados) { UseShellExecute = true }); }
-        catch (Exception ex) { Toast.Erro($"Não foi possível abrir a pasta: {ex.Message}"); }
-    }
-
-    private void MudarMantidos(ChangeEventArgs e)
-    {
-        if (!int.TryParse(e.Value?.ToString(), out var n)) return;
-        Store.Dados.Config.BackupsMantidos = n;
-        Store.Salvar();
-    }
-
-    private void FazerAgora()
-    {
-        if (Backup.FazerAgora()) Toast.Ok("Backup feito.");
-    }
-
-    private async Task Restaurar(FileInfo arquivo)
-    {
-        if (!await Dialogo.Confirmar($"Substituir todos os dados atuais pelo backup \"{arquivo.Name}\"?{ExplicacaoNaConta}")) return;
-        try
-        {
-            Store.Importar(File.ReadAllText(arquivo.FullName));
-            Toast.Ok("Backup restaurado.");
-        }
-        catch (InvalidDataException ex) { Toast.Erro(ex.Message); }
-        catch (Exception ex) { Toast.Erro($"Não foi possível ler o backup: {ex.Message}"); }
-    }
-
-    private async Task Importar()
-    {
-        var caminho = await Dialogo.AbrirBackup();
-        if (caminho is null) return;
-        try
-        {
-            var json = File.ReadAllText(caminho);
-            if (!await Dialogo.Confirmar($"Substituir todos os dados atuais pelo backup selecionado?{ExplicacaoNaConta}")) return;
-            Store.Importar(json);
-            Toast.Ok("Backup importado com sucesso!");
-        }
-        catch (InvalidDataException ex)
-        {
-            Toast.Erro(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            Toast.Erro($"Não foi possível ler o arquivo: {ex.Message}");
-        }
-    }
-
-    private async Task CarregarExemplo()
-    {
-        var d = Store.Dados;
-        var temDados = d.Dieta.Registros.Count > 0 || d.Carro.Abastecimentos.Count > 0 || d.Carro.Manutencoes.Count > 0 || d.Assinaturas.Count > 0 || d.Entretenimento.Count > 0 || d.Tarefas.Cards.Count > 0;
-        if (temDados && !await Dialogo.Confirmar($"Carregar os dados de exemplo?\nIsso vai substituir seus dados atuais.{NaConta}")) return;
-        Store.CarregarExemplo();
-        Toast.Ok("Dados de exemplo carregados. Dê uma olhada em Dieta, Carro, Assinaturas, Entretenimento e Tarefas!");
-    }
-
-    private async Task ApagarTudo()
-    {
-        if (!await Dialogo.Confirmar($"Apagar TODOS os dados?\nEssa ação não pode ser desfeita.{NaConta}")) return;
-        Store.Resetar();
-        Toast.Ok("Todos os dados foram apagados.");
     }
 }

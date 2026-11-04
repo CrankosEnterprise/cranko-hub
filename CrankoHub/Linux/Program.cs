@@ -31,7 +31,6 @@ var servicos = builder.Services;
 servicos.AddSingleton<IDialogoService, DialogoService>();
 servicos.AddSingleton<ToastService>();
 servicos.AddSingleton<ArmazenamentoService>();
-servicos.AddSingleton<BackupService>();
 servicos.AddSingleton<NavegacaoService>();
 servicos.AddSingleton<JanelaService>();
 servicos.AddSingleton<BandejaService>();
