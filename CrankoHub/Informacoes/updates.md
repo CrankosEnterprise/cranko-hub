@@ -17,50 +17,37 @@ O que ainda vamos fazer no CrankoHub: itens em andamento e os que ainda não com
 - Remédios com horário (notificação pela bandeja), consultas e exames com data.
 - Resultados de exames ao longo do tempo (ex.: colesterol, glicemia) em gráfico de linha.
 
-## 11. Modo Carro (CarLink) 🚧 (primeira leva implementada; falta testar no celular)
+## 11. Modo Carro (CarLink) 🚧 (segunda versão implementada: mapa próprio + Spotify; falta testar no celular)
 
-Um "Android Auto" caseiro para a central **Pioneer AVH-X2550BT**, dentro do app Android: navegação (Waze/Maps), player (Spotify ou outro) e a próxima curva, numa tela grande para o celular no suporte do carro. Fica num botão **"Modo carro"** na página Carro, que só aparece no Android. Origem: `Desktop\Meus Projetos\Projeto_Multimidia\PLANO_CarLink.md`.
+Um "Android Auto" caseiro na tela do celular (no suporte do carro), dentro do app Android: **mapa integrado** seguindo o carro, o **Spotify** e atalhos. A central é a **Pioneer AVH-X2550BT**. Fica num botão **"Modo carro"** na página Carro, que só aparece no Android. Origem: `Desktop\Meus Projetos\Projeto_Multimidia\PLANO_CarLink.md`.
 
 ### Limitações da central (pesquisado)
 - A **USB não recebe vídeo nem toque**: só lê pendrive/iPod e carrega o celular. Nenhum app consegue "projetar a tela" por ela.
 - O **Bluetooth** (HFP + A2DP + AVRCP) é o canal que funciona: leva o áudio (música e voz do GPS), mostra **texto** no display (título/artista pelo AVRCP) e devolve os **botões** da central (próxima/anterior/play) para o celular.
 
-### Primeira leva ✅ (implementada em 04/11/2026)
+### O que mudou depois do primeiro teste (04/11/2026)
+- A primeira leva lia a próxima curva e o player pelas **notificações** do Waze/Maps (`NotificationListenerService` + `MediaSessionManager`). No celular, o Android trata o APK (fora da Play Store) como "não seguro" e **não deixa liberar o acesso às notificações**, então nada aparecia. Tudo isso saiu (listener, parser, cartão de permissão, `MediaSession`).
+- **Mapa do Google dentro do app** foi avaliado: a navegação curva a curva do Google (Navigation SDK) só sai por contrato, o Waze não pode ser embutido e o mapa do Google pede projeto no Google Cloud com cartão. Decisão: **mapa próprio** com OpenStreetMap.
 
-**Compartilhado (Windows, Linux e Android)**
-- `Models/ModoCarro.cs`: `InstrucaoNavegacao` (texto, distância, app) e `MusicaAtual` (título, artista, capa em `data:` URI, tocando, app).
-- `Services/NavegacaoNotificacao.cs`: parser puro do título/texto das notificações do Maps (`com.google.android.apps.maps`) e do Waze (`com.waze`). Ex.: "200 m" + "Vire à direita na R. X" → distância + instrução.
-- `Services/ModoCarroService.cs`: versão vazia para Windows/Linux (`Disponivel = false`), com a mesma API da versão Android: `Instrucao`, `Musica`, `Mudou`, `TemAcessoNotificacoes`, `PedirAcessoNotificacoes()`, `Navegar(destino, app)`, `AbrirApp(app)`, `TocarPausar()`, `Proxima()`, `Anterior()`, `Entrar()`, `Sair()`. O Android exclui esse arquivo no `.csproj` e usa o dele (mesmo padrão do `BandejaService`).
-- `Models/Configuracoes.cs`: favoritos `CasaEndereco` e `TrabalhoEndereco` (ficam no aparelho).
-- `Layout/LayoutCarro.razor`: layout em tela cheia, sem a barra lateral.
-- `Pages/ModoCarro.razor` (`/carro/modo`): tema escuro, paisagem, botões grandes:
-  - **Navegação:** instrução atual e distância em letras grandes ("Sem navegação ativa" quando não há rota).
-  - **Player:** capa, título, artista, anterior / tocar-pausar / próxima.
-  - **Atalhos:** Casa, Trabalho (Waze ou Maps), abrir Waze, Maps e Spotify, e um campo "Ir para…". Casa/Trabalho editados com o `DialogoTexto`.
-  - **Barra de status:** hora e Sair.
-  - **Cartão de permissão** quando falta o acesso às notificações, com o passo do Android 13+: *Info do app → ⋮ → Permitir configurações restritas* (vale para apps instalados fora da Play Store) e um botão que abre a tela do sistema.
-- `Pages/Carro.razor`: botão "Modo carro" no topo, só quando `ModoCarro.Disponivel`.
-- `wwwroot/css/app.css`: seção `.modo-carro` (grade em paisagem; uma coluna em retrato).
-- Registrar o `ModoCarroService` no `App.xaml.cs`, `Linux/Program.cs` e `Android/MauiProgram.cs`.
-
-**Android**
-- `Android/Plataforma/ModoCarroService.cs` (`Disponivel = true`):
-  - Navegar: intents `google.navigation:q=…` (Maps) e `https://waze.com/ul?q=…&navigate=yes` (Waze); app não instalado → toast.
-  - Abrir app: `PackageManager.GetLaunchIntentForPackage`.
-  - Player: `MediaSessionManager.GetActiveSessions(componente do listener)` + `AddOnActiveSessionsChangedListener` + `MediaController.Callback` (metadados, estado, capa); comandos pelos `TransportControls`. Não precisa do SDK do Spotify.
-  - Acesso às notificações: `NotificationManagerCompat.GetEnabledListenerPackages`; pedir abre `Settings.ActionNotificationListenerSettings`.
-  - `Entrar()`/`Sair()`: tela sempre ligada (`KeepScreenOn`) e orientação em paisagem; ao sair, volta ao normal.
-- `Android/Platforms/Android/NavNotificationListener.cs`: `NotificationListenerService` (`BIND_NOTIFICATION_LISTENER_SERVICE`) que filtra Maps/Waze, passa pelo parser e atualiza o serviço; ao conectar, liga o controle de mídia.
-- `AndroidManifest.xml`: bloco `<queries>` com `com.waze`, `com.google.android.apps.maps` e `com.spotify.music` (visibilidade de pacotes no Android 11+).
-
-**Além do plano:** `AbrirInfoDoApp()` (botão "Info do app" no cartão de permissão, para o passo das configurações restritas), `Config.AppNavegacao` (escolha Waze/Maps dos atalhos, padrão Waze), ícones novos em `Components/Icones.cs` e, sem acesso às sessões de mídia, os botões do player mandam as teclas de mídia para o player ativo (sem capa/título).
+### Segunda versão ✅ (implementada em 04/11/2026)
+- **Tela** (`Pages/ModoCarro.razor`, `/carro/modo`, `Layout/LayoutCarro.razor`): sempre escura, tela ligada e paisagem. Em paisagem, o mapa à esquerda e uma coluna à direita com hora/Sair, o player e os botões **Spotify, Maps e Waze** (só esses três). Em retrato, o mapa em cima.
+- **Mapa:** MapLibre GL JS 4.7.1 dentro do app (`wwwroot/lib/maplibre-gl/`, carregado só nessa página por `crankohub.carregarScript`/`carregarCss`) com o estilo escuro do **OpenFreeMap** (`tiles.openfreemap.org/styles/dark`, grátis e sem chave). `wwwroot/js/modo-carro.js` (`window.modoCarro`): segue o carro com o carro no terço de baixo, inclinação de 45° e o mapa girando com a direção acima de 7 km/h; arrastar para de seguir e mostra **Recentralizar**; velocímetro no canto.
+- **GPS:** `Geolocation.StartListeningForegroundAsync` (1 s, precisão máxima) no `ModoCarroService` do Android → `Posicao` → a página repassa ao mapa. Permissão comum de localização (`ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION`), sem bloqueio para app fora da Play Store. Sem permissão, o mapa mostra "Permitir localização".
+- **Spotify:** `BroadcastReceiver` dinâmico para `com.spotify.music.metadatachanged`/`playbackstatechanged` (exige ligar **"Transmissão do status do dispositivo"** nas configurações do Spotify). Capa pelo oEmbed público (`open.spotify.com/oembed`, sem login), com cache por faixa. Botões anterior/tocar/próxima pelas teclas de mídia (`AudioManager.DispatchMediaKeyEvent`).
+- **Windows/Linux:** `Services/ModoCarroService.cs` vazio (`Disponivel = false`): o botão não aparece e `/carro/modo` só explica que é do celular.
 
 **Como testar**
-1. ✅ `dotnet build` dos três projetos sem erros nem avisos; no Windows/Linux o botão "Modo carro" não aparece (`Disponivel = false`) e `/carro/modo` só explica que é do celular.
-2. 🚧 Parser conferido com 13 exemplos de formatos prováveis (distância no título, no texto, no começo e no fim; notificações que não são de rota ficam de fora). Falta conferir com textos **reais**: o listener grava cada notificação do Maps/Waze no log (`adb logcat -s CrankoHub.Carro`).
-3. No celular, pelo cabo: APK de debug com `-p:EmbedAssembliesIntoApk=true` via `adb`; liberar as configurações restritas e o acesso às notificações; abrir o Modo Carro (paisagem, tela ligada); tocar Spotify (capa/título e botões); iniciar rota no Waze e no Maps (cartão mostra a próxima curva, conferir também no `adb logcat`); atalhos Casa/Trabalho/"Ir para…"; Sair volta a orientação.
+1. ✅ `dotnet build` dos três projetos sem erros nem avisos.
+2. No celular (APK de debug via `adb`): aceitar a localização; o mapa escuro aparece e segue o carro andando (gira com a direção, velocidade certa); arrastar mostra Recentralizar; com a transmissão ligada no Spotify, trocar de música atualiza título, artista e capa; botões do player; Spotify/Maps/Waze abrem; Sair volta a orientação e desliga o GPS.
+3. `adb logcat -s CrankoHub.Carro` mostra cada transmissão recebida do Spotify.
 
-### Segunda leva (mais para frente)
+### Próxima etapa: rota dentro do app
+- **Busca de destino:** autocompletar do Photon (komoot), com a posição atual como referência.
+- **Rota:** OSRM (`router.project-osrm.org/route/v1/driving/...?steps=true&geometries=geojson`), linha desenhada no mapa.
+- **Próxima curva em pt-BR:** montada de `maneuver.type`/`modifier` + nome da rua; distância pelo GPS; avança ao passar da manobra; recalcula se sair da rota.
+- **Favoritos:** Casa e Trabalho.
+
+### Mais para frente
 - **Display da Pioneer (AVRCP):** uma `MediaSession` própria do CrankoHub com metadados alternando entre a próxima curva (título) e a música (artista); os botões da central chegam nela e são repassados ao player real. *Risco:* a central mostra os metadados da sessão de áudio ativa; validar no carro se a sessão do app "ganha" sem cortar o áudio do Spotify. Plano B: falar a instrução por voz (TTS) pelo Bluetooth.
 - **Foreground service:** o Android não fecha o app durante a viagem.
 - **Abrir sozinho** quando o Bluetooth da Pioneer conectar (`BroadcastReceiver` de `ACTION_ACL_CONNECTED`, filtrando o nome/MAC da central).

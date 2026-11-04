@@ -833,76 +833,92 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 :root[data-theme="dark"] { --seg-sel: #48484e; }
 .tab.active, .chip.active, .atalhos a.active { background: var(--seg-sel); }
 
-/* ===== Modo Carro (Pages/ModoCarro.razor, Layout/LayoutCarro.razor) =====
-   Sempre escuro (de noite não ofusca), letras e botões grandes para tocar com o carro andando.
-   Paisagem: navegação e player lado a lado, atalhos embaixo. Retrato: uma coluna. */
-.layout-carro { position: fixed; inset: 0; overflow-y: auto; background: #000; }
+/* ===== Modo Carro (Pages/ModoCarro.razor, Layout/LayoutCarro.razor, wwwroot/js/modo-carro.js) =====
+   Sempre escuro (de noite não ofusca), estilo Android Auto: mapa grande + coluna com o Spotify e os atalhos.
+   Paisagem: mapa à esquerda, coluna à direita. Retrato: mapa em cima, coluna embaixo. */
+.layout-carro { position: fixed; inset: 0; overflow: hidden; background: #000; }
 .modo-carro {
   --mc-fundo: #000; --mc-card: #161618; --mc-card-2: #232327; --mc-linha: rgba(255, 255, 255, .08);
   --mc-texto: #f5f5f7; --mc-texto-2: #a1a1a6;
-  min-height: 100%; display: flex; flex-direction: column; gap: 12px;
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  height: 100%; display: flex; flex-direction: column; gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
   background: var(--mc-fundo); color: var(--mc-texto); -webkit-user-select: none; user-select: none;
 }
 .modo-carro h2 { font-size: 18px; font-weight: 700; }
 .mc-status { display: flex; align-items: center; gap: 14px; padding: 2px 4px; }
-.mc-hora { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mc-hora { flex: 1; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .mc-titulo { flex: 1; color: var(--mc-texto-2); font-weight: 600; }
 .mc-sair, .mc-btn {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 20px; border-radius: 14px;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 18px; border-radius: 14px;
   border: 0; background: var(--mc-card-2); color: var(--mc-texto); font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
 }
 .mc-btn.primario { background: var(--accent); color: var(--on-accent); }
-.mc-card { background: var(--mc-card); border-radius: 22px; padding: 18px; box-shadow: inset 0 0 0 1px var(--mc-linha); min-width: 0; }
-.mc-aviso p, .mc-aviso ol { color: var(--mc-texto-2); margin-top: 8px; line-height: 1.5; }
-.mc-aviso ol { padding-left: 20px; }
-.mc-aviso b { color: var(--mc-texto); }
-.mc-acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-.mc-grade { flex: 1; display: grid; gap: 12px; grid-template-columns: 1fr; }
-.mc-nav { display: flex; flex-direction: column; justify-content: center; gap: 10px; min-height: 180px; }
-.mc-nav-topo { display: flex; align-items: center; gap: 14px; }
-.mc-icone { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--accent); color: var(--on-accent); }
-.mc-icone svg { width: 30px; height: 30px; stroke-width: 2.2; }
-.mc-icone.apagado { background: var(--mc-card-2); color: var(--mc-texto-2); }
-.mc-distancia { font-size: 44px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.mc-instrucao { font-size: 26px; font-weight: 700; line-height: 1.25; }
-.mc-instrucao.apagado { color: var(--mc-texto-2); }
-.mc-nav small, .mc-musica small { color: var(--mc-texto-2); font-size: 14px; }
-.mc-player { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 14px 16px; align-items: center; }
+.mc-card { background: var(--mc-card); border-radius: 22px; padding: 16px; box-shadow: inset 0 0 0 1px var(--mc-linha); min-width: 0; }
+.mc-aviso p { color: var(--mc-texto-2); margin-top: 8px; line-height: 1.5; }
+
+/* Mapa */
+.mc-mapa { position: relative; flex: 1; min-height: 0; border-radius: 22px; overflow: hidden; background: #111; box-shadow: inset 0 0 0 1px var(--mc-linha); }
+.mc-mapa-area { position: absolute; inset: 0; }
+.mc-mapa-aviso {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 24px; text-align: center; background: rgba(0, 0, 0, .65); font-size: 17px;
+}
+.mc-mapa-aviso.discreto { inset: auto 0 auto 0; top: 14px; background: none; pointer-events: none; }
+.mc-mapa-aviso.discreto p { padding: 8px 14px; border-radius: 12px; background: rgba(22, 22, 24, .85); color: var(--mc-texto-2); font-size: 14px; }
+.mc-velocidade {
+  position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 76px; height: 76px; border-radius: 50%; background: rgba(22, 22, 24, .92); box-shadow: inset 0 0 0 2px var(--mc-linha);
+}
+.mc-velocidade b { font-size: 28px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.mc-velocidade small { font-size: 12px; color: var(--mc-texto-2); }
+.mc-recentralizar {
+  position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 18px;
+  border: 0; border-radius: 26px; background: var(--accent); color: var(--on-accent); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .5);
+}
+.mc-carro { width: 40px; height: 40px; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .6)); }
+.mc-carro svg { width: 40px; height: 40px; fill: var(--accent); stroke: #fff; stroke-width: 2.5; }
+.mc-mapa .maplibregl-ctrl-attrib { background: rgba(0, 0, 0, .55); color: #ccc; }
+.mc-mapa .maplibregl-ctrl-attrib a { color: #ddd; }
+
+/* Coluna do Spotify e dos atalhos */
+.mc-lado { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.mc-player { display: grid; grid-template-columns: auto 1fr; gap: 12px 14px; align-items: center; }
 .mc-capa {
-  grid-row: span 2; display: grid; place-items: center; width: 120px; height: 120px; border-radius: 16px; overflow: hidden;
+  display: grid; place-items: center; width: 84px; height: 84px; border-radius: 14px; overflow: hidden;
   background: var(--mc-card-2); color: var(--mc-texto-2);
 }
 .mc-capa img { width: 100%; height: 100%; object-fit: cover; }
-.mc-capa svg { width: 44px; height: 44px; }
+.mc-capa svg { width: 36px; height: 36px; }
 .mc-musica { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.mc-musica b { font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mc-musica span { color: var(--mc-texto-2); font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mc-controles { display: flex; align-items: center; gap: 14px; }
+.mc-musica b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-musica span { color: var(--mc-texto-2); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-musica .mc-dica { white-space: normal; font-size: 13px; line-height: 1.4; }
+.mc-musica .mc-dica b { font-size: 13px; color: var(--mc-texto); white-space: normal; }
+.mc-controles { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 18px; }
 .mc-redondo {
-  display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; border: 0;
   background: var(--mc-card-2); color: var(--mc-texto); cursor: pointer;
 }
-.mc-redondo svg { width: 26px; height: 26px; fill: currentColor; }
-.mc-redondo.grande { width: 76px; height: 76px; background: var(--accent); color: var(--on-accent); }
-.mc-redondo.grande svg { width: 32px; height: 32px; }
-.mc-redondo:active, .mc-atalho:active, .mc-btn:active, .mc-sair:active { transform: scale(.96); }
-.mc-atalhos-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.mc-escolha { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--mc-card-2); }
-.mc-escolha button { min-height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: none; color: var(--mc-texto-2); font: inherit; font-weight: 600; cursor: pointer; }
-.mc-escolha button.ativo { background: #48484e; color: var(--mc-texto); }
-.mc-botoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.mc-favorito { display: flex; gap: 6px; }
-.mc-favorito .mc-atalho { flex: 1; min-width: 0; }
-.mc-atalho {
-  display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 0 16px; border-radius: 16px; border: 0;
-  background: var(--mc-card-2); color: var(--mc-texto); font: inherit; font-size: 17px; font-weight: 600; cursor: pointer; text-align: left;
+.mc-redondo svg { width: 24px; height: 24px; fill: currentColor; }
+.mc-redondo.grande { width: 72px; height: 72px; background: var(--accent); color: var(--on-accent); }
+.mc-redondo.grande svg { width: 30px; height: 30px; }
+.mc-apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.mc-app {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 72px; border-radius: 18px; border: 0;
+  background: var(--mc-card); box-shadow: inset 0 0 0 1px var(--mc-linha); color: var(--mc-texto); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
 }
-.mc-atalho svg { width: 24px; height: 24px; color: var(--accent); }
-.mc-editar { display: grid; place-items: center; width: 48px; border-radius: 16px; border: 0; background: var(--mc-card-2); color: var(--mc-texto-2); cursor: pointer; }
-.mc-editar svg { width: 18px; height: 18px; }
-@media (orientation: landscape) and (min-width: 640px) {
-  .mc-grade { grid-template-columns: 1.15fr 1fr; grid-template-rows: 1fr auto; }
-  .mc-atalhos { grid-column: 1 / -1; }
-  .mc-botoes { grid-template-columns: repeat(6, 1fr); }
+.mc-app svg { width: 26px; height: 26px; color: var(--accent); }
+.mc-redondo:active, .mc-app:active, .mc-btn:active, .mc-sair:active, .mc-recentralizar:active { transform: scale(.96); }
+
+/* Paisagem: mapa à esquerda, coluna à direita */
+@media (orientation: landscape) {
+  .modo-carro { flex-direction: row; }
+  .mc-lado { width: min(340px, 42%); flex: none; justify-content: space-between; }
+  .mc-player { flex: 1; align-content: center; }
+}
+/* Retrato: mapa em cima (o que sobra), coluna embaixo */
+@media (orientation: portrait) {
+  .mc-lado .mc-status { order: -1; }
+  .modo-carro > .mc-lado { flex: none; }
 }

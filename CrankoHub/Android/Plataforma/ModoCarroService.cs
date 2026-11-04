@@ -1,26 +1,27 @@
+using System.Text.Json;
 using Android.Content;
 using Android.Content.PM;
-using Android.Graphics;
 using Android.Media;
-using Android.Media.Session;
+using Android.Util;
 using Android.Views;
-using AndroidX.Core.App;
+using AndroidX.Core.Content;
 using CrankoHub.Models;
-using CrankoHub.Movel;
-using AndroidUri = Android.Net.Uri;
-using Settings = Android.Provider.Settings;
 
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Modo Carro no Android: rota do Waze/Maps (pelas notificações, ver <see cref="NavNotificationListener"/>),
-/// o player ativo (MediaSession, sem SDK do Spotify) e os atalhos. Mesma API de Services/ModoCarroService.cs.
+/// Modo Carro no Android: GPS para o mapa, o que está tocando no Spotify (pela "Transmissão do status do dispositivo",
+/// sem permissão especial) e os atalhos. Mesma API de Services/ModoCarroService.cs.
 /// </summary>
-public sealed class ModoCarroService
+public sealed class ModoCarroService(HttpClient http)
 {
+    private const string Log_ = "CrankoHub.Carro";
+
     public bool Disponivel => true;
 
-    public InstrucaoNavegacao? Instrucao { get; private set; }
+    public PosicaoCarro? Posicao { get; private set; }
+
+    public bool SemLocalizacao { get; private set; }
 
     public MusicaAtual? Musica { get; private set; }
 
@@ -28,32 +29,9 @@ public sealed class ModoCarroService
 
     private static Context Ctx => global::Android.App.Application.Context;
 
-    private static ComponentName Ouvinte => new(Ctx, Java.Lang.Class.FromType(typeof(NavNotificationListener)));
-
-    public bool TemAcessoNotificacoes =>
-        NotificationManagerCompat.GetEnabledListenerPackages(Ctx)?.Contains(Ctx.PackageName!) == true;
-
-    public void PedirAcessoNotificacoes() => Abrir(new Intent(Settings.ActionNotificationListenerSettings));
-
-    public void AbrirInfoDoApp() =>
-        Abrir(new Intent(Settings.ActionApplicationDetailsSettings, AndroidUri.Parse("package:" + Ctx.PackageName)));
-
-    public bool Navegar(string destino, string app)
+    public bool AbrirApp(string app)
     {
-        var q = AndroidUri.Encode(destino);
-        var intent = app == AppsCarro.Maps
-            ? new Intent(Intent.ActionView, AndroidUri.Parse($"google.navigation:q={q}"))
-            : new Intent(Intent.ActionView, AndroidUri.Parse($"https://waze.com/ul?q={q}&navigate=yes"));
-        // Com o pacote fixo, app não instalado dá erro (em vez de abrir o navegador)
-        intent.SetPackage(AppsCarro.Pacote(app));
-        return Abrir(intent);
-    }
-
-    public bool AbrirApp(string app) =>
-        AppsCarro.Pacote(app) is { } pacote && Ctx.PackageManager!.GetLaunchIntentForPackage(pacote) is { } intent && Abrir(intent);
-
-    private static bool Abrir(Intent intent)
-    {
+        if (AppsCarro.Pacote(app) is not { } pacote || Ctx.PackageManager!.GetLaunchIntentForPackage(pacote) is not { } intent) return false;
         try
         {
             var activity = Platform.CurrentActivity;
@@ -67,177 +45,176 @@ public sealed class ModoCarroService
         }
     }
 
-    public void Entrar() => MainThread.BeginInvokeOnMainThread(() =>
+    // ===== Entrar / Sair =====
+
+    private bool _dentro;
+
+    public async Task Entrar()
     {
-        if (Platform.CurrentActivity is { } a)
+        _dentro = true;
+        await MainThread.InvokeOnMainThreadAsync(() =>
         {
-            a.Window?.AddFlags(WindowManagerFlags.KeepScreenOn);
-            a.RequestedOrientation = ScreenOrientation.SensorLandscape;
-        }
-        IniciarMidia();
-    });
-
-    public void Sair() => MainThread.BeginInvokeOnMainThread(() =>
-    {
-        if (Platform.CurrentActivity is not { } a) return;
-        a.Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
-        a.RequestedOrientation = ScreenOrientation.Unspecified;
-    });
-
-    // ===== Navegação (chamado pelo NavNotificationListener) =====
-
-    private string? _chaveNotificacao;
-
-    internal void ReceberNotificacao(string chave, string pacote, string? titulo, string? texto, string? subTexto)
-    {
-        if (NavegacaoNotificacao.Ler(pacote, titulo, texto, subTexto) is not { } instrucao) return;
-        _chaveNotificacao = chave;
-        if (instrucao == Instrucao) return;
-        Instrucao = instrucao;
-        Mudou?.Invoke();
+            if (Platform.CurrentActivity is { } a)
+            {
+                a.Window?.AddFlags(WindowManagerFlags.KeepScreenOn);
+                a.RequestedOrientation = ScreenOrientation.SensorLandscape;
+            }
+            OuvirSpotify();
+        });
+        await LigarGps();
     }
 
-    /// <summary>A notificação da rota sumiu: a navegação acabou.</summary>
-    internal void NotificacaoRemovida(string chave)
+    public void Sair()
     {
-        if (chave != _chaveNotificacao || Instrucao is null) return;
-        Instrucao = null;
-        _chaveNotificacao = null;
-        Mudou?.Invoke();
+        _dentro = false;
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (Platform.CurrentActivity is { } a)
+            {
+                a.Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
+                a.RequestedOrientation = ScreenOrientation.Unspecified;
+            }
+            PararSpotify();
+            DesligarGps();
+        });
     }
 
-    // ===== Player (MediaSession) =====
+    // ===== GPS =====
 
-    private MediaSessionManager? _sessoes;
-    private SessoesOuvinte? _ouvinteSessoes;
-    private MediaController? _controle;
-    private ControleCallback? _callback;
-    private string? _capaDe, _capa;
+    private bool _ouvindoGps;
 
-    /// <summary>Começa a acompanhar o player. Só funciona com o acesso às notificações liberado. Chamar na thread principal.</summary>
-    internal void IniciarMidia()
+    /// <summary>Pede a permissão de localização (comum, sem bloqueio para app fora da Play Store) e liga o GPS.</summary>
+    public async Task LigarGps()
     {
-        if (_sessoes is not null || !TemAcessoNotificacoes) return;
         try
         {
-            var sessoes = (MediaSessionManager)Ctx.GetSystemService(Context.MediaSessionService)!;
-            _ouvinteSessoes = new SessoesOuvinte(this);
-            sessoes.AddOnActiveSessionsChangedListener(_ouvinteSessoes, Ouvinte);
-            _sessoes = sessoes;
-            EscolherSessao(sessoes.GetActiveSessions(Ouvinte));
-        }
-        catch (Java.Lang.SecurityException)
-        {
-            _sessoes = null; // acesso retirado no meio do caminho
-        }
-    }
-
-    private void EscolherSessao(IList<MediaController>? lista)
-    {
-        // Prefere o que está tocando; senão o primeiro (o sistema ordena pelo uso mais recente)
-        var nova = lista?.FirstOrDefault(c => c.PlaybackState?.State == PlaybackStateCode.Playing) ?? lista?.FirstOrDefault();
-        if (nova?.SessionToken is not null && nova.SessionToken.Equals(_controle?.SessionToken))
-        {
-            AtualizarMusica();
-            return;
-        }
-        if (_controle is not null && _callback is not null) _controle.UnregisterCallback(_callback);
-        _controle = nova;
-        if (_controle is not null)
-        {
-            _callback ??= new ControleCallback(this);
-            _controle.RegisterCallback(_callback);
-        }
-        AtualizarMusica();
-    }
-
-    private void AtualizarMusica()
-    {
-        if (_controle is null)
-        {
-            if (Musica is null) return;
-            Musica = null;
+            var status = await MainThread.InvokeOnMainThreadAsync(Permissions.RequestAsync<Permissions.LocationWhenInUse>);
+            SemLocalizacao = status != PermissionStatus.Granted;
             Mudou?.Invoke();
-            return;
+            if (SemLocalizacao || _ouvindoGps || !_dentro) return;
+
+            Geolocation.Default.LocationChanged += PosicaoMudou;
+            _ouvindoGps = await MainThread.InvokeOnMainThreadAsync(() => Geolocation.Default.StartListeningForegroundAsync(
+                new GeolocationListeningRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(1))));
+            if (!_ouvindoGps) Geolocation.Default.LocationChanged -= PosicaoMudou;
+
+            // Começa do último ponto conhecido, sem esperar o primeiro sinal
+            if (Posicao is null && await Geolocation.Default.GetLastKnownLocationAsync() is { } ultima) Atualizar(ultima);
         }
-
-        var md = _controle.Metadata;
-        var titulo = md?.GetString(MediaMetadata.MetadataKeyTitle) ?? md?.GetString(MediaMetadata.MetadataKeyDisplayTitle);
-        var artista = md?.GetString(MediaMetadata.MetadataKeyArtist) ?? md?.GetString(MediaMetadata.MetadataKeyAlbumArtist);
-        var tocando = _controle.PlaybackState?.State is PlaybackStateCode.Playing or PlaybackStateCode.Buffering;
-
-        // A capa só é convertida quando a música muda
-        var de = $"{_controle.PackageName}|{titulo}|{artista}";
-        if (de != _capaDe)
+        catch (Exception ex)
         {
-            _capaDe = de;
-            _capa = Capa(md);
+            Log.Warn(Log_, $"GPS: {ex.Message}");
         }
+    }
 
-        var musica = new MusicaAtual(titulo, artista, _capa, tocando, _controle.PackageName);
-        if (musica == Musica) return;
-        Musica = musica;
+    private void DesligarGps()
+    {
+        if (!_ouvindoGps) return;
+        _ouvindoGps = false;
+        Geolocation.Default.LocationChanged -= PosicaoMudou;
+        try { Geolocation.Default.StopListeningForeground(); } catch { }
+    }
+
+    private void PosicaoMudou(object? sender, GeolocationLocationChangedEventArgs e) => Atualizar(e.Location);
+
+    private void Atualizar(Location l)
+    {
+        Posicao = new PosicaoCarro(l.Latitude, l.Longitude, l.Course, Math.Max(0, (l.Speed ?? 0) * 3.6));
         Mudou?.Invoke();
     }
 
-    /// <summary>Capa reduzida para 300 px, como data: URI JPEG.</summary>
-    private static string? Capa(MediaMetadata? md)
+    // ===== Spotify (Transmissão do status do dispositivo) =====
+
+    private ReceptorSpotify? _receptor;
+    private readonly Dictionary<string, string?> _capas = [];
+
+    private void OuvirSpotify()
     {
+        if (_receptor is not null) return;
+        _receptor = new ReceptorSpotify(this);
+        var filtro = new IntentFilter();
+        filtro.AddAction("com.spotify.music.metadatachanged");
+        filtro.AddAction("com.spotify.music.playbackstatechanged");
+        // Android 14+: transmissões de outro app exigem o receptor marcado como exportado
+        ContextCompat.RegisterReceiver(Ctx, _receptor, filtro, ContextCompat.ReceiverExported);
+    }
+
+    private void PararSpotify()
+    {
+        if (_receptor is null) return;
+        try { Ctx.UnregisterReceiver(_receptor); } catch { }
+        _receptor = null;
+    }
+
+    private string? _faixa;
+
+    private void Recebeu(Intent intent)
+    {
+        var tocando = intent.HasExtra("playing") ? intent.GetBooleanExtra("playing", false) : Musica?.Tocando ?? false;
+        Log.Debug(Log_, $"Spotify {intent.Action}: {intent.GetStringExtra("track")} / {intent.GetStringExtra("artist")} / tocando={tocando}");
+
+        if (intent.Action == "com.spotify.music.metadatachanged")
+        {
+            _faixa = intent.GetStringExtra("id");
+            var capa = _faixa is not null && _capas.TryGetValue(_faixa, out var c) ? c : null;
+            Musica = new MusicaAtual(intent.GetStringExtra("track"), intent.GetStringExtra("artist"), capa, tocando);
+            if (_faixa is not null && !_capas.ContainsKey(_faixa)) _ = BuscarCapa(_faixa);
+        }
+        else
+        {
+            Musica = (Musica ?? new MusicaAtual(null, null, null, tocando)) with { Tocando = tocando };
+        }
+        Mudou?.Invoke();
+    }
+
+    /// <summary>Capa pelo oEmbed público do Spotify (sem login): "spotify:track:ID" → thumbnail_url.</summary>
+    private async Task BuscarCapa(string faixa)
+    {
+        string? url = null;
         try
         {
-            var bmp = md?.GetBitmap(MediaMetadata.MetadataKeyAlbumArt) ?? md?.GetBitmap(MediaMetadata.MetadataKeyArt)
-                ?? md?.GetBitmap(MediaMetadata.MetadataKeyDisplayIcon);
-            if (bmp is null || bmp.Width <= 0) return null;
-            var largura = Math.Min(300, bmp.Width);
-            using var reduzida = Bitmap.CreateScaledBitmap(bmp, largura, Math.Max(1, bmp.Height * largura / bmp.Width), true);
-            using var ms = new MemoryStream();
-            reduzida.Compress(Bitmap.CompressFormat.Jpeg!, 80, ms);
-            return "data:image/jpeg;base64," + Convert.ToBase64String(ms.ToArray());
+            var id = faixa.Split(':').Last();
+            using var resp = await http.GetAsync($"https://open.spotify.com/oembed?url={Uri.EscapeDataString($"https://open.spotify.com/track/{id}")}");
+            if (resp.IsSuccessStatusCode)
+            {
+                using var json = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                if (json.RootElement.TryGetProperty("thumbnail_url", out var t)) url = t.GetString();
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            Log.Warn(Log_, $"Capa: {ex.Message}");
         }
-    }
 
-    public void TocarPausar()
-    {
-        if (_controle?.GetTransportControls() is { } t)
+        await MainThread.InvokeOnMainThreadAsync(() =>
         {
-            if (Musica?.Tocando == true) t.Pause(); else t.Play();
+            _capas[faixa] = url;
+            if (faixa != _faixa || Musica is null || url is null) return;
+            Musica = Musica with { Capa = url };
+            Mudou?.Invoke();
+        });
+    }
+
+    private sealed class ReceptorSpotify(ModoCarroService modo) : BroadcastReceiver
+    {
+        public override void OnReceive(Context? context, Intent? intent)
+        {
+            if (intent is not null) modo.Recebeu(intent);
         }
-        else Tecla(Keycode.MediaPlayPause);
     }
 
-    public void Proxima()
-    {
-        if (_controle?.GetTransportControls() is { } t) t.SkipToNext(); else Tecla(Keycode.MediaNext);
-    }
+    // ===== Controles (teclas de mídia: vão para o player ativo, sem permissão) =====
 
-    public void Anterior()
-    {
-        if (_controle?.GetTransportControls() is { } t) t.SkipToPrevious(); else Tecla(Keycode.MediaPrevious);
-    }
+    public void TocarPausar() => Tecla(Keycode.MediaPlayPause);
 
-    /// <summary>Sem acesso às sessões: manda a tecla de mídia para o player ativo (sem capa nem título).</summary>
+    public void Proxima() => Tecla(Keycode.MediaNext);
+
+    public void Anterior() => Tecla(Keycode.MediaPrevious);
+
     private static void Tecla(Keycode tecla)
     {
         var audio = (AudioManager)Ctx.GetSystemService(Context.AudioService)!;
         audio.DispatchMediaKeyEvent(new KeyEvent(KeyEventActions.Down, tecla));
         audio.DispatchMediaKeyEvent(new KeyEvent(KeyEventActions.Up, tecla));
-    }
-
-    private sealed class SessoesOuvinte(ModoCarroService modo) : Java.Lang.Object, MediaSessionManager.IOnActiveSessionsChangedListener
-    {
-        public void OnActiveSessionsChanged(IList<MediaController>? controllers) => modo.EscolherSessao(controllers);
-    }
-
-    private sealed class ControleCallback(ModoCarroService modo) : MediaController.Callback
-    {
-        public override void OnMetadataChanged(MediaMetadata? metadata) => modo.AtualizarMusica();
-
-        public override void OnPlaybackStateChanged(PlaybackState? state) => modo.AtualizarMusica();
-
-        public override void OnSessionDestroyed() => modo.EscolherSessao(modo._sessoes?.GetActiveSessions(Ouvinte));
     }
 }

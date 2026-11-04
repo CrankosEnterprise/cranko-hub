@@ -35,13 +35,4 @@ public class Configuracoes
     public bool VerificarAtualizacoes { get; set; } = true;
 
     public DateOnly? UltimaVerificacaoAtualizacao { get; set; }
-
-    /// <summary>Modo Carro: endereço do atalho "Casa" (fica no aparelho).</summary>
-    public string? CasaEndereco { get; set; }
-
-    /// <summary>Modo Carro: endereço do atalho "Trabalho" (fica no aparelho).</summary>
-    public string? TrabalhoEndereco { get; set; }
-
-    /// <summary>Modo Carro: app usado nos atalhos de rota (<see cref="AppsCarro.Waze"/> ou <see cref="AppsCarro.Maps"/>).</summary>
-    public string AppNavegacao { get; set; } = AppsCarro.Waze;
 }

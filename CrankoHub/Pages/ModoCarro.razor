@@ -1,72 +1,61 @@
 @page "/carro/modo"
 @layout LayoutCarro
-@* Modo Carro (CarLink): navegação, player e atalhos em letras grandes, para o celular no suporte do carro.
-   Só funciona no Android (ModoCarroService); no Windows/Linux a página explica isso. *@
-@implements IDisposable
+@* Modo Carro (CarLink): mapa próprio (OpenStreetMap, seguindo o GPS) + Spotify + atalhos, para o celular no suporte do carro.
+   Só funciona no Android (ModoCarroService); no Windows/Linux a página explica isso e o mapa nem é carregado. *@
+@implements IAsyncDisposable
 @inject ModoCarroService Modo
-@inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 @{
-    var cfg = Store.Dados.Config;
-    var instrucao = Modo.Instrucao;
     var musica = Modo.Musica;
+    var pos = Modo.Posicao;
 }
 
 <div class="modo-carro">
-    <header class="mc-status">
-        <b class="mc-hora">@DateTime.Now.ToString("HH:mm")</b>
-        <span class="mc-titulo">Modo carro</span>
-        <button class="mc-sair" type="button" @onclick="Sair">@Icones.Sair<span>Sair</span></button>
-    </header>
-
     @if (!Modo.Disponivel)
     {
+        <header class="mc-status">
+            <b class="mc-hora">@DateTime.Now.ToString("HH:mm")</b>
+            <span class="mc-titulo">Modo carro</span>
+            <button class="mc-sair" type="button" @onclick="Sair">@Icones.Sair<span>Sair</span></button>
+        </header>
         <section class="mc-card mc-aviso">
             <h2>Só no celular</h2>
-            <p>O Modo Carro usa o Waze, o Maps e o player do Android. Abra o CrankoHub no celular para usar.</p>
+            <p>O Modo Carro usa o GPS e o Spotify do Android. Abra o CrankoHub no celular para usar.</p>
         </section>
     }
     else
     {
-        @if (!Modo.TemAcessoNotificacoes)
-        {
-            <section class="mc-card mc-aviso">
-                <h2>Libere o acesso às notificações</h2>
-                <p>É por elas que o CrankoHub lê a próxima curva do Waze/Maps e a música que está tocando.</p>
-                <ol>
-                    <li>Toque em <b>Liberar acesso</b> e ative o <b>CrankoHub</b>.</li>
-                    <li>Se a opção estiver bloqueada (Android 13+, app instalado fora da Play Store): toque em <b>Info do app</b> → <b>⋮</b> (canto de cima) → <b>Permitir configurações restritas</b> e tente de novo.</li>
-                </ol>
-                <div class="mc-acoes">
-                    <button class="mc-btn primario" type="button" @onclick="Modo.PedirAcessoNotificacoes">Liberar acesso</button>
-                    <button class="mc-btn" type="button" @onclick="Modo.AbrirInfoDoApp">Info do app</button>
+        <div class="mc-mapa">
+            <div id="mc-mapa" class="mc-mapa-area"></div>
+            @if (Modo.SemLocalizacao)
+            {
+                <div class="mc-mapa-aviso">
+                    <p>Permita a localização para o mapa acompanhar o carro.</p>
+                    <button class="mc-btn primario" type="button" @onclick="Modo.LigarGps">Permitir localização</button>
                 </div>
-            </section>
-        }
+            }
+            else if (pos is null)
+            {
+                <div class="mc-mapa-aviso discreto"><p>Procurando o GPS…</p></div>
+            }
+            @if (pos is not null)
+            {
+                <div class="mc-velocidade"><b>@Num(pos.VelocidadeKmh, 0)</b><small>km/h</small></div>
+            }
+            @if (!_seguindo)
+            {
+                <button class="mc-recentralizar" type="button" @onclick="Recentralizar">@Icones.Navegacao<span>Recentralizar</span></button>
+            }
+        </div>
 
-        <div class="mc-grade">
-            <section class="mc-card mc-nav">
-                @if (instrucao is not null)
-                {
-                    <div class="mc-nav-topo">
-                        <span class="mc-icone">@Icones.Navegacao</span>
-                        @if (instrucao.Distancia is not null)
-                        {
-                            <b class="mc-distancia">@instrucao.Distancia</b>
-                        }
-                    </div>
-                    <p class="mc-instrucao">@instrucao.Texto</p>
-                    <small>@AppsCarro.Nome(instrucao.App)@(instrucao.Chegada is not null ? $" · {instrucao.Chegada}" : "")</small>
-                }
-                else
-                {
-                    <div class="mc-nav-topo"><span class="mc-icone apagado">@Icones.Navegacao</span></div>
-                    <p class="mc-instrucao apagado">Sem navegação ativa</p>
-                    <small>Inicie uma rota no Waze ou no Maps: a próxima curva aparece aqui.</small>
-                }
-            </section>
+        <aside class="mc-lado">
+            <header class="mc-status">
+                <b class="mc-hora">@DateTime.Now.ToString("HH:mm")</b>
+                <button class="mc-sair" type="button" @onclick="Sair">@Icones.Sair<span>Sair</span></button>
+            </header>
 
             <section class="mc-card mc-player">
                 <div class="mc-capa">
@@ -80,11 +69,15 @@
                     }
                 </div>
                 <div class="mc-musica">
-                    <b>@(musica?.Titulo ?? "Nada tocando")</b>
-                    <span>@(musica?.Artista ?? (musica is null ? "Abra o Spotify ou outro player" : ""))</span>
-                    @if (musica?.App is { } player)
+                    @if (musica?.Titulo is { } titulo)
                     {
-                        <small>@AppsCarro.NomeDoPacote(player)</small>
+                        <b>@titulo</b>
+                        <span>@musica.Artista</span>
+                    }
+                    else
+                    {
+                        <b>Spotify</b>
+                        <span class="mc-dica">Toque play ou troque de música. Se nada aparecer, ative no Spotify: Configurações → <b>Transmissão do status do dispositivo</b>.</span>
                     }
                 </div>
                 <div class="mc-controles">
@@ -96,105 +89,95 @@
                 </div>
             </section>
 
-            <section class="mc-card mc-atalhos">
-                <div class="mc-atalhos-topo">
-                    <h2>Atalhos</h2>
-                    <div class="mc-escolha" role="radiogroup" aria-label="App das rotas">
-                        @foreach (var app in new[] { AppsCarro.Waze, AppsCarro.Maps })
-                        {
-                            <button type="button" role="radio" aria-checked="@(cfg.AppNavegacao == app)" class="@(cfg.AppNavegacao == app ? "ativo" : "")" @onclick="() => EscolherApp(app)">@AppsCarro.Nome(app)</button>
-                        }
-                    </div>
-                </div>
-                <div class="mc-botoes">
-                    <div class="mc-favorito">
-                        <button class="mc-atalho" type="button" @onclick="() => IrPara(true)">@Icones.Inicio<span>Casa</span></button>
-                        <button class="mc-editar" type="button" aria-label="Editar endereço de casa" title="Editar endereço" @onclick="() => Editar(true)">@Icones.Editar</button>
-                    </div>
-                    <div class="mc-favorito">
-                        <button class="mc-atalho" type="button" @onclick="() => IrPara(false)">@Icones.Trabalho<span>Trabalho</span></button>
-                        <button class="mc-editar" type="button" aria-label="Editar endereço do trabalho" title="Editar endereço" @onclick="() => Editar(false)">@Icones.Editar</button>
-                    </div>
-                    <button class="mc-atalho" type="button" @onclick="IrParaOutro">@Icones.Busca<span>Ir para…</span></button>
-                    <button class="mc-atalho" type="button" @onclick="() => Abrir(AppsCarro.Waze)">@Icones.Navegacao<span>Waze</span></button>
-                    <button class="mc-atalho" type="button" @onclick="() => Abrir(AppsCarro.Maps)">@Icones.Navegacao<span>Maps</span></button>
-                    <button class="mc-atalho" type="button" @onclick="() => Abrir(AppsCarro.Spotify)">@Icones.Musica<span>Spotify</span></button>
-                </div>
-            </section>
-        </div>
+            <nav class="mc-apps" aria-label="Abrir apps">
+                <button class="mc-app" type="button" @onclick="() => Abrir(AppsCarro.Spotify)">@Icones.Musica<span>Spotify</span></button>
+                <button class="mc-app" type="button" @onclick="() => Abrir(AppsCarro.Maps)">@Icones.Navegacao<span>Maps</span></button>
+                <button class="mc-app" type="button" @onclick="() => Abrir(AppsCarro.Waze)">@Icones.Navegacao<span>Waze</span></button>
+            </nav>
+        </aside>
     }
 </div>
 
-<DialogoTexto @ref="_dialogo" MaxCaracteres="150" />
-
 @code {
-    private DialogoTexto _dialogo = default!;
     private System.Threading.Timer? _relogio;
+    private DotNetObjectReference<ModoCarro>? _ref;
+    private bool _mapaPronto, _seguindo = true;
+    private PosicaoCarro? _enviada;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        if (!Modo.Disponivel) return;
         Modo.Mudou += Mudou;
-        Modo.Entrar();
-        // Hora da barra de cima e o cartão de permissão (some quando o acesso é liberado nas configurações)
-        _relogio = new System.Threading.Timer(_ => Mudou(), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+        // Hora da barra de cima
+        _relogio = new System.Threading.Timer(_ => Mudou(), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+        await Modo.Entrar();
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Modo.Disponivel) return;
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("crankohub.carregarCss", "lib/maplibre-gl/maplibre-gl.css");
+                await JS.InvokeVoidAsync("crankohub.carregarScript", "lib/maplibre-gl/maplibre-gl.js");
+                await JS.InvokeVoidAsync("crankohub.carregarScript", "js/modo-carro.js");
+                _ref = DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("modoCarro.iniciar", "mc-mapa", _ref);
+                _mapaPronto = true;
+            }
+            catch (JSException ex)
+            {
+                Toast.Erro($"Não foi possível abrir o mapa: {ex.Message}");
+                return;
+            }
+        }
+        await EnviarPosicao();
+    }
+
+    // Só manda ao mapa quando a posição muda (o relógio e o Spotify também redesenham a página)
+    private async Task EnviarPosicao()
+    {
+        if (!_mapaPronto || Modo.Posicao is not { } p || p == _enviada) return;
+        _enviada = p;
+        try
+        {
+            await JS.InvokeVoidAsync("modoCarro.posicao", p.Latitude, p.Longitude, p.Direcao, p.VelocidadeKmh);
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    /// <summary>O usuário arrastou o mapa (false) ou recentralizou (true).</summary>
+    [JSInvokable]
+    public void SeguindoMudou(bool seguindo)
+    {
+        _seguindo = seguindo;
+        StateHasChanged();
+    }
+
+    private async Task Recentralizar() => await JS.InvokeVoidAsync("modoCarro.seguir");
 
     private void Mudou() => _ = InvokeAsync(StateHasChanged);
 
     private void Sair() => Nav.NavigateTo("carro");
-
-    private void EscolherApp(string app)
-    {
-        Store.Dados.Config.AppNavegacao = app;
-        Store.Salvar();
-    }
-
-    private async Task IrPara(bool casa)
-    {
-        var cfg = Store.Dados.Config;
-        var endereco = casa ? cfg.CasaEndereco : cfg.TrabalhoEndereco;
-        if (string.IsNullOrWhiteSpace(endereco))
-        {
-            endereco = await Editar(casa);
-            if (endereco is null) return;
-        }
-        Navegar(endereco);
-    }
-
-    /// <summary>Pergunta o endereço de Casa/Trabalho e guarda. Devolve o endereço (null se cancelar).</summary>
-    private async Task<string?> Editar(bool casa)
-    {
-        var cfg = Store.Dados.Config;
-        var atual = (casa ? cfg.CasaEndereco : cfg.TrabalhoEndereco) ?? "";
-        var novo = await _dialogo.Perguntar(casa ? "Endereço de casa" : "Endereço do trabalho", "Endereço (rua, número, cidade)", atual);
-        if (novo is null) return null;
-        if (casa) cfg.CasaEndereco = novo; else cfg.TrabalhoEndereco = novo;
-        Store.Salvar();
-        Toast.Ok("Endereço salvo.");
-        return novo;
-    }
-
-    private async Task IrParaOutro()
-    {
-        if (await _dialogo.Perguntar("Ir para…", "Destino (endereço ou lugar)") is { } destino) Navegar(destino);
-    }
-
-    private void Navegar(string destino)
-    {
-        var app = Store.Dados.Config.AppNavegacao;
-        if (!Modo.Navegar(destino, app)) Toast.Erro($"O {AppsCarro.Nome(app)} não está instalado.");
-    }
 
     private void Abrir(string app)
     {
         if (!Modo.AbrirApp(app)) Toast.Erro($"O {AppsCarro.Nome(app)} não está instalado.");
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         Modo.Mudou -= Mudou;
         _relogio?.Dispose();
         // Também ao sair pelo botão voltar do Android
         Modo.Sair();
+        if (_mapaPronto)
+        {
+            try { await JS.InvokeVoidAsync("modoCarro.destruir"); }
+            catch (JSDisconnectedException) { }
+        }
+        _ref?.Dispose();
     }
 }

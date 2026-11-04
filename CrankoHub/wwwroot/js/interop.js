@@ -34,6 +34,29 @@ window.crankohub = {
   rolarAte(el) { el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); },
 
   focar(el) { el?.focus(); el?.select?.(); },
+
+  // Carrega um script/estilo só quando a página precisa (ex.: o mapa do Modo Carro). Repetir não recarrega.
+  carregarScript(url) {
+    if (document.querySelector(`script[data-src="${url}"]`)) return window.__carregados?.[url] ?? Promise.resolve();
+    window.__carregados ??= {};
+    return window.__carregados[url] = new Promise((ok, erro) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.dataset.src = url;
+      s.onload = () => ok();
+      s.onerror = () => erro(new Error(`Não foi possível carregar ${url}`));
+      document.head.appendChild(s);
+    });
+  },
+
+  carregarCss(url) {
+    if (document.querySelector(`link[data-href="${url}"]`)) return;
+    const l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = url;
+    l.dataset.href = url;
+    document.head.appendChild(l);
+  },
 };
 
 // Enter em campos marcados com data-sem-enviar (ex.: novo item do checklist) não envia o formulário
