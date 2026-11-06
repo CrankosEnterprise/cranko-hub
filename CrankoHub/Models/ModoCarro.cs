@@ -74,3 +74,36 @@ public static class AppsCarro
         _ => app ?? "",
     };
 }
+
+/// <summary>
+/// Teste do visor da central (Pioneer) pelo Bluetooth: o CrankoHub manda os próprios textos de "título / artista / álbum"
+/// (AVRCP) e a pessoa conta no app o que apareceu.
+/// <para>
+/// 1º teste no carro (06/11/2026, Pioneer AVH-X2550BT + POCO F3, Android 13): só o texto não basta; com um áudio mudo tocando,
+/// o Android passa o visor para o CrankoHub e os botões da central chegam aqui. Mas o Android devolve o visor ao Spotify
+/// sempre que ele começa a tocar (play ou troca de música). Este 2º teste confere a retomada do visor nesses momentos.
+/// </para>
+/// </summary>
+/// <param name="Sim">Texto do botão de resposta positiva (null = etapa sem resposta, fica até parar o teste).</param>
+/// <param name="Nao">Texto do botão de resposta negativa.</param>
+/// <param name="Segundos">Avança sozinha depois desse tempo (0 = fica até parar o teste).</param>
+public sealed record EtapaVisor(string Nome, string Instrucao, string? Sim, string? Nao, int Segundos);
+
+public static class TesteVisor
+{
+    public static readonly IReadOnlyList<EtapaVisor> Etapas =
+    [
+        new("Rota com a música tocando", "Deixe a música tocando. O visor deve mostrar a próxima curva (e a música embaixo), com a distância diminuindo. Sem rota iniciada, aparece uma rota de teste.",
+            "A curva apareceu", "Só aparece a música", 90),
+        new("Pausar, tocar e trocar de música", "Pela central: pause, dê play de novo e passe para a próxima música. Depois de cada uma, a curva deve voltar ao visor em uns 2 s.",
+            "A curva voltou", "Ficou só a música", 120),
+        new("Rota", "O visor fica mostrando a rota. Use à vontade e toque em Parar o teste no fim.", null, null, 0),
+    ];
+
+    /// <summary>Respostas que a pessoa dá a cada etapa (vão para o log).</summary>
+    public const string Apareceu = "apareceu", NaoApareceu = "nao-apareceu", MusicaParou = "musica-parou", BotoesFuncionam = "botoes-ok",
+        AcentosComDefeito = "acentos-com-defeito";
+}
+
+/// <summary>Os campos que vão para o visor da central (AVRCP). Na Pioneer, o gênero é a linha com a guitarra.</summary>
+public sealed record TextosVisor(string Titulo, string Artista, string Album, string Genero);

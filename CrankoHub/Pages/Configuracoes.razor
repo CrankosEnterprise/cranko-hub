@@ -35,7 +35,7 @@
             <div class="opcoes">
                 @foreach (var m in Modulo.Todos)
                 {
-                    <label class="check" @key="m.Id"><input type="checkbox" checked="@Modulo.Visivel(cfg, m.Id)" @onchange="@(e => Store.MostrarModulo(m.Id, e.Value is true))"> <b>@m.Nome</b> <span class="muted">· @m.Descricao</span></label>
+                    <label class="check" @key="m.Id"><input type="checkbox" checked="@Modulo.Visivel(cfg, m.Id)" @onchange="@(e => Store.MostrarModulo(m.Id, e.Value is true))"> <span><b>@m.Nome</b> <span class="muted">· @m.Descricao</span></span></label>
                 }
             </div>
         </section>
@@ -91,6 +91,8 @@
                 <div class="opcoes">
                     <label class="check"><input type="checkbox" checked="@cfg.VozModoCarro" @onchange="@(e => Mudar(e, v => cfg.VozModoCarro = v))"> <span>Avisos por voz na rota <span class="muted">· manobras, radares, pedágios e limite de velocidade</span></span></label>
                     <label class="check"><input type="checkbox" checked="@cfg.EvitarPedagios" @onchange="@(e => Mudar(e, v => cfg.EvitarPedagios = v))"> <span>Evitar pedágios nas rotas <span class="muted">· também dá para mudar na escolha da rota</span></span></label>
+                    <label class="check"><input type="checkbox" checked="@cfg.VisorCentral" @onchange="@(e => Mudar(e, v => cfg.VisorCentral = v))"> <span>Mostrar a rota no visor da central <span class="muted">· pelo Bluetooth: a próxima curva no lugar do nome da música, durante a rota</span></span></label>
+                    <label class="check"><input type="checkbox" checked="@cfg.TesteVisor" @onchange="@(e => Mudar(e, v => cfg.TesteVisor = v))"> <span>Botão "Testar visor da central" <span class="muted">· diagnóstico com log, no Modo Carro</span></span></label>
                 </div>
             </section>
         }

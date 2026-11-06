@@ -53,4 +53,10 @@ public class Configuracoes
 
     /// <summary>Modo Carro: calcular as rotas evitando pedágios.</summary>
     public bool EvitarPedagios { get; set; }
+
+    /// <summary>Modo Carro: mostrar a próxima curva no visor da central (pelo Bluetooth) durante a rota.</summary>
+    public bool VisorCentral { get; set; } = true;
+
+    /// <summary>Modo Carro: mostrar o botão "Testar visor da central" (diagnóstico com log).</summary>
+    public bool TesteVisor { get; set; } = true;
 }

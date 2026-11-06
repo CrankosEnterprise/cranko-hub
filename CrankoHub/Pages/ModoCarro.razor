@@ -9,6 +9,7 @@
 @inject IJSRuntime JS
 @inject RotaService Rota
 @inject ArmazenamentoService Store
+@inject VisorCarroService Visor
 
 @{
     var musica = Modo.Musica;
@@ -258,8 +259,67 @@
                 <button class="mc-app" type="button" @onclick="() => Abrir(AppsCarro.Maps)">@Icones.Navegacao<span>Maps</span></button>
                 <button class="mc-app" type="button" @onclick="() => Abrir(AppsCarro.Waze)">@Icones.Navegacao<span>Waze</span></button>
             </nav>
+            @if (Visor.Disponivel && Store.Dados.Config.TesteVisor)
+            {
+                <button class="mc-btn mc-testar-visor" type="button" @onclick="AbrirTesteVisor">@(Visor.Testando ? "Teste do visor ligado" : "Testar visor da central")</button>
+            }
             }
         </aside>
+
+        @if (Visor.Testando && !_visorMinimizado)
+        {
+            var etapa = TesteVisor.Etapas[Visor.Etapa];
+            var ultima = Visor.Etapa == TesteVisor.Etapas.Count - 1;
+            <div class="mc-visor">
+                <div class="mc-visor-painel">
+                    <header class="mc-visor-topo">
+                        <div>
+                            <small>Teste do visor · etapa @(Visor.Etapa + 1) de @TesteVisor.Etapas.Count</small>
+                            <h2>@etapa.Nome</h2>
+                        </div>
+                        <button class="mc-btn" type="button" @onclick="() => _visorMinimizado = true">Minimizar</button>
+                    </header>
+                    <p class="mc-visor-instrucao">@etapa.Instrucao</p>
+
+                    @if (Visor.Enviando is { } t)
+                    {
+                        <div class="mc-visor-enviando">
+                            <small>Mandando para o visor agora</small>
+                            <b>@t.Titulo</b>
+                            <span>@t.Artista</span>
+                            <span>@t.Album</span>
+                            <span>@t.Genero</span>
+                        </div>
+                    }
+
+                    <div class="mc-visor-respostas">
+                        @if (etapa.Sim is { } sim && etapa.Nao is { } nao)
+                        {
+                            <button class="mc-btn primario" type="button" @onclick="() => Visor.Anotar(TesteVisor.Apareceu)">@sim</button>
+                            <button class="mc-btn" type="button" @onclick="() => Visor.Anotar(TesteVisor.NaoApareceu)">@nao</button>
+                        }
+                        <button class="mc-btn" type="button" @onclick="() => Visor.Anotar(TesteVisor.MusicaParou)">A música parou</button>
+                        <button class="mc-btn" type="button" @onclick="() => Visor.Anotar(TesteVisor.AcentosComDefeito)">Acentos com defeito</button>
+                        @if (!ultima)
+                        {
+                            <button class="mc-btn" type="button" @onclick="Visor.ProximaEtapa">Pular etapa</button>
+                        }
+                    </div>
+
+                    <div class="mc-visor-log">
+                        @foreach (var linha in Visor.Linhas.TakeLast(8))
+                        {
+                            <code>@linha</code>
+                        }
+                    </div>
+
+                    <div class="mc-visor-acoes">
+                        <button class="mc-btn" type="button" @onclick="CompartilharLogVisor">Enviar o log</button>
+                        <button class="mc-btn perigo" type="button" @onclick="Visor.Parar">Parar o teste</button>
+                    </div>
+                </div>
+            </div>
+        }
     }
 </div>
 
@@ -336,9 +396,12 @@
         if (!Modo.Disponivel) return;
         Modo.Mudou += Mudou;
         Rota.Mudou += Mudou;
+        Visor.Mudou += Mudou;
         // Hora da barra de cima
         _relogio = new System.Threading.Timer(_ => Mudou(), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
         await Modo.Entrar();
+        // A rota vai para o visor da central sozinha quando começar (Configurações → Modo Carro)
+        Visor.Entrar();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -485,6 +548,22 @@
 
     private static string KmTexto(double metros) => (metros / 1000).ToString(metros < 100_000 ? "0.0" : "0", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
 
+    // ===== Teste do visor da central (Bluetooth) =====
+
+    private bool _visorMinimizado;
+
+    private void AbrirTesteVisor()
+    {
+        _visorMinimizado = false;
+        Visor.Iniciar(); // já ligado: só mostra o painel de novo
+    }
+
+    private async Task CompartilharLogVisor()
+    {
+        try { await Visor.CompartilharLog(); }
+        catch (Exception ex) { Toast.Erro($"Não foi possível enviar o log: {ex.Message}"); }
+    }
+
     // ===== Resto =====
 
     private void Mudou() => _ = InvokeAsync(StateHasChanged);
@@ -500,6 +579,9 @@
     {
         Modo.Mudou -= Mudou;
         Rota.Mudou -= Mudou;
+        Visor.Mudou -= Mudou;
+        // O visor da central volta para a música do Spotify ao sair do Modo Carro
+        Visor.Sair();
         _busca?.Cancel();
         _relogio?.Dispose();
         // Também ao sair pelo botão voltar do Android. A rota continua no RotaService e volta ao abrir de novo.

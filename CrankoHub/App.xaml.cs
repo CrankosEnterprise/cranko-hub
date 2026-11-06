@@ -89,6 +89,7 @@ public partial class App : Application
         servicos.AddSingleton<SincronizacaoService>();
         servicos.AddSingleton<ModoCarroService>();
         servicos.AddSingleton<RotaService>();
+        servicos.AddSingleton<VisorCarroService>();
         return servicos.BuildServiceProvider();
     }
 

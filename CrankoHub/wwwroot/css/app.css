@@ -324,7 +324,7 @@ html.vidro, html.vidro body { background: transparent; }
   transition: border-color .15s, box-shadow .15s, background .15s;
 }
 .field input:focus, .field select:focus, .select:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
-.check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; align-self: end; height: 38px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; align-self: end; min-height: 38px; }
 .check input { width: 16px; height: 16px; accent-color: var(--accent); }
 .form-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 
@@ -568,7 +568,8 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 
 /* ===== Dados: opções do aplicativo ===== */
 .opcoes { display: flex; flex-direction: column; gap: 2px; }
-.opcoes .check { height: 34px; align-self: start; }
+/* O texto pode quebrar em várias linhas (celular): a altura acompanha, sem invadir a opção de baixo */
+.opcoes .check { min-height: 34px; padding: 5px 0; align-self: stretch; line-height: 1.35; }
 
 /* ===== Controles estilo macOS ===== */
 .btn { height: 32px; padding: 0 14px; border-radius: 8px; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
@@ -596,6 +597,11 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 /* ===== Configurações: aparência ===== */
 .aparencia { display: grid; grid-template-columns: max-content 1fr; gap: 14px 24px; align-items: center; }
 .aparencia > span { font-size: 13px; font-weight: 600; color: var(--text-2); }
+/* Celular: o rótulo em cima e as opções embaixo (lado a lado, o Tema passava da borda do cartão) */
+@media (max-width: 520px) {
+  .aparencia { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .aparencia > span:not(:first-child) { margin-top: 10px; }
+}
 .paleta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .cor { width: 22px; height: 22px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 .cor.ativa { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--cor); }
@@ -1033,6 +1039,25 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
   .mc-lado .mc-status { order: -1; }
   .modo-carro > .mc-lado { flex: none; }
 }
+
+/* Teste do visor da central (VisorCarroService): painel por cima de tudo, para usar com o carro parado */
+.mc-testar-visor { width: 100%; min-height: 48px; color: var(--mc-texto-2); }
+.mc-btn.perigo { background: #5c1a17; color: #ffb4ab; }
+.mc-visor { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 12px; background: rgba(0, 0, 0, .7); }
+.mc-visor-painel { width: min(760px, 100%); max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  padding: 18px; border-radius: 22px; background: var(--mc-card); box-shadow: inset 0 0 0 1px var(--mc-linha); }
+.mc-visor-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mc-visor-topo small { color: var(--mc-texto-2); font-size: 13px; }
+.mc-visor-topo h2 { font-size: 22px; margin-top: 2px; }
+.mc-visor-instrucao { color: var(--mc-texto); font-size: 16px; line-height: 1.45; }
+.mc-visor-enviando { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 14px; background: #0b2a1c; box-shadow: inset 0 0 0 1px #1d5c3d; }
+.mc-visor-enviando small { color: #8fd3ad; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.mc-visor-enviando b { font-size: 18px; }
+.mc-visor-enviando span { color: var(--mc-texto-2); font-size: 15px; }
+.mc-visor-respostas, .mc-visor-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.mc-visor-respostas .mc-btn, .mc-visor-acoes .mc-btn { flex: 1 1 180px; min-height: 52px; }
+.mc-visor-log { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: #0a0a0b; max-height: 180px; overflow-y: auto; }
+.mc-visor-log code { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--mc-texto-2); white-space: pre-wrap; word-break: break-word; }
 
 /* ===== Agenda (calendário) =====
    --c: cor da agenda do evento. A grade tem 48 px por hora (Pages/Agenda.razor, PxPorHora). */
