@@ -182,7 +182,12 @@
                             <option value="@col.Id">@col.Nome</option>
                         }
                     </select></label>
-                <label class="field"><span>Prazo</span><input type="date" @bind="_fPrazo"></label>
+                <div class="field"><span>Prazo</span>
+                    <span class="prazo-campos">
+                        <input type="date" aria-label="Dia do prazo" @bind="_fPrazo" @bind:after="AoMudarPrazo">
+                        <input type="time" step="300" aria-label="Horário de entrega (opcional)" title="Horário de entrega (opcional)"
+                               disabled="@(_fPrazo is null)" @bind="_fPrazoHora">
+                    </span></div>
                 <label class="field"><span>Prioridade</span>
                     <select @bind="_fPrioridade">
                         @foreach (var p in PrioridadeTarefa.Todas)
@@ -228,6 +233,11 @@
 @code {
     [SupplyParameterFromQuery(Name = "quadro")] public string? QuadroDoLink { get; set; }
 
+    /// <summary>Abre o editor deste card (link vindo da Agenda).</summary>
+    [SupplyParameterFromQuery(Name = "card")] public string? CardDoLink { get; set; }
+
+    private string? _cardAberto;
+
     // Filtros mantidos enquanto o app estiver aberto
     private static string _filtroPrioridade = "", _filtroEtiqueta = "";
     private static bool _ocultarAntigos = true;
@@ -240,6 +250,7 @@
     private bool _novo;
     private string _fTitulo = "", _fQuadro = "", _fColuna = "", _fPrioridade = "media", _fEtiquetas = "", _fDescricao = "", _fNovoItem = "";
     private DateOnly? _fPrazo;
+    private TimeOnly? _fPrazoHora;
     private bool _fFoco;
     private List<ItemChecklist> _fChecklist = [];
 
@@ -249,6 +260,11 @@
     {
         if (QuadroDoLink is not null && (QuadroDoLink == Quadro.Hoje || Dados.Quadros.Any(q => q.Id == QuadroDoLink)))
             Dados.Ativo = QuadroDoLink;
+        if (CardDoLink is not null && CardDoLink != _cardAberto && Dados.Cards.FirstOrDefault(c => c.Id == CardDoLink) is { } card)
+        {
+            _cardAberto = CardDoLink;
+            AbrirEdicao(card);
+        }
     }
 
     private bool Passa(CardTarefa c)
@@ -292,9 +308,9 @@
                 {
                     <span class="badge good">feita @(f == Hoje ? "hoje" : DataCurta(f))</span>
                 }
-                else if (c.Prazo is DateOnly p)
+                else if (c.Prazo is not null)
                 {
-                    var (texto, classe) = TarefasCalculos.Prazo(p, Hoje);
+                    var (texto, classe) = TarefasCalculos.Prazo(c, DateTime.Now);
                     <span class="badge @classe">@texto</span>
                 }
                 @if (c.Prioridade != "media")
@@ -444,11 +460,18 @@
         _fTitulo = c.Titulo;
         _fDescricao = c.Descricao ?? "";
         _fPrazo = c.Prazo;
+        _fPrazoHora = c.PrazoHora;
         _fPrioridade = c.Prioridade;
         _fEtiquetas = string.Join(", ", c.Etiquetas);
         _fFoco = c.Foco;
         _fChecklist = c.Checklist.Select(i => new ItemChecklist { Texto = i.Texto, Feito = i.Feito }).ToList();
         _fNovoItem = "";
+    }
+
+    // Sem dia não há horário de entrega
+    private void AoMudarPrazo()
+    {
+        if (_fPrazo is null) _fPrazoHora = null;
     }
 
     private void AoTrocarQuadro()
@@ -482,6 +505,7 @@
         c.Titulo = titulo;
         c.Descricao = string.IsNullOrWhiteSpace(_fDescricao) ? null : _fDescricao.Trim();
         c.Prazo = _fPrazo;
+        c.PrazoHora = _fPrazo is null ? null : _fPrazoHora;
         c.Prioridade = _fPrioridade;
         c.Foco = _fFoco;
         c.Etiquetas = _fEtiquetas.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

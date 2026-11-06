@@ -65,19 +65,25 @@ Baixe a versão oficial do **CrankoHub**:
 - **Busca automática** de título, capa, sinopse e gêneros em TMDB, AniList, RAWG e Open Library.
 
 ### 6. Tarefas
-- Quadros estilo **Kanban** (Trabalho, Faculdade, Pessoal...) com colunas e cards arrastáveis, prazo, prioridade, etiquetas e checklist.
+- Quadros estilo **Kanban** (Trabalho, Faculdade, Pessoal...) com colunas e cards arrastáveis, prazo (com horário de entrega opcional), prioridade, etiquetas e checklist.
 - **Visão "Hoje"** com o que vence hoje, o que está atrasado e o que foi marcado como foco. À noite chega um resumo do que foi concluído.
 
-### 7. Personalização
+### 7. Agenda
+- Calendário estilo **Google Agenda** com visões **Dia, Semana e Mês**, minicalendário para escolher o dia e grade hora a hora.
+- Clique num horário para marcar; **arraste** para mudar o horário ou o dia e puxe a borda para mudar a duração.
+- **Agendas coloridas** (Pessoal, Trabalho, Faculdade...), que podem ser escondidas da tela, eventos de dia inteiro, **repetição** (diária, semanal em dias escolhidos, mensal, anual, até uma data) com "só este evento" ou "todos" e **lembretes** por notificação.
+- As **tarefas com prazo** aparecem no dia do prazo (as com horário de entrega, na hora certa da grade), com o check para concluir, e dá para filtrar por **quadro**. No Início, um resumo do que ainda vem hoje.
+
+### 8. Personalização
 - Tema claro/escuro e **cor de destaque**.
 - **Módulos:** cada área pode ser escondida do menu, do Início e das notificações sem perder os dados.
 
-### 8. Conta e Sincronização
+### 9. Conta e Sincronização
 - **Login obrigatório (Supabase):** o app abre numa tela de login. Os usuários são criados à mão no painel do Supabase (o cadastro pelo app é fechado).
 - Os dados ficam centralizados por usuário e sincronizam item a item entre os aparelhos, inclusive as capas. As tabelas são protegidas por RLS, e a sessão fica guardada criptografada (DPAPI no Windows, Android Keystore no celular).
 - **Funciona offline:** cada aparelho guarda uma cópia da conta. Sem internet, o app abre com ela e envia as mudanças quando a conexão volta.
 
-### 9. Aplicativo
+### 10. Aplicativo
 - **Atualização automática:** Configurações → Aplicativo → Atualizações consulta os Releases deste repositório, sem precisar de token.
 - **Bandeja do sistema**, iniciar com o Windows e instância única.
 - **Versão Linux** nativa (Photino + WebKitGTK), com os mesmos dados e telas.
@@ -90,7 +96,7 @@ Baixe a versão oficial do **CrankoHub**:
 ```
 cranko-hub/
 ├── CrankoHub/                       # Projeto principal (WPF + Blazor Hybrid, .NET 10)
-│   ├── Pages/                       # Telas .razor (Início, Dieta, Carro, Assinaturas, Entretenimento, Tarefas, Configurações)
+│   ├── Pages/                       # Telas .razor (Início, Dieta, Carro, Assinaturas, Entretenimento, Tarefas, Agenda, Configurações)
 │   │   └── CarroAbas/               # Abas do Carro (Abastecimentos, Consumo, Manutenção, Documentos, Calculadoras)
 │   ├── Components/                  # Componentes reutilizáveis (gráficos, diálogos, toasts, ícones, conta)
 │   ├── Layout/                      # LayoutPrincipal.razor (menu lateral e rodapé da conta)

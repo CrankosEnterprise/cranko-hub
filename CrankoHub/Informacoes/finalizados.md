@@ -248,3 +248,33 @@ O app é de uso pessoal e só uma conta existe no Supabase, então o modo sem co
 - **Configurações:** a aba "Dados e backup" virou **Conta** (usuário, status da sincronização, "Sincronizar agora", "Sair" e as contagens). O link `configuracoes?aba=dados` continua abrindo essa aba.
 - **Arquivos antigos:** o `dados.json` do modo local (na raiz de `%LocalAppData%\CrankoHub`) e os backups ficam no disco, só deixam de ser usados. Campos removidos (`BackupAutomatico`, `PastaBackup`, `BackupsMantidos`, `UltimoBackup`, `ConfigLocal.PastaDados`) são ignorados ao abrir.
 - **Fica no aparelho:** `local.json` (conta conectada e iniciar com o Windows) e as preferências que não sobem para o `perfis` (chaves TMDB/RAWG, bandeja, avisos).
+
+## 12. Agenda ✅ (feito em 06/11/2026; falta testar no aparelho)
+
+Calendário estilo Google Agenda, só do CrankoHub (dados no Supabase e sincronizados como os outros módulos, sem login do Google).
+
+- **Página** `Pages/Agenda.razor` (`/agenda`, módulo `Modulo.Agenda`, cor `#30b0c7`):
+  - visões **Dia**, **Semana** (começa no domingo) e **Mês**, com Hoje, ◀ ▶ e título do período; a visão fica guardada no aparelho (`Agenda.Visao`). No celular, abre no Dia;
+  - lateral com **minicalendário** (ponto nos dias com evento) e **Minhas agendas** (caixa colorida para mostrar/ocultar, editar nome e cor, excluir com os eventos) + "Tarefas com prazo";
+  - grade de 24 h (48 px por hora) que abre perto da hora atual (ou às 7h), linha vermelha do "agora" e eventos que se sobrepõem lado a lado (`AgendaCalculos.Blocos`);
+  - faixa de **dia inteiro** com os eventos de dia inteiro (e os de 24 h ou mais) e as **tarefas com prazo** (check conclui; o clique abre `tarefas?quadro=X&card=Y`, que abre o editor do card);
+  - no Mês, até 3 itens por dia e "+N mais"; clicar no número abre o dia.
+- **Criar e mudar:** clique num horário vazio (meia em meia hora) ou na faixa de dia inteiro; **arrastar** move (15 em 15 min, também para outro dia) e a **alça de baixo** muda a duração (`wwwroot/js/agenda.js`, módulo ES importado pelo `Components/AgendaInterop.cs`, seguindo as skills do dotnet/skills). No toque, o arrasto começa depois de segurar o evento.
+- **Editor:** título, agenda, dia inteiro, início/fim (mudar o início leva o fim junto), repetição (todo dia / toda semana em dias escolhidos / todo mês / todo ano, a cada N, até uma data), lembrete, local e descrição.
+- **Repetição** (`AgendaCalculos.Ocorrencias`/`Datas`): as ocorrências são calculadas na hora (nada é gerado no banco). Num evento que repete, editar, excluir ou arrastar pergunta **"Só este evento"** (vira um evento avulso e a data entra em `excecoes`) ou **"Todos os eventos"**. Mensal no dia 31 pula os meses curtos e anual em 29/02 só acontece em ano bissexto, como no Google.
+- **Lembretes:** `AvisosService` confere a cada 30 s e notifica uma vez por ocorrência (chave `agenda:<id>:<horário>` em `AvisosEnviados`, guardada com a data da ocorrência). No dia inteiro, o lembrete conta a partir das 9h. Ainda avisa até 15 min depois do início, se o app abriu atrasado. Clicar abre `agenda?dia=...&visao=dia`.
+- **Início:** card "Agenda de hoje" (o que ainda vem hoje e os totais de hoje, amanhã e 7 dias), ao lado do de Tarefas. **Conta:** contagem de eventos.
+- **Dados:** `Models/Agenda.cs` (`DadosAgenda`, `AgendaCor`, `EventoAgenda`) em `EstadoApp.Agenda`. A agenda criada sozinha tem o **id fixo `principal`** ("Pessoal"), para dois aparelhos não criarem duas. Horários no relógio local, sem fuso (`timestamp` no banco).
+- **Supabase:** `supabase/migrations/0003_agenda.sql` (tabelas `agendas` e `eventos`, mesmo padrão do 0001). Enquanto a migration não roda, a sincronização deixa essas duas tabelas de fora e avisa no card da Conta (`SincronizacaoService.VerificarTabelasNovas`).
+
+**Ajustes depois do primeiro uso (06/11/2026)**
+- **Horário de entrega nas tarefas:** `CardTarefa.PrazoHora` (opcional, ao lado do Prazo no editor do card). Na Agenda, a tarefa com horário entra na **grade de horas** (bloco tracejado de 30 min, lado a lado com os eventos, check para concluir, fica vermelho quando passa da hora; não arrasta) e a sem horário continua na faixa de dia inteiro. O badge vira "hoje às 14:00" / "venceu às 14:00" em Tarefas, no Início e nos alertas.
+- **Filtro por quadro:** em "Tarefas com prazo", na lateral, cada quadro de Tarefas tem a sua caixa para mostrar/ocultar (`DadosAgenda.QuadrosOcultos`, só deste aparelho como as agendas ocultas). "Todos os quadros" liga/desliga tudo.
+- **Supabase:** `supabase/migrations/0004_tarefas_hora.sql` (coluna `cards.prazo_hora`). Enquanto não roda, a sincronização não manda nem recebe essa coluna (`ColunasNovas` em `SincronizacaoService`) e o card da Conta avisa qual migration falta.
+- `0003_agenda.sql`: o `enable row level security` saiu do bloco `do $$` e foi para depois de cada `create table`, porque o SQL Editor do Supabase avisava (falso alarme) que as tabelas ficariam sem RLS.
+
+**Como testar**
+1. ✅ `dotnet build cranko-hub.slnx` (Windows, Linux e Android) sem erros nem avisos.
+2. ✅ Regras (script fora do projeto): semanal seg/qua/sex até uma data, exceção, "só este" + arrasto, mensal no dia 31, anual em 29/02, diária a cada 2 dias desde 2020, sobreposição em colunas, janela do lembrete, tarefa com horário na grade e badge "hoje às"/"venceu às".
+3. ✅ `0003_agenda.sql` rodado no Supabase. ⏳ Rodar o `0004_tarefas_hora.sql` e conferir que um evento e uma tarefa com horário criados no PC aparecem no celular.
+4. ⏳ No app: criar clicando na grade, arrastar e redimensionar, repetição com "só este"/"todos", agendas e cores, tarefa no dia do prazo, lembrete de 5 min, visão Mês, tema escuro e celular.

@@ -21,6 +21,8 @@ public class EstadoApp
 
     public DadosTarefas Tarefas { get; set; } = new();
 
+    public DadosAgenda Agenda { get; set; } = new();
+
     public Configuracoes Config { get; set; } = new();
 }
 

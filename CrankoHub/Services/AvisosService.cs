@@ -9,7 +9,10 @@ namespace CrankoHub.Services;
 /// </summary>
 public class AvisosService(ArmazenamentoService store, BandejaService bandeja)
 {
-    private DispatcherTimer? _timer;
+    private DispatcherTimer? _timer, _lembretes;
+
+    /// <summary>De quanto em quanto tempo os lembretes da Agenda são conferidos.</summary>
+    public static readonly TimeSpan IntervaloLembretes = TimeSpan.FromSeconds(30);
 
     public void Iniciar()
     {
@@ -20,6 +23,48 @@ public class AvisosService(ArmazenamentoService store, BandejaService bandeja)
             Verificar();
         };
         _timer.Start();
+
+        // Os lembretes da Agenda têm hora marcada: conferidos a cada 30 s
+        _lembretes = new DispatcherTimer { Interval = IntervaloLembretes };
+        _lembretes.Tick += (_, _) => LembretesDaAgenda();
+        _lembretes.Start();
+    }
+
+    // Cada ocorrência avisa uma vez (a chave tem o horário dela), na hora do lembrete
+    private void LembretesDaAgenda()
+    {
+        if (!ArmazenamentoService.PorConta) return;
+        var cfg = store.Dados.Config;
+        if (!cfg.Avisos || !Modulo.Visivel(cfg, Modulo.Agenda)) return;
+
+        var agora = DateTime.Now;
+        var novos = AgendaCalculos.LembretesAgora(store.Dados.Agenda, agora)
+            .Where(o => !cfg.AvisosEnviados.ContainsKey(AgendaCalculos.ChaveLembrete(o)))
+            .ToList();
+        if (novos.Count == 0) return;
+
+        foreach (var o in novos)
+        {
+            var e = o.Evento;
+            var titulo = string.IsNullOrWhiteSpace(e.Titulo) ? "(sem título)" : e.Titulo;
+            string quando;
+            if (e.DiaInteiro) quando = o.Data == Formatacao.Hoje ? "Hoje, dia inteiro" : "Amanhã, dia inteiro";
+            else
+            {
+                var falta = (int)Math.Round((o.Inicio - agora).TotalMinutes);
+                quando = falta switch
+                {
+                    <= 0 => $"Agora, às {AgendaCalculos.Hora(o.Inicio)}",
+                    < 60 => $"Em {falta} min, às {AgendaCalculos.Hora(o.Inicio)}",
+                    _ => $"{(o.Data == Formatacao.Hoje ? "Hoje" : "Amanhã")} às {AgendaCalculos.Hora(o.Inicio)}",
+                };
+            }
+            bandeja.Notificar(titulo, quando + (string.IsNullOrEmpty(e.Local) ? "" : " · " + e.Local),
+                $"agenda?dia={Formatacao.Iso(o.Data)}&visao=dia");
+            // Guarda a data da ocorrência (pode ser amanhã): a limpeza em Verificar só apaga as de dias que já passaram
+            cfg.AvisosEnviados[AgendaCalculos.ChaveLembrete(o)] = o.Data;
+        }
+        store.Salvar();
     }
 
     /// <param name="manual">Pedido pelo usuário: avisa tudo de novo e diz quando não há nada.</param>
@@ -48,7 +93,7 @@ public class AvisosService(ArmazenamentoService store, BandejaService bandeja)
                 string.Join("\n", alertas.Take(3).Select(a => "• " + a.Titulo)) + (alertas.Count > 3 ? "\n..." : ""), "");
 
         // Guarda o que já foi avisado hoje e esquece os dias anteriores
-        foreach (var chave in cfg.AvisosEnviados.Where(p => p.Value != hoje).Select(p => p.Key).ToList())
+        foreach (var chave in cfg.AvisosEnviados.Where(p => p.Value < hoje).Select(p => p.Key).ToList())
             cfg.AvisosEnviados.Remove(chave);
         foreach (var a in alertas)
             cfg.AvisosEnviados[a.Chave] = hoje;

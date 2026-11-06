@@ -11,6 +11,7 @@ public record Modulo(string Id, string Nome, string Descricao, MarkupString Icon
     public const string Assinaturas = "assinaturas";
     public const string Entretenimento = "entretenimento";
     public const string Tarefas = "tarefas";
+    public const string Agenda = "agenda";
 
     public static readonly IReadOnlyList<Modulo> Todos =
     [
@@ -19,6 +20,7 @@ public record Modulo(string Id, string Nome, string Descricao, MarkupString Icon
         new(Assinaturas, "Assinaturas", "Serviços recorrentes e cobranças", Icones.Assinaturas),
         new(Entretenimento, "Entretenimento", "Livros, filmes, séries, animes e jogos", Icones.Entretenimento),
         new(Tarefas, "Tarefas", "Quadros Kanban e tarefas do dia", Icones.Tarefas),
+        new(Agenda, "Agenda", "Compromissos, horários e lembretes", Icones.Agenda),
     ];
 
     /// <summary>O link do módulo é o próprio Id (ex.: "dieta").</summary>
@@ -34,6 +36,7 @@ public record Modulo(string Id, string Nome, string Descricao, MarkupString Icon
         Assinaturas => "#af52de",
         Entretenimento => "#ff9500",
         Tarefas => "#34c759",
+        Agenda => "#30b0c7",
         _ => "var(--accent)",
     };
 

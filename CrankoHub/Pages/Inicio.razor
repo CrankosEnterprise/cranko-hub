@@ -45,6 +45,8 @@
     var cfg = d.Config;
     var (verDieta, verCarro, verAssin, verEnt, verTarefas) = (Modulo.Visivel(cfg, Modulo.Dieta), Modulo.Visivel(cfg, Modulo.Carro),
         Modulo.Visivel(cfg, Modulo.Assinaturas), Modulo.Visivel(cfg, Modulo.Entretenimento), Modulo.Visivel(cfg, Modulo.Tarefas));
+    var verAgenda = Modulo.Visivel(cfg, Modulo.Agenda);
+    var agenda = AgendaCalculos.ResumoDe(d.Agenda, agora);
 
     // Mini-gráficos: últimos 90 dias
     var corte = Hoje.AddDays(-90);
@@ -153,6 +155,41 @@
     </div>
 }
 
+@if (verAgenda || verTarefas)
+{
+<div class="grid-2 @(verAgenda && verTarefas ? "" : "um")">
+@if (verAgenda)
+{
+    <a class="card link-card" href="agenda?dia=@Iso(Hoje)&visao=dia" style="--c:@Modulo.CorDe(Modulo.Agenda)">
+        <div class="link-head">
+            <span class="link-icon">@Icones.Agenda</span>
+            <div><h2>Agenda de hoje</h2><p>O que ainda vem pela frente</p></div>
+            <span class="go">@Icones.Seta</span>
+        </div>
+        <div class="mini-stats">
+            <div><span>Hoje</span><b>@agenda.Hoje</b></div>
+            <div><span>Amanhã</span><b>@agenda.Amanha</b></div>
+            <div><span>Próx. 7 dias</span><b>@agenda.Semana</b></div>
+        </div>
+        @if (agenda.Proximos.Count > 0)
+        {
+            <ul class="activity">
+                @foreach (var o in agenda.Proximos.Take(4))
+                {
+                    <li>
+                        <span class="ag-bolinha" style="--c:@AgendaCalculos.CorDe(d.Agenda, o.Evento)"></span>
+                        <div class="a-text">@(string.IsNullOrWhiteSpace(o.Evento.Titulo) ? "(sem título)" : o.Evento.Titulo)<small>@(o.Evento.Local ?? AgendaCalculos.AgendaDe(d.Agenda, o.Evento)?.Nome)</small></div>
+                        <span class="badge @(!o.NoTopo && o.Inicio <= agora && o.Fim > agora ? "good" : "")">@(o.NoTopo ? "dia inteiro" : o.Inicio <= agora ? "agora" : AgendaCalculos.Hora(o.Inicio))</span>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <div class="chart-empty"><span>@(agenda.Hoje > 0 ? "Os compromissos de hoje já passaram. ✓" : "Nenhum compromisso hoje.")</span></div>
+        }
+    </a>
+}
 @if (verTarefas)
 {
     <a class="card link-card" href="tarefas?quadro=hoje" style="--c:@Modulo.CorDe(Modulo.Tarefas)">
@@ -175,9 +212,9 @@
                     var q = TarefasCalculos.QuadroDe(d.Tarefas, c);
                     <li>
                         <div class="a-text">@c.Titulo<small>@(q is null ? "" : TarefasCalculos.NomeQuadro(q))</small></div>
-                        @if (c.Prazo is DateOnly p)
+                        @if (c.Prazo is not null)
                         {
-                            var (texto, classe) = TarefasCalculos.Prazo(p, Hoje);
+                            var (texto, classe) = TarefasCalculos.Prazo(c, DateTime.Now);
                             <span class="badge @classe">@texto</span>
                         }
                         else
@@ -193,6 +230,8 @@
             <div class="chart-empty"><span>@(resumo.ConcluidosHoje.Count > 0 ? "Tudo o que era para hoje está feito. ✓" : "Nenhuma tarefa para hoje.")</span></div>
         }
     </a>
+}
+</div>
 }
 
 @if (verEnt)

@@ -1,0 +1,925 @@
+@page "/agenda"
+@implements IAsyncDisposable
+@inject ArmazenamentoService Store
+@inject ToastService Toast
+@inject IDialogoService Dialogo
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@{
+    var a = A;
+    var (ini, fim) = Periodo();
+    var ocs = AgendaCalculos.Ocorrencias(a, ini.ToDateTime(TimeOnly.MinValue), fim.ToDateTime(TimeOnly.MinValue));
+    var tarefas = TarefasNoPeriodo(ini, fim);
+    var hoje = Hoje;
+}
+
+<div class="page-head">
+    <div>
+        <h1>Agenda</h1>
+        <p>Seus compromissos hora a hora: clique num horário para marcar e arraste para mudar.</p>
+    </div>
+    <button class="btn primary" type="button" @onclick="NovoPeloBotao">+ Evento</button>
+</div>
+
+<section class="card ag">
+    <div class="ag-barra">
+        <button class="btn sm ag-lateral-btn" type="button" @onclick="() => _lateralAberta = !_lateralAberta">@Icones.Agenda Agendas</button>
+        <button class="btn sm" type="button" @onclick="IrParaHoje">Hoje</button>
+        <div class="ag-setas">
+            <button class="icon-btn" type="button" title="Anterior" @onclick="() => Andar(-1)">‹</button>
+            <button class="icon-btn" type="button" title="Próximo" @onclick="() => Andar(1)">›</button>
+        </div>
+        <h2 class="ag-titulo">@AgendaCalculos.TituloPeriodo(_visao, _dia)</h2>
+        <div class="chips">
+            <button type="button" class="chip @(_visao == VisaoAgenda.Dia ? "active" : "")" @onclick="() => TrocarVisao(VisaoAgenda.Dia)">Dia</button>
+            <button type="button" class="chip @(_visao == VisaoAgenda.Semana ? "active" : "")" @onclick="() => TrocarVisao(VisaoAgenda.Semana)">Semana</button>
+            <button type="button" class="chip @(_visao == VisaoAgenda.Mes ? "active" : "")" @onclick="() => TrocarVisao(VisaoAgenda.Mes)">Mês</button>
+        </div>
+    </div>
+
+    <div class="ag-corpo @(_lateralAberta ? "lateral-aberta" : "")">
+        <aside class="ag-lateral">
+            @MiniCalendario()
+
+            <div class="ag-lat-titulo">
+                <span>Minhas agendas</span>
+                <button class="icon-btn" type="button" title="Nova agenda" @onclick="NovaAgenda">+</button>
+            </div>
+            <ul class="ag-agendas">
+                @foreach (var ag in a.Agendas)
+                {
+                    <li @key="ag.Id" style="--c:@ag.Cor">
+                        <label class="ag-agenda">
+                            <input type="checkbox" checked="@AgendaCalculos.Visivel(a, ag.Id)" @onchange="() => AlternarAgenda(ag)">
+                            <span>@ag.Nome</span>
+                        </label>
+                        <button type="button" class="ag-agenda-editar" title="Editar agenda" @onclick="() => EditarAgenda(ag)">@Icones.Editar</button>
+                    </li>
+                }
+            </ul>
+
+            @if (VerTarefas)
+            {
+                var quadros = Store.Dados.Tarefas.Quadros;
+                <div class="ag-lat-titulo"><span>Tarefas com prazo</span></div>
+                <ul class="ag-agendas" style="--c:@Modulo.CorDe(Modulo.Tarefas)">
+                    <li>
+                        <label class="ag-agenda">
+                            <input type="checkbox" checked="@a.MostrarTarefas" @onchange="AlternarTarefas">
+                            <span>@(quadros.Count > 1 ? "Todos os quadros" : "Mostrar tarefas")</span>
+                        </label>
+                    </li>
+                    @if (a.MostrarTarefas && quadros.Count > 1)
+                    {
+                        @foreach (var q in quadros)
+                        {
+                            <li class="ag-sub" @key="q.Id">
+                                <label class="ag-agenda">
+                                    <input type="checkbox" checked="@(!a.QuadrosOcultos.Contains(q.Id))" @onchange="() => AlternarQuadro(q)">
+                                    <span>@TarefasCalculos.NomeQuadro(q)</span>
+                                </label>
+                            </li>
+                        }
+                    }
+                </ul>
+            }
+        </aside>
+
+        <div class="ag-principal">
+            @if (_visao == VisaoAgenda.Mes)
+            {
+                @VisaoMes(ini, ocs, tarefas, hoje)
+            }
+            else
+            {
+                @VisaoHoras(ini, fim, ocs, tarefas, hoje)
+            }
+        </div>
+    </div>
+</section>
+
+@* ---- Editor do evento ---- *@
+@if (_editando is not null)
+{
+    var rep = RepeticaoAgenda.Buscar(_fRepeticao);
+    <div class="modal-backdrop" @onclick="FecharEditor">
+        <form class="card modal modal-largo" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="SalvarEvento">
+            <h2>@(_novo ? "Novo evento" : "Editar evento")</h2>
+            <div class="form-grid">
+                <label class="field full"><span>Título *</span><input maxlength="140" required placeholder="Ex.: Dentista, Reunião, Academia" @bind="_fTitulo"></label>
+                <label class="field"><span>Agenda</span>
+                    <select @bind="_fAgenda">
+                        @foreach (var ag in A.Agendas)
+                        {
+                            <option value="@ag.Id">@ag.Nome</option>
+                        }
+                    </select></label>
+                <label class="check"><input type="checkbox" @bind="_fDiaInteiro"> Dia inteiro</label>
+
+                <label class="field"><span>Início</span><input type="date" @bind="_fDataIni" @bind:after="AoMudarInicio"></label>
+                @if (!_fDiaInteiro)
+                {
+                    <label class="field"><span>Hora</span><input type="time" step="300" @bind="_fHoraIni" @bind:after="AoMudarInicio"></label>
+                }
+                else
+                {
+                    <div></div>
+                }
+                <label class="field"><span>Fim</span><input type="date" @bind="_fDataFim" @bind:after="AoMudarFim"></label>
+                @if (!_fDiaInteiro)
+                {
+                    <label class="field"><span>Hora</span><input type="time" step="300" @bind="_fHoraFim" @bind:after="AoMudarFim"></label>
+                }
+                else
+                {
+                    <div></div>
+                }
+
+                @{
+                    <label class="field"><span>Repetição</span>
+                        <select @bind="_fRepeticao" @bind:after="AoMudarRepeticao">
+                            @foreach (var r in RepeticaoAgenda.Todas)
+                            {
+                                <option value="@r.Chave">@r.Nome</option>
+                            }
+                        </select></label>
+                    @if (rep.Chave != RepeticaoAgenda.Nenhuma)
+                    {
+                        <label class="field"><span>A cada</span>
+                            <span class="ag-cada"><input type="number" min="1" max="99" @bind="_fIntervalo"> @(_fIntervalo == 1 ? rep.Unidade : rep.Unidades)</span></label>
+                        @if (rep.Chave == RepeticaoAgenda.Semanal)
+                        {
+                            <div class="field full">
+                                <span>Nos dias</span>
+                                <div class="chips ag-dias-semana">
+                                    @for (var i = 0; i < 7; i++)
+                                    {
+                                        var d = i;
+                                        <button type="button" class="chip @(_fDiasSemana.Contains(d) ? "active" : "")" title="@AgendaCalculos.DiasCurtos[d]" @onclick="() => AlternarDiaSemana(d)">@AgendaCalculos.DiasLetra[d]</button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        <label class="field"><span>Termina em (opcional)</span><input type="date" @bind="_fRepetirAte"></label>
+                        <div></div>
+                    }
+                }
+
+                <label class="field"><span>Lembrete</span>
+                    <select @bind="_fLembrete">
+                        @foreach (var (min, nome) in LembretesAgenda.Todos)
+                        {
+                            <option value="@(min?.ToString() ?? "")">@nome</option>
+                        }
+                    </select></label>
+                <label class="field"><span>Local</span><input maxlength="200" placeholder="Endereço, sala, link..." @bind="_fLocal"></label>
+                <label class="field full"><span>Descrição</span><textarea rows="3" maxlength="2000" @bind="_fDescricao"></textarea></label>
+            </div>
+            <div class="form-actions">
+                @if (!_novo)
+                {
+                    <button class="btn danger" type="button" @onclick="ExcluirEvento">Excluir</button>
+                }
+                <button class="btn" type="button" @onclick="FecharEditor">Cancelar</button>
+                <button class="btn primary" type="submit">@(_novo ? "Criar evento" : "Salvar alterações")</button>
+            </div>
+        </form>
+    </div>
+}
+
+@* ---- Editor da agenda (nome e cor) ---- *@
+@if (_agEditando is not null)
+{
+    <div class="modal-backdrop" @onclick="() => _agEditando = null">
+        <form class="card modal" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="SalvarAgenda">
+            <h2>@(_agNova ? "Nova agenda" : "Editar agenda")</h2>
+            <label class="field"><span>Nome</span><input maxlength="40" required placeholder="Ex.: Trabalho, Faculdade" @bind="_agNome"></label>
+            <div class="field">
+                <span>Cor</span>
+                <div class="ag-cores">
+                    @foreach (var cor in CoresAgenda.Todas)
+                    {
+                        <button type="button" class="cor @(cor == _agCor ? "ativa" : "")" style="--cor:@cor; background:@cor" title="@cor" @onclick="() => _agCor = cor"></button>
+                    }
+                </div>
+            </div>
+            <div class="form-actions">
+                @if (!_agNova && A.Agendas.Count > 1)
+                {
+                    <button class="btn danger" type="button" @onclick="ExcluirAgenda">Excluir</button>
+                }
+                <button class="btn" type="button" @onclick="() => _agEditando = null">Cancelar</button>
+                <button class="btn primary" type="submit">@(_agNova ? "Criar agenda" : "Salvar")</button>
+            </div>
+        </form>
+    </div>
+}
+
+@* ---- "Só este evento" ou "Todos os eventos" (evento que repete) ---- *@
+@if (_escolha is not null)
+{
+    <div class="modal-backdrop" @onclick="() => Escolher(null)">
+        <div class="card modal confirmacao" @onclick:stopPropagation="true">
+            <span class="confirmacao-icone">@Icones.Agenda</span>
+            <h2>@_escolhaTitulo</h2>
+            <p>Este evento se repete.</p>
+            <div class="ag-escolha">
+                <button class="btn" type="button" @onclick="@(() => Escolher(Alcance.SoEste))">Só este evento</button>
+                <button class="btn primary" type="button" @onclick="@(() => Escolher(Alcance.Todos))">Todos os eventos</button>
+                <button class="btn" type="button" @onclick="() => Escolher(null)">Cancelar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const int PxPorHora = 48;
+    private const double PxPorMinuto = PxPorHora / 60.0;
+
+    [SupplyParameterFromQuery(Name = "dia")] public string? DiaDoLink { get; set; }
+    [SupplyParameterFromQuery(Name = "visao")] public string? VisaoDoLink { get; set; }
+
+    private enum Alcance { SoEste, Todos }
+
+    private DadosAgenda A => Store.Dados.Agenda;
+    private bool VerTarefas => Modulo.Visivel(Store.Dados.Config, Modulo.Tarefas);
+
+    private DateOnly _dia = Hoje;
+    private DateOnly _mesMini = new(Hoje.Year, Hoje.Month, 1);
+    private string _visao = VisaoAgenda.Semana;
+    private string? _linkAplicado;
+    private bool _lateralAberta;
+
+    // Grade de horas (JS)
+    private ElementReference _grade;
+    private AgendaInterop? _interop;
+    private DotNetObjectReference<Agenda>? _ref;
+    private bool _gradeLigada;
+    private readonly CancellationTokenSource _fim = new();
+
+    // Editor do evento
+    private EventoAgenda? _editando;
+    private bool _novo;
+    private DateOnly _ocorrencia; // data da ocorrência aberta (eventos que repetem)
+    private string _fTitulo = "", _fAgenda = "", _fRepeticao = "", _fLembrete = "", _fLocal = "", _fDescricao = "";
+    private bool _fDiaInteiro;
+    private DateOnly _fDataIni, _fDataFim;
+    private DateOnly? _fRepetirAte;
+    private TimeOnly _fHoraIni, _fHoraFim;
+    private int _fIntervalo = 1;
+    private List<int> _fDiasSemana = [];
+    private TimeSpan _fDuracao = TimeSpan.FromHours(1);
+
+    // Editor da agenda
+    private AgendaCor? _agEditando;
+    private bool _agNova;
+    private string _agNome = "", _agCor = CoresAgenda.Todas[0];
+
+    // Escolha "só este / todos"
+    private TaskCompletionSource<Alcance?>? _escolha;
+    private string _escolhaTitulo = "";
+
+    protected override void OnInitialized()
+    {
+        _visao = A.Visao;
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Link de uma notificação ou do Início (agenda?dia=2026-11-06&visao=dia)
+        var link = $"{DiaDoLink}|{VisaoDoLink}";
+        if (link == _linkAplicado) return;
+        _linkAplicado = link;
+        if (LerIso(DiaDoLink) is DateOnly d) IrPara(d);
+        if (VisaoDoLink is VisaoAgenda.Dia or VisaoAgenda.Semana or VisaoAgenda.Mes) _visao = VisaoDoLink;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _ref = DotNetObjectReference.Create(this);
+            _interop = new AgendaInterop(JS);
+            _ = Relogio(_fim.Token);
+            // No celular a semana não cabe: começa no dia (sem mudar o que fica guardado)
+            if (VisaoDoLink is null && _visao == VisaoAgenda.Semana && await JS.InvokeAsync<bool>("crankohub.telaPequena"))
+            {
+                _visao = VisaoAgenda.Dia;
+                StateHasChanged();
+                return;
+            }
+        }
+        if (_visao != VisaoAgenda.Mes && !_gradeLigada && _interop is not null && _ref is not null)
+        {
+            _gradeLigada = true;
+            await _interop.IniciarAsync(_grade, _ref, PxPorHora, RolagemInicial());
+        }
+    }
+
+    // Abre a grade perto da hora atual (se hoje está na tela) ou às 7h
+    private int RolagemInicial()
+    {
+        var (ini, fim) = Periodo();
+        return Hoje >= ini && Hoje < fim ? Math.Max(0, (int)DateTime.Now.TimeOfDay.TotalMinutes - 90) : 7 * 60;
+    }
+
+    // A linha do "agora" anda a cada minuto
+    private async Task Relogio(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(60 - DateTime.Now.Second), ct);
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _fim.Cancel();
+        _fim.Dispose();
+        if (_interop is not null) await _interop.DisposeAsync();
+        _ref?.Dispose();
+    }
+
+    // ---- Período ----
+
+    private (DateOnly Ini, DateOnly Fim) Periodo() => _visao switch
+    {
+        VisaoAgenda.Dia => (_dia, _dia.AddDays(1)),
+        VisaoAgenda.Mes => (AgendaCalculos.DiasDoMes(_dia.Year, _dia.Month)[0], AgendaCalculos.DiasDoMes(_dia.Year, _dia.Month)[0].AddDays(42)),
+        _ => (AgendaCalculos.InicioDaSemana(_dia), AgendaCalculos.InicioDaSemana(_dia).AddDays(7)),
+    };
+
+    private void IrPara(DateOnly d)
+    {
+        _dia = d;
+        _mesMini = new DateOnly(d.Year, d.Month, 1);
+    }
+
+    private async Task IrParaHoje()
+    {
+        IrPara(Hoje);
+        if (_interop is not null && _visao != VisaoAgenda.Mes) await _interop.RolarAsync(RolagemInicial());
+    }
+
+    private void Andar(int direcao) => IrPara(_visao switch
+    {
+        VisaoAgenda.Dia => _dia.AddDays(direcao),
+        VisaoAgenda.Mes => _dia.AddMonths(direcao),
+        _ => _dia.AddDays(7 * direcao),
+    });
+
+    private void TrocarVisao(string visao)
+    {
+        if (visao == _visao) return;
+        _visao = visao;
+        if (visao == VisaoAgenda.Mes) _gradeLigada = false; // a grade some; volta a ser ligada quando reaparecer
+        A.Visao = visao;
+        Store.Salvar();
+    }
+
+    private void AbrirDia(DateOnly d)
+    {
+        IrPara(d);
+        _lateralAberta = false;
+        if (_visao == VisaoAgenda.Mes)
+        {
+            _visao = VisaoAgenda.Dia;
+            _gradeLigada = false;
+        }
+    }
+
+    // ---- Tarefas com prazo ----
+
+    // As dos quadros desligados na lateral ficam de fora; as com horário vêm primeiro, na ordem da hora
+    private List<CardTarefa> TarefasNoPeriodo(DateOnly ini, DateOnly fim) =>
+        A.MostrarTarefas && VerTarefas
+            ? Store.Dados.Tarefas.Cards
+                .Where(c => c.Prazo is DateOnly p && p >= ini && p < fim && !A.QuadrosOcultos.Contains(c.QuadroId))
+                .OrderBy(c => c.Concluido is not null).ThenBy(c => c.PrazoHora ?? TimeOnly.MaxValue).ThenBy(c => c.Titulo).ToList()
+            : [];
+
+    private string NomeDoQuadro(CardTarefa c) =>
+        TarefasCalculos.QuadroDe(Store.Dados.Tarefas, c) is { } q ? TarefasCalculos.NomeQuadro(q) : "Tarefas";
+
+    private void AlternarQuadro(Quadro q)
+    {
+        if (!A.QuadrosOcultos.Remove(q.Id)) A.QuadrosOcultos.Add(q.Id);
+        Store.Salvar();
+    }
+
+    /// <summary>Tarefa com horário de entrega na grade de horas (não arrasta: o prazo muda no editor da tarefa).</summary>
+    private RenderFragment BlocoTarefa(CardTarefa c, string posicao, bool passou) => __builder =>
+    {
+        var hora = TarefasCalculos.Hora(c.PrazoHora!.Value);
+        <div class="ag-evento curto ag-tarefa-bloco @(c.Concluido is not null ? "feita" : "") @(passou && c.Concluido is null ? "venceu" : "")" @key="c.Id"
+             style="--c:@Modulo.CorDe(Modulo.Tarefas); @posicao" title="@c.Titulo · tarefa de @NomeDoQuadro(c) · entrega às @hora" @onclick="() => AbrirTarefa(c)">
+            <button type="button" class="tarefa-check" title="@(c.Concluido is null ? "Marcar como concluída" : "Reabrir")"
+                    @onclick="() => AlternarTarefa(c)" @onclick:stopPropagation="true">@(c.Concluido is null ? "" : "✓")</button>
+            <b>@c.Titulo</b>
+            <span class="ag-ev-hora">@hora</span>
+        </div>
+    };
+
+    private void AlternarTarefa(CardTarefa c)
+    {
+        TarefasCalculos.AlternarConcluida(Store.Dados.Tarefas, c, Hoje);
+        Store.Salvar();
+    }
+
+    private void AbrirTarefa(CardTarefa c) => Nav.NavigateTo($"tarefas?quadro={c.QuadroId}&card={c.Id}");
+
+    private RenderFragment ChipTarefa(CardTarefa c) => __builder =>
+    {
+        var dica = $"{c.Titulo} · tarefa de {NomeDoQuadro(c)}" + (c.PrazoHora is TimeOnly h ? $" · entrega às {TarefasCalculos.Hora(h)}" : "");
+        <div class="ag-chip ag-tarefa @(c.Concluido is not null ? "feita" : "")" @key="c.Id" title="@dica"
+             @onclick="() => AbrirTarefa(c)" @onclick:stopPropagation="true">
+            <button type="button" class="tarefa-check" title="@(c.Concluido is null ? "Marcar como concluída" : "Reabrir")"
+                    @onclick="() => AlternarTarefa(c)" @onclick:stopPropagation="true">@(c.Concluido is null ? "" : "✓")</button>
+            @if (c.PrazoHora is TimeOnly hora)
+            {
+                <small>@TarefasCalculos.Hora(hora)</small>
+            }
+            <span>@c.Titulo</span>
+        </div>
+    };
+
+    // ---- Visões ----
+
+    private RenderFragment VisaoHoras(DateOnly ini, DateOnly fim, List<AgendaCalculos.Ocorrencia> ocs, List<CardTarefa> tarefas, DateOnly hoje) => __builder =>
+    {
+        var dias = Enumerable.Range(0, fim.DayNumber - ini.DayNumber).Select(ini.AddDays).ToList();
+        var agora = DateTime.Now;
+        <div class="ag-horas-visao" style="--dias:@dias.Count">
+            <div class="ag-cab">
+                <div class="ag-canto"></div>
+                @foreach (var d in dias)
+                {
+                    <button type="button" class="ag-cab-dia @(d == hoje ? "hoje" : "")" @key="d" title="Abrir o dia" @onclick="() => AbrirDia(d)">
+                        <span>@AgendaCalculos.DiaSemanaCurto(d)</span><b>@d.Day</b>
+                    </button>
+                }
+            </div>
+            <div class="ag-topo">
+                <div class="ag-canto"><small>dia inteiro</small></div>
+                @foreach (var d in dias)
+                {
+                    var inicioDia = d.ToDateTime(TimeOnly.MinValue);
+                    var doTopo = ocs.Where(o => o.NoTopo && o.Inicio < inicioDia.AddDays(1) && o.Fim > inicioDia).ToList();
+                    <div class="ag-topo-dia" @key="d" title="Clique para um evento de dia inteiro" @onclick="() => NovoDiaInteiro(d)">
+                        @foreach (var o in doTopo)
+                        {
+                            @ChipEvento(o, false)
+                        }
+                        @foreach (var c in tarefas.Where(c => c.Prazo == d && c.PrazoHora is null))
+                        {
+                            @ChipTarefa(c)
+                        }
+                    </div>
+                }
+            </div>
+            <div class="ag-grade" @ref="_grade">
+                <div class="ag-rotulos">
+                    @for (var h = 1; h < 24; h++)
+                    {
+                        <span style="top:@Px(h * 60)">@($"{h:00}:00")</span>
+                    }
+                </div>
+                <div class="ag-colunas">
+                    @foreach (var d in dias)
+                    {
+                        var inicioDia = d.ToDateTime(TimeOnly.MinValue);
+                        <div class="ag-dia @(d == hoje ? "hoje" : "")" @key="d" data-dia="@Iso(d)">
+                            @foreach (var b in AgendaCalculos.Blocos(ocs, d, tarefas))
+                            {
+                                var minIni = (int)(b.Inicio - inicioDia).TotalMinutes;
+                                var minFim = (int)(b.Fim - inicioDia).TotalMinutes;
+                                var altura = Math.Max(minFim - minIni, 20);
+                                var curto = altura < 45;
+                                var posicao = $"top:{Px(minIni)}; height:calc({Px(altura)} - 2px); left:calc({Pct(b.Coluna, b.Colunas)}); width:calc({Pct(1, b.Colunas)} - 3px)";
+                                if (b.Tarefa is { } c)
+                                {
+                                    @BlocoTarefa(c, posicao, b.Inicio <= agora)
+                                    continue;
+                                }
+                                if (b.O is null) continue;
+                                var passado = b.O.Fim <= agora;
+                                <div class="ag-evento @(curto ? "curto" : "") @(passado ? "passado" : "")" @key="(b.O.Evento.Id, b.O.Data)"
+                                     data-id="@b.O.Evento.Id" data-data="@Iso(b.O.Data)" data-ini="@minIni" data-fim="@minFim"
+                                     style="--c:@AgendaCalculos.CorDe(A, b.O.Evento); @posicao"
+                                     title="@b.O.Evento.Titulo · @AgendaCalculos.Horario(b.O)">
+                                    <b>@(string.IsNullOrWhiteSpace(b.O.Evento.Titulo) ? "(sem título)" : b.O.Evento.Titulo)</b>
+                                    <span class="ag-ev-hora">@AgendaCalculos.Hora(b.O.Inicio) – @AgendaCalculos.Hora(b.O.Fim)</span>
+                                    @if (!curto && !string.IsNullOrEmpty(b.O.Evento.Local))
+                                    {
+                                        <span class="ag-ev-local">@b.O.Evento.Local</span>
+                                    }
+                                    @if (AgendaCalculos.Repete(b.O.Evento))
+                                    {
+                                        <i class="ag-ev-repete" title="@AgendaCalculos.TextoRepeticao(b.O.Evento)">↻</i>
+                                    }
+                                    <span class="ag-alca" title="Arraste para mudar a duração"></span>
+                                </div>
+                            }
+                            @if (d == hoje)
+                            {
+                                <div class="ag-agora" style="top:@Px((int)agora.TimeOfDay.TotalMinutes)"></div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    };
+
+    private RenderFragment VisaoMes(DateOnly ini, List<AgendaCalculos.Ocorrencia> ocs, List<CardTarefa> tarefas, DateOnly hoje) => __builder =>
+    {
+        const int Maximo = 3;
+        <div class="ag-mes">
+            <div class="ag-mes-cab">
+                @foreach (var nome in AgendaCalculos.DiasCurtos)
+                {
+                    <span>@nome</span>
+                }
+            </div>
+            <div class="ag-mes-grade">
+                @for (var i = 0; i < 42; i++)
+                {
+                    var d = ini.AddDays(i);
+                    var inicioDia = d.ToDateTime(TimeOnly.MinValue);
+                    var doDia = ocs.Where(o => o.Inicio < inicioDia.AddDays(1) && (o.Fim > inicioDia || o.Inicio >= inicioDia)).ToList();
+                    var tarefasDia = tarefas.Where(c => c.Prazo == d).ToList();
+                    var total = doDia.Count + tarefasDia.Count;
+                    var cabem = total > Maximo ? Maximo - 1 : Maximo;
+                    <div class="ag-mes-dia @(d.Month != _dia.Month ? "fora" : "") @(d == hoje ? "hoje" : "")" @key="d" @onclick="() => NovoNoDia(d)">
+                        <button type="button" class="ag-mes-num" title="Abrir o dia" @onclick="() => AbrirDia(d)" @onclick:stopPropagation="true">@d.Day</button>
+                        @foreach (var o in doDia.Take(cabem))
+                        {
+                            @ChipEvento(o, !o.NoTopo)
+                        }
+                        @foreach (var c in tarefasDia.Take(Math.Max(0, cabem - doDia.Count)))
+                        {
+                            @ChipTarefa(c)
+                        }
+                        @if (total > cabem)
+                        {
+                            <button type="button" class="ag-mais" @onclick="() => AbrirDia(d)" @onclick:stopPropagation="true">+@(total - cabem) mais</button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    };
+
+    /// <summary>Evento como etiqueta (faixa de dia inteiro e visão Mês). <paramref name="comHora"/>: bolinha + hora, como no Google.</summary>
+    private RenderFragment ChipEvento(AgendaCalculos.Ocorrencia o, bool comHora) => __builder =>
+    {
+        <div class="ag-chip @(comHora ? "hora" : "")" @key="(o.Evento.Id, o.Data)" style="--c:@AgendaCalculos.CorDe(A, o.Evento)"
+             title="@o.Evento.Titulo · @AgendaCalculos.Horario(o)" @onclick="() => AbrirEdicao(o.Evento, o.Data)" @onclick:stopPropagation="true">
+            @if (comHora)
+            {
+                <i></i><small>@AgendaCalculos.Hora(o.Inicio)</small>
+            }
+            <span>@(string.IsNullOrWhiteSpace(o.Evento.Titulo) ? "(sem título)" : o.Evento.Titulo)</span>
+        </div>
+    };
+
+    private RenderFragment MiniCalendario() => __builder =>
+    {
+        var dias = AgendaCalculos.DiasDoMes(_mesMini.Year, _mesMini.Month);
+        var comEvento = AgendaCalculos.Ocorrencias(A, dias[0].ToDateTime(TimeOnly.MinValue), dias[^1].AddDays(1).ToDateTime(TimeOnly.MinValue))
+            .SelectMany(o => Enumerable.Range(0, Math.Max(1, (int)Math.Ceiling((o.Fim - o.Inicio.Date).TotalDays))).Select(i => o.Data.AddDays(i)))
+            .ToHashSet();
+        var (pIni, pFim) = Periodo();
+        <div class="ag-mini">
+            <div class="ag-mini-cab">
+                <b>@AgendaCalculos.MesAno(_mesMini)</b>
+                <button class="icon-btn" type="button" title="Mês anterior" @onclick="() => _mesMini = _mesMini.AddMonths(-1)">‹</button>
+                <button class="icon-btn" type="button" title="Próximo mês" @onclick="() => _mesMini = _mesMini.AddMonths(1)">›</button>
+            </div>
+            <div class="ag-mini-grade">
+                @foreach (var l in AgendaCalculos.DiasLetra)
+                {
+                    <span class="ag-mini-letra">@l</span>
+                }
+                @foreach (var d in dias)
+                {
+                    var classes = (d.Month != _mesMini.Month ? "fora " : "") + (d == Hoje ? "hoje " : "") + (d == _dia ? "sel " : "")
+                        + (_visao != VisaoAgenda.Mes && d >= pIni && d < pFim ? "periodo " : "") + (comEvento.Contains(d) ? "tem" : "");
+                    <button type="button" class="ag-mini-dia @classes" @key="d" @onclick="() => AbrirDiaPeloMini(d)">@d.Day</button>
+                }
+            </div>
+        </div>
+    };
+
+    private void AbrirDiaPeloMini(DateOnly d)
+    {
+        _dia = d;
+        if (d.Month != _mesMini.Month) _mesMini = new DateOnly(d.Year, d.Month, 1);
+        _lateralAberta = false;
+    }
+
+    private static string Px(int minutos) => (minutos * PxPorMinuto).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "px";
+
+    private static string Pct(int parte, int total) => (parte * 100.0 / total).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "%";
+
+    // ---- Grade (chamado pelo agenda.js) ----
+
+    [JSInvokable]
+    public async Task Clicou(string dia, int minutos)
+    {
+        if (LerIso(dia) is not DateOnly d) return;
+        await InvokeAsync(() =>
+        {
+            AbrirNovo(d.ToDateTime(TimeOnly.MinValue).AddMinutes(minutos), diaInteiro: false);
+            StateHasChanged();
+        });
+    }
+
+    [JSInvokable]
+    public async Task Abriu(string id, string data)
+    {
+        if (A.Eventos.FirstOrDefault(e => e.Id == id) is not { } e || LerIso(data) is not DateOnly d) return;
+        await InvokeAsync(() =>
+        {
+            AbrirEdicao(e, d);
+            StateHasChanged();
+        });
+    }
+
+    public record Soltura(string Id, string Data, int Inicio, int Fim);
+
+    [JSInvokable]
+    public async Task Soltou(Soltura s)
+    {
+        await InvokeAsync(async () =>
+        {
+            if (A.Eventos.FirstOrDefault(e => e.Id == s.Id) is not { } e || LerIso(s.Data) is not DateOnly data) return;
+            var alvo = e;
+            if (AgendaCalculos.Repete(e))
+            {
+                var alcance = await Perguntar("Mudar o horário");
+                if (alcance is null) { StateHasChanged(); return; }
+                if (alcance == Alcance.SoEste) alvo = AgendaCalculos.SoEsta(A, e, data, Hoje);
+            }
+            AgendaCalculos.Deslocar(alvo, s.Inicio, s.Fim);
+            Store.Salvar();
+            StateHasChanged();
+        });
+    }
+
+    // ---- Escolha "só este / todos" ----
+
+    private Task<Alcance?> Perguntar(string titulo)
+    {
+        _escolha?.TrySetResult(null);
+        _escolha = new TaskCompletionSource<Alcance?>();
+        _escolhaTitulo = titulo;
+        StateHasChanged();
+        return _escolha.Task;
+    }
+
+    private void Escolher(Alcance? alcance)
+    {
+        var e = _escolha;
+        _escolha = null;
+        e?.TrySetResult(alcance);
+    }
+
+    // ---- Agendas ----
+
+    private void AlternarAgenda(AgendaCor ag)
+    {
+        if (!A.Ocultas.Remove(ag.Id)) A.Ocultas.Add(ag.Id);
+        Store.Salvar();
+    }
+
+    private void AlternarTarefas()
+    {
+        A.MostrarTarefas = !A.MostrarTarefas;
+        Store.Salvar();
+    }
+
+    private void NovaAgenda()
+    {
+        _agNova = true;
+        _agEditando = new AgendaCor();
+        _agNome = "";
+        // Próxima cor ainda não usada
+        _agCor = CoresAgenda.Todas.FirstOrDefault(c => A.Agendas.All(x => x.Cor != c)) ?? CoresAgenda.Todas[0];
+    }
+
+    private void EditarAgenda(AgendaCor ag)
+    {
+        _agNova = false;
+        _agEditando = ag;
+        (_agNome, _agCor) = (ag.Nome, ag.Cor);
+    }
+
+    private void SalvarAgenda()
+    {
+        if (_agEditando is not { } ag) return;
+        var nome = _agNome.Trim();
+        if (nome.Length == 0) { Toast.Erro("Informe o nome da agenda."); return; }
+        (ag.Nome, ag.Cor) = (nome, _agCor);
+        if (_agNova)
+        {
+            ag.Id = ArmazenamentoService.NovoId();
+            A.Agendas.Add(ag);
+            Toast.Ok($"Agenda \"{nome}\" criada.");
+        }
+        Store.Salvar();
+        _agEditando = null;
+    }
+
+    private async Task ExcluirAgenda()
+    {
+        if (_agEditando is not { } ag) return;
+        var n = A.Eventos.Count(e => e.AgendaId == ag.Id);
+        if (!await Dialogo.Confirmar($"Excluir a agenda \"{ag.Nome}\"?\n{(n > 0 ? $"Os {n} {Plural(n, "evento", "eventos")} dela também serão apagados." : "Ela está vazia.")}")) return;
+        A.Eventos.RemoveAll(e => e.AgendaId == ag.Id);
+        A.Agendas.Remove(ag);
+        A.Ocultas.Remove(ag.Id);
+        Store.Salvar();
+        _agEditando = null;
+        Toast.Ok("Agenda excluída.");
+    }
+
+    // ---- Editor do evento ----
+
+    private void NovoPeloBotao()
+    {
+        // Próxima hora cheia do dia aberto (ou de hoje)
+        var agora = DateTime.Now;
+        var dia = Periodo() is var (i, f) && Hoje >= i && Hoje < f ? Hoje : _dia;
+        var hora = dia == Hoje ? Math.Min(23, agora.Hour + 1) : 9;
+        AbrirNovo(dia.ToDateTime(new TimeOnly(hora, 0)), diaInteiro: false);
+    }
+
+    private void NovoDiaInteiro(DateOnly d) => AbrirNovo(d.ToDateTime(TimeOnly.MinValue), diaInteiro: true);
+
+    private void NovoNoDia(DateOnly d) => AbrirNovo(d.ToDateTime(new TimeOnly(9, 0)), diaInteiro: false);
+
+    private void AbrirNovo(DateTime inicio, bool diaInteiro)
+    {
+        _novo = true;
+        var agenda = A.Agendas.FirstOrDefault(x => AgendaCalculos.Visivel(A, x.Id)) ?? A.Agendas[0];
+        _editando = new EventoAgenda
+        {
+            AgendaId = agenda.Id,
+            Inicio = inicio,
+            Fim = diaInteiro ? inicio.Date.AddDays(1) : inicio.AddHours(1),
+            DiaInteiro = diaInteiro,
+        };
+        _ocorrencia = DateOnly.FromDateTime(inicio);
+        PreencherForm(_editando, _ocorrencia);
+    }
+
+    private void AbrirEdicao(EventoAgenda e, DateOnly ocorrencia)
+    {
+        _novo = false;
+        _editando = e;
+        _ocorrencia = ocorrencia;
+        PreencherForm(e, ocorrencia);
+    }
+
+    // O formulário mostra a ocorrência clicada (num evento que repete, a data daquele dia)
+    private void PreencherForm(EventoAgenda e, DateOnly ocorrencia)
+    {
+        var ini = ocorrencia.ToDateTime(TimeOnly.FromDateTime(e.Inicio));
+        var fim = ini + AgendaCalculos.Duracao(e);
+        _fTitulo = e.Titulo;
+        _fAgenda = e.AgendaId;
+        _fDiaInteiro = e.DiaInteiro;
+        _fDataIni = DateOnly.FromDateTime(ini);
+        _fHoraIni = TimeOnly.FromDateTime(ini);
+        // No dia inteiro, o fim guardado é a meia-noite do dia seguinte: o formulário mostra o último dia
+        _fDataFim = e.DiaInteiro ? DateOnly.FromDateTime(fim.AddDays(-1)) : DateOnly.FromDateTime(fim);
+        if (_fDataFim < _fDataIni) _fDataFim = _fDataIni;
+        _fHoraFim = TimeOnly.FromDateTime(fim);
+        _fDuracao = fim - ini;
+        _fRepeticao = e.Repeticao;
+        _fIntervalo = Math.Max(1, e.Intervalo);
+        _fDiasSemana = e.DiasSemana.Count > 0 ? [.. e.DiasSemana] : [(int)e.Inicio.DayOfWeek];
+        _fRepetirAte = e.RepetirAte;
+        _fLembrete = e.Lembrete?.ToString() ?? "";
+        _fLocal = e.Local ?? "";
+        _fDescricao = e.Descricao ?? "";
+    }
+
+    private DateTime FormInicio() => _fDataIni.ToDateTime(_fDiaInteiro ? TimeOnly.MinValue : _fHoraIni);
+
+    private DateTime FormFim() => _fDiaInteiro ? _fDataFim.AddDays(1).ToDateTime(TimeOnly.MinValue) : _fDataFim.ToDateTime(_fHoraFim);
+
+    // Mudar o início leva o fim junto (mantém a duração), como no Google
+    private void AoMudarInicio()
+    {
+        var fim = FormInicio() + (_fDiaInteiro ? TimeSpan.FromDays(Math.Max(1, Math.Round(_fDuracao.TotalDays))) : _fDuracao);
+        _fDataFim = _fDiaInteiro ? DateOnly.FromDateTime(fim.AddDays(-1)) : DateOnly.FromDateTime(fim);
+        _fHoraFim = TimeOnly.FromDateTime(fim);
+        if (_fRepeticao == RepeticaoAgenda.Semanal && _fDiasSemana.Count == 1) _fDiasSemana = [(int)_fDataIni.DayOfWeek];
+    }
+
+    private void AoMudarFim()
+    {
+        var d = FormFim() - FormInicio();
+        if (d > TimeSpan.Zero) _fDuracao = d;
+    }
+
+    private void AoMudarRepeticao()
+    {
+        if (_fRepeticao == RepeticaoAgenda.Semanal && _fDiasSemana.Count == 0) _fDiasSemana = [(int)_fDataIni.DayOfWeek];
+    }
+
+    private void AlternarDiaSemana(int d)
+    {
+        if (!_fDiasSemana.Remove(d)) _fDiasSemana.Add(d);
+        if (_fDiasSemana.Count == 0) _fDiasSemana.Add((int)_fDataIni.DayOfWeek); // pelo menos um dia
+    }
+
+    private void FecharEditor() => _editando = null;
+
+    private async Task SalvarEvento()
+    {
+        if (_editando is not { } e) return;
+        var titulo = _fTitulo.Trim();
+        if (titulo.Length == 0) { Toast.Erro("Informe o título."); return; }
+        var ini = FormInicio();
+        var fim = FormFim();
+        if (fim < ini) { Toast.Erro("O fim precisa ser depois do início."); return; }
+        if (_fRepeticao != RepeticaoAgenda.Nenhuma && _fRepetirAte is DateOnly ate && ate < _fDataIni) { Toast.Erro("A repetição precisa terminar depois do início."); return; }
+
+        var alvo = e;
+        var todos = false;
+        if (!_novo && AgendaCalculos.Repete(e))
+        {
+            var alcance = await Perguntar("Salvar as alterações");
+            if (alcance is null) return;
+            if (alcance == Alcance.SoEste) alvo = AgendaCalculos.SoEsta(A, e, _ocorrencia, Hoje);
+            else todos = true;
+        }
+
+        alvo.Titulo = titulo;
+        alvo.AgendaId = _fAgenda;
+        alvo.DiaInteiro = _fDiaInteiro;
+        alvo.Local = string.IsNullOrWhiteSpace(_fLocal) ? null : _fLocal.Trim();
+        alvo.Descricao = string.IsNullOrWhiteSpace(_fDescricao) ? null : _fDescricao.Trim();
+        alvo.Lembrete = int.TryParse(_fLembrete, out var min) ? min : null;
+        if (todos)
+        {
+            // Todos: o formulário mostra a ocorrência clicada; a mudança de horário vale para a primeira também
+            var deslocamento = ini - _ocorrencia.ToDateTime(TimeOnly.FromDateTime(e.Inicio));
+            alvo.Inicio += deslocamento;
+            alvo.Fim = alvo.Inicio + (fim - ini);
+        }
+        else
+        {
+            (alvo.Inicio, alvo.Fim) = (ini, fim);
+        }
+        if (alvo == e)
+        {
+            alvo.Repeticao = _fRepeticao;
+            alvo.Intervalo = Math.Clamp(_fIntervalo, 1, 99);
+            alvo.DiasSemana = _fRepeticao == RepeticaoAgenda.Semanal ? [.. _fDiasSemana.Distinct().Order()] : [];
+            alvo.RepetirAte = _fRepeticao == RepeticaoAgenda.Nenhuma ? null : _fRepetirAte;
+            if (_fRepeticao == RepeticaoAgenda.Nenhuma) alvo.Excecoes = [];
+        }
+
+        if (_novo)
+        {
+            alvo.Id = ArmazenamentoService.NovoId();
+            alvo.Criado = Hoje;
+            A.Eventos.Add(alvo);
+        }
+        // Evento numa agenda oculta: mostra a agenda, senão ele "some" ao salvar
+        A.Ocultas.Remove(alvo.AgendaId);
+        Store.Salvar();
+        Toast.Ok(_novo ? "Evento criado." : "Evento atualizado.");
+        FecharEditor();
+    }
+
+    private async Task ExcluirEvento()
+    {
+        if (_editando is not { } e) return;
+        if (AgendaCalculos.Repete(e))
+        {
+            var alcance = await Perguntar("Excluir o evento");
+            if (alcance is null) return;
+            if (alcance == Alcance.SoEste) AgendaCalculos.ExcluirOcorrencia(e, _ocorrencia);
+            else A.Eventos.Remove(e);
+        }
+        else
+        {
+            if (!await Dialogo.Confirmar($"Excluir o evento \"{e.Titulo}\"?")) return;
+            A.Eventos.Remove(e);
+        }
+        Store.Salvar();
+        FecharEditor();
+        Toast.Ok("Evento excluído.");
+    }
+}

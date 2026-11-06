@@ -41,6 +41,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     // Formato das linhas que não têm um modelo próprio no app
     private record QuadroLinha(string Id, string Nome, string? Emoji, int Ordem);
     private record ColunaLinha(string Id, string QuadroId, string Nome, int Ordem);
+    private record AgendaLinha(string Id, string Nome, string Cor, int Ordem);
     private record PerfilLinha(double? Altura, double? Meta, string? Tema, string? CorDestaque, List<string>? ModulosOcultos);
 
     /// <summary>
@@ -104,6 +105,24 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
                 q.Colunas.Insert(Math.Clamp(l.Ordem, 0, q.Colunas.Count), new ColunaQuadro { Id = id, Nome = l.Nome });
             }),
         Lista("cards", d => d.Tarefas.Cards, c => c.Id),
+        new("agendas", typeof(AgendaLinha),
+            d => d.Agenda.Agendas.Select((a, i) => (a.Id, (object)new AgendaLinha(a.Id, a.Nome, a.Cor, i))),
+            (d, o, id) =>
+            {
+                var agendas = d.Agenda.Agendas;
+                var atual = agendas.FindIndex(a => a.Id == id);
+                if (o is not AgendaLinha l)
+                {
+                    if (atual >= 0) agendas.RemoveAt(atual);
+                    return;
+                }
+                var a = atual >= 0 ? agendas[atual] : new AgendaCor { Id = id };
+                a.Nome = l.Nome;
+                a.Cor = l.Cor;
+                if (atual >= 0) agendas.RemoveAt(atual);
+                agendas.Insert(Math.Clamp(l.Ordem, 0, agendas.Count), a);
+            }),
+        Lista("eventos", d => d.Agenda.Eventos, e => e.Id),
     ];
 
     private static Tabela Lista<T>(string nome, Func<EstadoApp, List<T>> lista, Func<T, string> id) where T : class => new(
@@ -121,14 +140,18 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         });
 
     /// <summary>Linhas (já no formato do servidor) de todos os dados: tabela → id → linha.</summary>
-    private static Dictionary<string, Dictionary<string, JsonObject>> Linhas(EstadoApp d)
+    private Dictionary<string, Dictionary<string, JsonObject>> Linhas(EstadoApp d)
     {
         var r = new Dictionary<string, Dictionary<string, JsonObject>>();
         foreach (var t in Tabelas)
         {
             var linhas = r[t.Nome] = [];
             foreach (var (id, linha) in t.Ler(d))
-                linhas[id] = JsonSerializer.SerializeToNode(linha, t.Tipo, Json)!.AsObject();
+            {
+                var l = JsonSerializer.SerializeToNode(linha, t.Tipo, Json)!.AsObject();
+                TirarColunasNovas(t.Nome, l);
+                linhas[id] = l;
+            }
         }
         return r;
     }
@@ -227,6 +250,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
                 Avisar(problema: conta.Logado ? "Sem conexão com o servidor. As mudanças ficam guardadas e vão depois." : "Sessão encerrada. Entre na conta de novo para voltar a sincronizar.");
                 return;
             }
+            await VerificarTabelasNovas();
             _base ??= LerBase();
             if (_base is null) await Primeira();
             else
@@ -235,7 +259,8 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
                 await Receber(_base);
             }
             await Capas(_base!);
-            Avisar(problema: null);
+            Avisar(problema: _faltam.Count == 0 ? null
+                : $"Falta rodar no Supabase: {string.Join(", ", _faltam.Order().Select(m => "supabase/migrations/" + m))}. O resto está sincronizado.");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -245,6 +270,62 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         {
             Avisar(problema: $"Não foi possível sincronizar: {ex.Message}");
         }
+    }
+
+    // ----- Tabelas que vieram depois (migrations rodadas à mão) -----
+
+    /// <summary>Tabelas de migrations novas: enquanto não existirem no servidor, ficam de fora e o resto sincroniza normalmente.</summary>
+    private static readonly (string Tabela, string Migration)[] TabelasNovas =
+    [
+        ("agendas", "0003_agenda.sql"),
+        ("eventos", "0003_agenda.sql"),
+    ];
+
+    /// <summary>Colunas novas em tabelas que já existiam: enquanto faltarem, a coluna não é enviada nem recebida.</summary>
+    private static readonly (string Tabela, string Coluna, string Migration)[] ColunasNovas =
+    [
+        ("cards", "prazo_hora", "0004_tarefas_hora.sql"),
+    ];
+
+    private readonly HashSet<string> _semTabela = [];
+    private readonly HashSet<(string Tabela, string Coluna)> _semColuna = [];
+    private readonly HashSet<string> _faltam = []; // migrations que ainda não rodaram
+    private bool _tabelasConferidas;
+
+    private async Task VerificarTabelasNovas()
+    {
+        if (_tabelasConferidas) return;
+        _semTabela.Clear();
+        _semColuna.Clear();
+        _faltam.Clear();
+        foreach (var (nome, migration) in TabelasNovas)
+        {
+            try { await supabase.Enviar(HttpMethod.Get, $"/rest/v1/{nome}?select=id&limit=1"); }
+            // PGRST205: a tabela não está no esquema (a migration ainda não rodou)
+            catch (SupabaseErro ex) when (ex.Status == 404 || ex.Codigo is "PGRST205" or "42P01")
+            {
+                _semTabela.Add(nome);
+                _faltam.Add(migration);
+            }
+        }
+        foreach (var (tabela, coluna, migration) in ColunasNovas)
+        {
+            try { await supabase.Enviar(HttpMethod.Get, $"/rest/v1/{tabela}?select={coluna}&limit=1"); }
+            // 42703: a coluna não existe; PGRST204: não está no cache do esquema
+            catch (SupabaseErro ex) when (ex.Codigo is "42703" or "PGRST204")
+            {
+                _semColuna.Add((tabela, coluna));
+                _faltam.Add(migration);
+            }
+        }
+        _tabelasConferidas = _faltam.Count == 0;
+    }
+
+    /// <summary>Tira da linha as colunas que o servidor ainda não tem (para enviar e para comparar com a base do mesmo jeito).</summary>
+    private void TirarColunasNovas(string tabela, JsonObject linha)
+    {
+        foreach (var (t, coluna) in _semColuna)
+            if (t == tabela) linha.Remove(coluna);
     }
 
     private void Avisar(string? problema)
@@ -264,6 +345,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
 
         foreach (var t in Tabelas)
         {
+            if (_semTabela.Contains(t.Nome)) continue;
             var local = locais[t.Nome];
             var anterior = b.Linhas.GetValueOrDefault(t.Nome) ?? [];
 
@@ -307,6 +389,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
             "abastecimentos" or "manutencoes" or "documentos_carro" => Tem("veiculos", "veiculo_id"),
             "colunas" => Tem("quadros", "quadro_id"),
             "cards" => Tem("quadros", "quadro_id") && Tem("colunas", "coluna_id"),
+            "eventos" => Tem("agendas", "agenda_id"),
             _ => true,
         };
     }
@@ -320,6 +403,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         var cursores = new Dictionary<string, DateTimeOffset>();
         foreach (var t in Tabelas)
         {
+            if (_semTabela.Contains(t.Nome)) continue;
             var (linhas, cursor) = await Buscar(t, b.Cursores.TryGetValue(t.Nome, out var c) ? c : null);
             if (cursor is { } novo) cursores[t.Nome] = novo;
             var anterior = b.Linhas.GetValueOrDefault(t.Nome) ?? [];
@@ -377,12 +461,18 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
                 var id = t.Perfil ? IdPerfil : o["id"]!.GetValue<string>();
                 var excluida = !t.Perfil && o["excluido_em"] is JsonValue;
                 // Passa pelo modelo e volta: fica no mesmo formato das linhas geradas pelo app
-                r.Add((id, excluida ? null : JsonSerializer.SerializeToNode(o.Deserialize(t.Tipo, Json), t.Tipo, Json)!.AsObject()));
+                JsonObject? linha = null;
+                if (!excluida)
+                {
+                    linha = JsonSerializer.SerializeToNode(o.Deserialize(t.Tipo, Json), t.Tipo, Json)!.AsObject();
+                    TirarColunasNovas(t.Nome, linha);
+                }
+                r.Add((id, linha));
             }
             if (linhas.Count < Pagina) break;
         }
-        // Quadros e colunas entram na posição da "ordem": aplicar em ordem crescente monta a lista certa
-        if (t.Nome is "quadros" or "colunas")
+        // Quadros, colunas e agendas entram na posição da "ordem": aplicar em ordem crescente monta a lista certa
+        if (t.Nome is "quadros" or "colunas" or "agendas")
             r = [.. r.OrderBy(x => x.Item2?["ordem"]?.GetValue<int>() ?? 0)];
         return (r, cursor);
     }
@@ -453,6 +543,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         var doServidor = new List<(Tabela T, string Id, JsonObject Linha)>();
         foreach (var t in Tabelas)
         {
+            if (_semTabela.Contains(t.Nome)) continue;
             var (linhas, cursor) = await Buscar(t, null);
             if (cursor is { } c) b.Cursores[t.Nome] = c;
             doServidor.AddRange(linhas.Where(l => l.Linha is not null).Select(l => (t, l.Id, l.Linha!)));

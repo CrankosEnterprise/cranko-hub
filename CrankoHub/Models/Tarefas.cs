@@ -48,6 +48,9 @@ public class CardTarefa
 
     public DateOnly? Prazo { get; set; }
 
+    /// <summary>Horário de entrega no dia do prazo (null = sem hora marcada). Só vale com <see cref="Prazo"/>.</summary>
+    public TimeOnly? PrazoHora { get; set; }
+
     /// <summary>"baixa", "media" ou "alta". Ver <see cref="PrioridadeTarefa"/>.</summary>
     public string Prioridade { get; set; } = "media";
 

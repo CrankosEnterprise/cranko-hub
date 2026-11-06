@@ -203,6 +203,33 @@ public class ArmazenamentoService
             c.Checklist.RemoveAll(i => i is null);
             var q = t.Quadros.First(q => q.Id == c.QuadroId);
             if (q.Colunas.All(col => col.Id != c.ColunaId)) c.ColunaId = q.Colunas[0].Id;
+            if (c.Prazo is null) c.PrazoHora = null;
+        }
+
+        // Agenda: sempre pelo menos uma agenda (a principal tem id fixo, para não duplicar entre aparelhos)
+        var ag = s.Agenda ??= new DadosAgenda();
+        ag.Agendas ??= [];
+        ag.Agendas.RemoveAll(x => x is null);
+        foreach (var x in ag.Agendas.Where(x => string.IsNullOrEmpty(x.Id))) x.Id = NovoId();
+        foreach (var x in ag.Agendas.Where(x => string.IsNullOrEmpty(x.Cor))) x.Cor = CoresAgenda.Todas[0];
+        if (ag.Agendas.Count == 0) ag.Agendas.Add(AgendaCalculos.NovaPrincipal());
+        ag.Ocultas ??= [];
+        ag.Ocultas.RemoveAll(id => ag.Agendas.All(x => x.Id != id));
+        ag.QuadrosOcultos ??= [];
+        ag.QuadrosOcultos.RemoveAll(id => t.Quadros.All(q => q.Id != id));
+        if (ag.Visao is not (VisaoAgenda.Dia or VisaoAgenda.Semana or VisaoAgenda.Mes)) ag.Visao = VisaoAgenda.Semana;
+        ag.Eventos ??= [];
+        ag.Eventos.RemoveAll(e => e is null);
+        foreach (var e in ag.Eventos)
+        {
+            if (string.IsNullOrEmpty(e.Id)) e.Id = NovoId();
+            if (ag.Agendas.All(x => x.Id != e.AgendaId)) e.AgendaId = ag.Agendas[0].Id;
+            e.Titulo ??= "";
+            e.Repeticao ??= RepeticaoAgenda.Nenhuma;
+            e.DiasSemana ??= [];
+            e.Excecoes ??= [];
+            if (e.Intervalo < 1) e.Intervalo = 1;
+            if (e.Fim < e.Inicio) e.Fim = e.DiaInteiro ? e.Inicio.Date.AddDays(1) : e.Inicio.AddHours(1);
         }
         return s;
     }

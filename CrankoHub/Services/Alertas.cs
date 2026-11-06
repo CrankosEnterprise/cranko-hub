@@ -65,9 +65,9 @@ public static class Alertas
         }
 
         // Tarefas atrasadas ou com prazo hoje
-        foreach (var c in d.Tarefas.Cards.Where(c => Ver(Modulo.Tarefas) && TarefasCalculos.Aberto(c) && c.Prazo <= hoje).OrderBy(c => c.Prazo))
+        foreach (var c in d.Tarefas.Cards.Where(c => Ver(Modulo.Tarefas) && TarefasCalculos.Aberto(c) && c.Prazo <= hoje).OrderBy(c => c.Prazo).ThenBy(c => c.PrazoHora ?? TimeOnly.MaxValue))
         {
-            var (texto, classe) = TarefasCalculos.Prazo(c.Prazo!.Value, hoje);
+            var (texto, classe) = TarefasCalculos.Prazo(c, hoje.ToDateTime(TimeOnly.FromDateTime(DateTime.Now)));
             var q = TarefasCalculos.QuadroDe(d.Tarefas, c);
             lista.Add(new($"tarefa:{c.Id}", c.Titulo,
                 $"{(q is null ? "" : TarefasCalculos.NomeQuadro(q) + " · ")}prioridade {PrioridadeTarefa.Buscar(c.Prioridade).Nome.ToLowerInvariant()}",

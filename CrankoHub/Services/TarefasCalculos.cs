@@ -61,13 +61,14 @@ public static class TarefasCalculos
         t.Cards.Where(c => Aberto(c) ? c.Foco || c.Prazo <= hoje : c.Concluido == hoje)
             .OrderBy(c => c.Concluido is not null)
             .ThenBy(c => c.Prazo ?? DateOnly.MaxValue)
+            .ThenBy(c => c.PrazoHora ?? TimeOnly.MaxValue)
             .ThenBy(c => PrioridadeIndice(c.Prioridade))
             .ToList();
 
     public static Resumo ResumoDoDia(DadosTarefas t, DateOnly hoje) => new(
         t.Cards.Where(c => c.Concluido == hoje).ToList(),
         t.Cards.Where(c => Aberto(c) && (c.Prazo == hoje || (c.Foco && !(c.Prazo < hoje)))).ToList(),
-        t.Cards.Where(c => Atrasada(c, hoje)).OrderBy(c => c.Prazo).ToList());
+        t.Cards.Where(c => Atrasada(c, hoje)).OrderBy(c => c.Prazo).ThenBy(c => c.PrazoHora ?? TimeOnly.MaxValue).ToList());
 
     public static int PrioridadeIndice(string chave)
     {
@@ -90,6 +91,22 @@ public static class TarefasCalculos
             _ => (Formatacao.DataCurta(prazo), ""),
         };
     }
+
+    /// <summary>Badge do prazo com o horário de entrega, se houver ("hoje às 14:00"; aberta e já passou da hora: "venceu às 14:00").</summary>
+    public static (string Texto, string Classe) Prazo(CardTarefa c, DateTime agora)
+    {
+        if (c.Prazo is not DateOnly p) return ("", "");
+        var hoje = DateOnly.FromDateTime(agora);
+        var (texto, classe) = Prazo(p, hoje);
+        if (c.PrazoHora is not TimeOnly h) return (texto, classe);
+        var dias = p.DayNumber - hoje.DayNumber;
+        if (dias < 0) return (texto, classe);
+        if (dias == 0 && Aberto(c) && h < TimeOnly.FromDateTime(agora)) return ($"venceu às {Hora(h)}", "critical");
+        return ($"{texto} às {Hora(h)}", classe);
+    }
+
+    /// <summary>Hora do prazo como na Agenda ("14:00").</summary>
+    public static string Hora(TimeOnly h) => h.ToString("HH:mm");
 
     public static string NomeQuadro(Quadro q) => string.IsNullOrEmpty(q.Emoji) ? q.Nome : $"{q.Emoji} {q.Nome}";
 }
