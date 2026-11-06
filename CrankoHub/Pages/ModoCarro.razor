@@ -14,9 +14,13 @@
 @{
     var musica = Modo.Musica;
     var pos = Modo.Posicao;
+    // Layout escolhido em Configurações → Modo Carro (ou no botão de layout): o CSS faz a disposição
+    var cfg = Store.Dados.Config;
+    var tela = LayoutsCarro.Valido(cfg.LayoutCarro);
+    var atalhos = !cfg.AtalhosOcultosCarro.Contains(tela);
 }
 
-<div class="modo-carro">
+<div @ref="_raiz" class="modo-carro layout-@tela @(cfg.PainelCarroEsquerda ? "esquerda" : "") @(atalhos ? "" : "sem-atalhos")" style="@EstiloPainel(cfg, tela)">
     @if (!Modo.Disponivel)
     {
         <header class="mc-status">
@@ -161,9 +165,24 @@
             }
         </div>
 
-        <aside class="mc-lado @(Rota.Atual is null && Rota.Destino is not null ? "previa" : "")">
+        @if (LayoutsCarro.TemTamanho(tela))
+        {
+            @* Arrastar muda o tamanho (modo-carro-layout.js); toque duplo volta ao padrão *@
+            <div class="mc-divisoria" role="separator" aria-label="Arraste para mudar o tamanho" title="Arraste para mudar o tamanho (toque duplo: padrão)"
+                 data-min="@LayoutsCarro.Minimo(tela)" data-max="@LayoutsCarro.Maximo(tela)"></div>
+        }
+
+        var previa = Rota.Atual is null && Rota.Destino is not null;
+        <aside class="mc-lado @(previa ? "previa" : "") @(tela == LayoutsCarro.Mapa && _miniRecolhido && !previa ? "recolhido" : "")">
             <header class="mc-status">
                 <b class="mc-hora">@DateTime.Now.ToString("HH:mm")</b>
+                @if (tela == LayoutsCarro.Mapa)
+                {
+                    <button class="mc-icone" type="button" aria-label="@(_miniRecolhido ? "Mostrar o Spotify" : "Esconder o Spotify")" @onclick="() => _miniRecolhido = !_miniRecolhido">
+                        @(_miniRecolhido ? Icones.Musica : Icones.Recolher)
+                    </button>
+                }
+                <button class="mc-icone" type="button" aria-label="Trocar o layout" title="Trocar o layout" @onclick="TrocarLayout">@Icones.Layout</button>
                 <button class="mc-sair" type="button" @onclick="Sair">@Icones.Sair<span>Sair</span></button>
             </header>
 
@@ -375,6 +394,7 @@
         try { await JS.InvokeVoidAsync("modoCarroGoogle.destruir"); } catch (JSException) { }
         await JS.InvokeVoidAsync("crankohub.limpar", "mc-mapa");
         if (!await AbrirMapa(google: false)) return;
+        if (_layoutPronto) await JS.InvokeVoidAsync("modoCarroLayout.mapa", _js);
         _versaoEnviada = -1;
         _enviada = null;
         StateHasChanged();
@@ -411,6 +431,13 @@
         {
             _ref = DotNetObjectReference.Create(this);
             if (!await AbrirMapa(google: Rota.UsaGoogle)) return;
+            try
+            {
+                await JS.InvokeVoidAsync("crankohub.carregarScript", "js/modo-carro-layout.js");
+                await JS.InvokeVoidAsync("modoCarroLayout.iniciar", _raiz, _ref, "mc-mapa", _js);
+                _layoutPronto = true;
+            }
+            catch (JSException) { } // sem a barra de arrastar: o tamanho ainda muda pelas Configurações
         }
         if (_focarBusca)
         {
@@ -564,6 +591,51 @@
         catch (Exception ex) { Toast.Erro($"Não foi possível enviar o log: {ex.Message}"); }
     }
 
+    // ===== Layout (Configurações → Modo Carro) =====
+
+    private ElementReference _raiz;
+    private bool _layoutPronto, _miniRecolhido;
+
+    // Tamanhos do painel em variáveis CSS: --mc-painel (paisagem) e --mc-painel-r (retrato). Sem valor = tamanho do conteúdo.
+    private static string EstiloPainel(Models.Configuracoes cfg, string layout)
+    {
+        var partes = new List<string>(2);
+        if (LayoutsCarro.Tamanho(cfg, layout, retrato: false) is { } p) partes.Add($"--mc-painel: {p}%");
+        if (LayoutsCarro.Tamanho(cfg, layout, retrato: true) is { } r) partes.Add($"--mc-painel-r: {r}%");
+        return string.Join("; ", partes);
+    }
+
+    private void TrocarLayout()
+    {
+        var cfg = Store.Dados.Config;
+        cfg.LayoutCarro = LayoutsCarro.Proximo(cfg.LayoutCarro);
+        _miniRecolhido = false;
+        Store.Salvar();
+        Toast.Ok(LayoutsCarro.Nome(cfg.LayoutCarro));
+    }
+
+    /// <summary>A barra entre o mapa e o painel foi arrastada (modo-carro-layout.js).</summary>
+    [JSInvokable]
+    public void PainelMudou(int pct, bool retrato)
+    {
+        var cfg = Store.Dados.Config;
+        var tela = LayoutsCarro.Valido(cfg.LayoutCarro);
+        if (!LayoutsCarro.TemTamanho(tela)) return;
+        cfg.TamanhoPainelCarro[LayoutsCarro.Chave(tela, retrato)] = Math.Clamp(pct, LayoutsCarro.Minimo(tela), LayoutsCarro.Maximo(tela));
+        Store.Salvar();
+        StateHasChanged();
+    }
+
+    /// <summary>Toque duplo na barra: volta ao tamanho padrão do layout.</summary>
+    [JSInvokable]
+    public void PainelPadrao(bool retrato)
+    {
+        var cfg = Store.Dados.Config;
+        cfg.TamanhoPainelCarro.Remove(LayoutsCarro.Chave(cfg.LayoutCarro, retrato));
+        Store.Salvar();
+        StateHasChanged();
+    }
+
     // ===== Resto =====
 
     private void Mudou() => _ = InvokeAsync(StateHasChanged);
@@ -586,6 +658,11 @@
         _relogio?.Dispose();
         // Também ao sair pelo botão voltar do Android. A rota continua no RotaService e volta ao abrir de novo.
         Modo.Sair();
+        if (_layoutPronto)
+        {
+            try { await JS.InvokeVoidAsync("modoCarroLayout.destruir"); }
+            catch (JSDisconnectedException) { }
+        }
         if (_mapaPronto)
         {
             try { await JS.InvokeVoidAsync($"{_js}.destruir"); }

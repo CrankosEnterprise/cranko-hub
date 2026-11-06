@@ -571,6 +571,30 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 /* O texto pode quebrar em várias linhas (celular): a altura acompanha, sem invadir a opção de baixo */
 .opcoes .check { min-height: 34px; padding: 5px 0; align-self: stretch; line-height: 1.35; }
 
+/* Configurações → Modo Carro: escolha do layout, com uma miniatura de cada (m = mapa, p = painel) */
+.lc-config { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.lc-rotulo { font-size: 13px; font-weight: 600; color: var(--text); }
+.lc-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.lc-opcao {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 8px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 600; text-align: center;
+}
+.lc-opcao.ativa { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lc-mini { position: relative; display: flex; gap: 3px; width: 88px; height: 50px; padding: 3px; border-radius: 7px; background: #111; }
+.lc-mini i { border-radius: 4px; }
+.lc-mini .m { flex: 1; background: linear-gradient(135deg, #2b3a4f, #1d2633); }
+.lc-mini .p { flex: 0 0 34%; background: var(--accent); opacity: .85; }
+.lc-mini.esquerda { flex-direction: row-reverse; }
+.lc-meio .p { flex-basis: 48%; }
+.lc-musica .m { flex: 0 0 32%; }
+.lc-musica .p { flex: 1; }
+.lc-mapa .p { position: absolute; top: 6px; right: 6px; width: 30px; height: 14px; }
+.lc-mapa.esquerda .p { right: auto; left: 6px; }
+.lc-linha { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
+.lc-linha > span:first-child { flex: 1 1 200px; }
+.lc-linha input[type=range] { flex: 1 1 160px; accent-color: var(--accent); }
+.lc-linha b { min-width: 82px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+
 /* ===== Controles estilo macOS ===== */
 .btn { height: 32px; padding: 0 14px; border-radius: 8px; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
 .btn:active { transform: none; filter: brightness(.94); }
@@ -1028,16 +1052,133 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 .mc-velocidade.acima { background: #c62828; box-shadow: inset 0 0 0 2px #ff8a80; }
 .mc-velocidade.acima small { color: #ffd6d2; }
 
-/* Paisagem: mapa à esquerda, coluna à direita */
+/* ===== Layouts (Configurações → Modo Carro; Models/ModoCarro.cs LayoutsCarro) =====
+   Classes na raiz: layout-lateral | layout-meio | layout-mapa | layout-musica, "esquerda" (painel à esquerda / em cima)
+   e "sem-atalhos". Tamanho: --mc-painel (paisagem) e --mc-painel-r (retrato), em % — do painel, ou do mapa no layout-musica.
+   A barra .mc-divisoria (modo-carro-layout.js) muda essas variáveis com o dedo. */
+.modo-carro { position: relative; }
+.mc-lado { min-width: 0; overflow-y: auto; scrollbar-width: none; }
+.mc-lado::-webkit-scrollbar { display: none; }
+.mc-icone {
+  display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 14px; border: 0;
+  background: var(--mc-card-2); color: var(--mc-texto); cursor: pointer;
+}
+.mc-icone svg { width: 22px; height: 22px; }
+.mc-icone:active { transform: scale(.96); }
+.sem-atalhos .mc-apps { display: none; }
+
+/* Barra de arrastar: ocupa o espaço entre o mapa e o painel (as margens negativas comem o gap) */
+.mc-divisoria { position: relative; z-index: 3; flex: 0 0 20px; margin: 0 -15px; display: grid; place-items: center; touch-action: none; cursor: col-resize; }
+.mc-divisoria::before { content: ""; width: 5px; height: 48px; border-radius: 3px; background: rgba(255, 255, 255, .22); transition: background .15s, transform .15s; }
+.mc-divisoria.arrastando::before { background: var(--accent); transform: scale(1.15); }
+
 @media (orientation: landscape) {
   .modo-carro { flex-direction: row; }
-  .mc-lado { width: min(340px, 42%); flex: none; justify-content: space-between; }
+  .modo-carro.esquerda { flex-direction: row-reverse; }
+  .mc-lado { flex: 0 0 var(--mc-painel, 38%); justify-content: space-between; }
   .mc-player { flex: 1; align-content: center; }
 }
-/* Retrato: mapa em cima (o que sobra), coluna embaixo */
 @media (orientation: portrait) {
+  .modo-carro.esquerda { flex-direction: column-reverse; }
   .mc-lado .mc-status { order: -1; }
-  .modo-carro > .mc-lado { flex: none; }
+  .mc-lado { flex: 0 0 var(--mc-painel-r, auto); }
+  .mc-divisoria { margin: -15px 0; cursor: row-resize; }
+  .mc-divisoria::before { width: 48px; height: 5px; }
+}
+
+/* Meio a meio e Spotify grande: player com a capa grande ao lado do nome e dos controles */
+.layout-meio .mc-player, .layout-musica .mc-player {
+  --capa: clamp(84px, 30vh, 220px);
+  grid-template-columns: var(--capa) 1fr; grid-template-rows: 1fr auto; gap: 10px 18px;
+}
+.layout-meio .mc-capa, .layout-musica .mc-capa { grid-row: 1 / 3; width: var(--capa); height: var(--capa); border-radius: 18px; }
+.layout-meio .mc-capa svg, .layout-musica .mc-capa svg { width: 30%; height: 30%; }
+.layout-meio .mc-musica, .layout-musica .mc-musica { align-self: end; }
+.layout-meio .mc-controles, .layout-musica .mc-controles { grid-column: 2; justify-content: flex-start; align-self: start; }
+.layout-musica .mc-player { --capa: clamp(96px, 46vh, 300px); gap: 14px 24px; }
+.layout-musica .mc-musica b { font-size: 26px; }
+.layout-musica .mc-musica span { font-size: 18px; }
+.layout-musica .mc-redondo { width: 64px; height: 64px; }
+.layout-musica .mc-redondo.grande { width: 84px; height: 84px; }
+/* Painel estreito (retrato, ou meio a meio num celular pequeno): capa em cima */
+@container mc-lado (max-width: 320px) {
+  .layout-meio .mc-player, .layout-musica .mc-player { grid-template-columns: 1fr; grid-template-rows: auto; justify-items: center; text-align: center; }
+  .layout-meio .mc-capa, .layout-musica .mc-capa { grid-row: auto; }
+  .layout-meio .mc-controles, .layout-musica .mc-controles { grid-column: 1; justify-content: center; }
+  .layout-meio .mc-musica, .layout-musica .mc-musica { align-items: center; max-width: 100%; }
+}
+.layout-meio .mc-lado, .layout-musica .mc-lado { container: mc-lado / inline-size; }
+
+/* Spotify grande: o tamanho é o do mapa; o painel fica com o resto */
+@media (orientation: landscape) {
+  .layout-musica .mc-mapa { flex: 0 0 var(--mc-painel, 34%); }
+  .layout-musica .mc-lado { flex: 1 1 0; }
+}
+@media (orientation: portrait) {
+  .layout-musica .mc-mapa { flex: 0 0 var(--mc-painel-r, 34%); }
+  .layout-musica .mc-lado { flex: 1 1 0; }
+  .layout-musica .mc-player { --capa: clamp(96px, 26vh, 260px); }
+}
+/* Mapa pequeno: a manobra, a barra da viagem e os botões ficam compactos */
+.layout-musica .mc-manobra { left: 8px; right: 8px; top: 8px; max-width: none; padding: 8px 12px 8px 8px; gap: 8px; }
+.layout-musica .mc-manobra-seta { width: 44px; height: 44px; }
+.layout-musica .mc-manobra-seta svg { width: 40px; height: 40px; }
+.layout-musica .mc-manobra-texto b { font-size: 24px; }
+.layout-musica .mc-manobra-texto p { font-size: 14px; }
+.layout-musica .mc-viagem { left: 8px; right: 8px; bottom: 8px; min-height: 60px; padding: 6px 6px 6px 12px; }
+.layout-musica .mc-viagem b { font-size: 19px; }
+.layout-musica .mc-encerrar { min-height: 48px; padding: 0 12px; }
+.layout-musica .mc-encerrar span { display: none; }
+.layout-musica .mc-mapa.navegando .mc-velocidade, .layout-musica .mc-mapa.navegando .mc-limite { bottom: auto; top: 96px; }
+.layout-musica .mc-mapa.navegando .mc-limite { top: 180px; }
+.layout-musica .mc-velocidade { width: 64px; height: 64px; left: 8px; bottom: 8px; }
+.layout-musica .mc-velocidade b { font-size: 23px; }
+.layout-musica .mc-limite { left: 10px; bottom: 80px; width: 52px; height: 52px; }
+.layout-musica .mc-mapa.navegando .mc-recentralizar { bottom: 76px; }
+.layout-musica .mc-recentralizar { right: 8px; bottom: 8px; padding: 0 14px; }
+.layout-musica .mc-recentralizar span, .layout-musica .mc-para-onde span { display: none; }
+.layout-musica .mc-para-onde { left: 8px; top: 8px; padding: 0 16px; }
+
+/* Mapa em tela cheia: o painel vira um mini player flutuando no canto de cima do mapa */
+.layout-mapa .mc-lado {
+  --mc-borda: calc(max(10px, env(safe-area-inset-top)) + 12px);
+  position: absolute; z-index: 4; top: var(--mc-borda); right: calc(max(10px, env(safe-area-inset-right)) + 12px);
+  width: min(360px, 42%); max-height: calc(100% - 2 * var(--mc-borda) - 90px); gap: 8px; padding: 10px;
+  border-radius: 22px; background: rgba(16, 16, 18, .94); box-shadow: 0 8px 26px rgba(0, 0, 0, .55), inset 0 0 0 1px var(--mc-linha);
+}
+.layout-mapa.esquerda .mc-lado { right: auto; left: calc(max(10px, env(safe-area-inset-left)) + 12px); }
+.layout-mapa .mc-lado.previa { max-height: calc(100% - 2 * var(--mc-borda)); }
+.layout-mapa .mc-status { order: -1; gap: 8px; padding: 0; }
+.layout-mapa .mc-hora { font-size: 22px; padding-left: 4px; }
+.layout-mapa .mc-sair { padding: 0 14px; }
+.layout-mapa .mc-sair span { display: none; }
+.layout-mapa .mc-card { padding: 10px; border-radius: 16px; }
+.layout-mapa .mc-player { flex: none; grid-template-columns: auto 1fr; gap: 8px 12px; }
+.layout-mapa .mc-capa { width: 60px; height: 60px; border-radius: 12px; }
+.layout-mapa .mc-musica b { font-size: 16px; }
+.layout-mapa .mc-musica span { font-size: 14px; }
+.layout-mapa .mc-redondo { width: 50px; height: 50px; }
+.layout-mapa .mc-redondo.grande { width: 60px; height: 60px; }
+.layout-mapa .mc-apps { gap: 8px; }
+.layout-mapa .mc-app { min-height: 52px; flex-direction: row; gap: 6px; font-size: 14px; border-radius: 14px; }
+.layout-mapa .mc-app svg { width: 20px; height: 20px; }
+.layout-mapa .mc-lado.recolhido { width: auto; }
+.layout-mapa .mc-lado.recolhido > :not(.mc-status) { display: none; }
+/* A manobra e o "Para onde?" ficam do outro lado do mini player */
+.layout-mapa .mc-manobra { max-width: calc(58% - 36px); }
+.layout-mapa.esquerda .mc-manobra, .layout-mapa.esquerda .mc-para-onde { left: auto; right: 12px; }
+/* Os créditos do mapa (obrigatórios) ficam em cima à direita: com o mini player ali, descem para o canto de baixo */
+.layout-mapa:not(.esquerda) .mc-mapa .maplibregl-ctrl-bottom-right { top: auto; bottom: 0; }
+@media (orientation: portrait) {
+  /* Em pé: o mini player fica embaixo, ocupando a largura, acima da velocidade e da barra da viagem */
+  .layout-mapa .mc-lado, .layout-mapa.esquerda .mc-lado {
+    top: auto; left: calc(max(10px, env(safe-area-inset-left)) + 12px); right: calc(max(10px, env(safe-area-inset-right)) + 12px);
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 104px); width: auto; max-height: 55%;
+  }
+  .layout-mapa .mc-lado.previa { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 12px); max-height: 60%; }
+  .layout-mapa .mc-lado.recolhido { left: auto; }
+  .layout-mapa .mc-manobra { max-width: calc(100% - 84px); }
+  .layout-mapa.esquerda .mc-manobra, .layout-mapa.esquerda .mc-para-onde { left: 12px; right: auto; }
 }
 
 /* Teste do visor da central (VisorCarroService): painel por cima de tudo, para usar com o carro parado */

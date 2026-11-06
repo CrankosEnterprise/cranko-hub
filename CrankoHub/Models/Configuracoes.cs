@@ -59,4 +59,19 @@ public class Configuracoes
 
     /// <summary>Modo Carro: mostrar o botão "Testar visor da central" (diagnóstico com log).</summary>
     public bool TesteVisor { get; set; } = true;
+
+    /// <summary>Modo Carro: layout da tela (ver <see cref="LayoutsCarro"/>).</summary>
+    public string LayoutCarro { get; set; } = LayoutsCarro.Lateral;
+
+    /// <summary>
+    /// Modo Carro: tamanho escolhido do painel (% da largura na paisagem, da altura no retrato), por layout.
+    /// Chave: o layout, com "-r" no retrato (ver <see cref="LayoutsCarro.Chave"/>). Sem valor = o padrão do layout.
+    /// </summary>
+    public Dictionary<string, int> TamanhoPainelCarro { get; set; } = [];
+
+    /// <summary>Modo Carro: painel do lado esquerdo na paisagem (em cima no retrato), em vez de à direita (embaixo).</summary>
+    public bool PainelCarroEsquerda { get; set; }
+
+    /// <summary>Modo Carro: layouts em que os atalhos (Spotify, Maps, Waze) ficam escondidos.</summary>
+    public List<string> AtalhosOcultosCarro { get; set; } = [];
 }

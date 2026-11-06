@@ -88,7 +88,51 @@
         {
             <section class="card">
                 <div class="card-head"><div><h2>Modo Carro</h2><p>Navegação dentro do app (página Carro → Modo carro).</p></div></div>
+                @{
+                    var lc = LayoutsCarro.Valido(cfg.LayoutCarro);
+                    var oQue = lc == LayoutsCarro.Musica ? "mapa" : "painel";
+                }
+                <div class="lc-config">
+                    <span class="lc-rotulo">Layout da tela <span class="muted">· também troca pelo botão de layout no Modo Carro</span></span>
+                    <div class="lc-opcoes" role="radiogroup" aria-label="Layout do Modo Carro">
+                        @foreach (var l in LayoutsCarro.Todos)
+                        {
+                            <button type="button" role="radio" aria-checked="@(l == lc)" class="lc-opcao @(l == lc ? "ativa" : "")" @onclick="() => MudarLayoutCarro(l)">
+                                <span class="lc-mini lc-@l @(cfg.PainelCarroEsquerda ? "esquerda" : "")" aria-hidden="true"><i class="m"></i><i class="p"></i></span>
+                                <span>@LayoutsCarro.Nome(l)</span>
+                            </button>
+                        }
+                    </div>
+
+                    @if (LayoutsCarro.TemTamanho(lc))
+                    {
+                        @foreach (var retrato in new[] { false, true })
+                        {
+                            var r = retrato;
+                            var t = LayoutsCarro.Tamanho(cfg, lc, r);
+                            <label class="lc-linha">
+                                <span>Tamanho do @oQue <span class="muted">· @(r ? "celular em pé" : "celular deitado")</span></span>
+                                <input type="range" min="@LayoutsCarro.Minimo(lc)" max="@LayoutsCarro.Maximo(lc)" step="1"
+                                       value="@(t ?? LayoutsCarro.Minimo(lc))" @onchange="e => MudarTamanhoCarro(e, r)" />
+                                <b>@(t is { } v ? $"{v}%" : "Automático")</b>
+                            </label>
+                        }
+                        <div class="lc-linha">
+                            <span class="muted">Também dá para arrastar a barra entre o mapa e o painel no Modo Carro (toque duplo nela volta ao padrão).</span>
+                            <button type="button" class="btn" @onclick="PadraoTamanhoCarro">Tamanho padrão</button>
+                        </div>
+                    }
+
+                    <div class="lc-linha">
+                        <span>Lado do @(lc == LayoutsCarro.Mapa ? "mini player" : oQue == "mapa" ? "Spotify" : "painel")</span>
+                        <div class="chips">
+                            <button type="button" class="chip @(!cfg.PainelCarroEsquerda ? "active" : "")" @onclick="() => MudarLadoCarro(false)">Direita · embaixo</button>
+                            <button type="button" class="chip @(cfg.PainelCarroEsquerda ? "active" : "")" @onclick="() => MudarLadoCarro(true)">Esquerda · em cima</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="opcoes">
+                    <label class="check"><input type="checkbox" checked="@(!cfg.AtalhosOcultosCarro.Contains(lc))" @onchange="MudarAtalhosCarro"> <span>Atalhos do Spotify, Maps e Waze neste layout <span class="muted">· a hora e o Sair continuam aparecendo</span></span></label>
                     <label class="check"><input type="checkbox" checked="@cfg.VozModoCarro" @onchange="@(e => Mudar(e, v => cfg.VozModoCarro = v))"> <span>Avisos por voz na rota <span class="muted">· manobras, radares, pedágios e limite de velocidade</span></span></label>
                     <label class="check"><input type="checkbox" checked="@cfg.EvitarPedagios" @onchange="@(e => Mudar(e, v => cfg.EvitarPedagios = v))"> <span>Evitar pedágios nas rotas <span class="muted">· também dá para mudar na escolha da rota</span></span></label>
                     <label class="check"><input type="checkbox" checked="@cfg.VisorCentral" @onchange="@(e => Mudar(e, v => cfg.VisorCentral = v))"> <span>Mostrar a rota no visor da central <span class="muted">· pelo Bluetooth: a próxima curva no lugar do nome da música, durante a rota</span></span></label>
@@ -271,6 +315,46 @@
     private void Mudar(ChangeEventArgs e, Action<bool> aplicar)
     {
         aplicar(e.Value is true);
+        Store.Salvar();
+    }
+
+    // ===== Layout do Modo Carro (Models/ModoCarro.cs LayoutsCarro) =====
+
+    private void MudarLayoutCarro(string layout)
+    {
+        Store.Dados.Config.LayoutCarro = layout;
+        Store.Salvar();
+    }
+
+    private void MudarTamanhoCarro(ChangeEventArgs e, bool retrato)
+    {
+        var cfg = Store.Dados.Config;
+        if (!int.TryParse(e.Value?.ToString(), out var pct)) return;
+        var lc = LayoutsCarro.Valido(cfg.LayoutCarro);
+        cfg.TamanhoPainelCarro[LayoutsCarro.Chave(lc, retrato)] = Math.Clamp(pct, LayoutsCarro.Minimo(lc), LayoutsCarro.Maximo(lc));
+        Store.Salvar();
+    }
+
+    private void PadraoTamanhoCarro()
+    {
+        var cfg = Store.Dados.Config;
+        cfg.TamanhoPainelCarro.Remove(LayoutsCarro.Chave(cfg.LayoutCarro, false));
+        cfg.TamanhoPainelCarro.Remove(LayoutsCarro.Chave(cfg.LayoutCarro, true));
+        Store.Salvar();
+    }
+
+    private void MudarLadoCarro(bool esquerda)
+    {
+        Store.Dados.Config.PainelCarroEsquerda = esquerda;
+        Store.Salvar();
+    }
+
+    private void MudarAtalhosCarro(ChangeEventArgs e)
+    {
+        var cfg = Store.Dados.Config;
+        var lc = LayoutsCarro.Valido(cfg.LayoutCarro);
+        cfg.AtalhosOcultosCarro.Remove(lc);
+        if (e.Value is not true) cfg.AtalhosOcultosCarro.Add(lc);
         Store.Salvar();
     }
 

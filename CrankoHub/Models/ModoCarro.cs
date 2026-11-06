@@ -76,6 +76,62 @@ public static class AppsCarro
 }
 
 /// <summary>
+/// Layouts da tela do Modo Carro (Configurações → Modo Carro, ou o botão de layout no próprio Modo Carro).
+/// O tamanho é o do painel (Spotify e atalhos), menos no "Spotify grande", em que é o do mapa.
+/// </summary>
+public static class LayoutsCarro
+{
+    /// <summary>Mapa grande e painel ao lado (o padrão).</summary>
+    public const string Lateral = "lateral";
+    /// <summary>Mapa e Spotify do mesmo tamanho.</summary>
+    public const string Meio = "meio";
+    /// <summary>Mapa na tela toda, com o Spotify num mini player por cima.</summary>
+    public const string Mapa = "mapa";
+    /// <summary>Spotify como tela principal e o mapa pequeno ao lado.</summary>
+    public const string Musica = "musica";
+
+    public static readonly IReadOnlyList<string> Todos = [Lateral, Meio, Mapa, Musica];
+
+    public static string Valido(string? id) => id is not null && Todos.Contains(id) ? id : Lateral;
+
+    public static string Nome(string? id) => Valido(id) switch
+    {
+        Meio => "Meio a meio",
+        Mapa => "Mapa em tela cheia",
+        Musica => "Spotify grande",
+        _ => "Mapa + painel lateral",
+    };
+
+    /// <summary>O layout tem tamanho ajustável (no "Mapa em tela cheia" o mini player tem tamanho fixo).</summary>
+    public static bool TemTamanho(string? id) => Valido(id) != Mapa;
+
+    /// <summary>Tamanho padrão em %. null = o painel fica do tamanho do conteúdo (lateral no retrato, como era antes).</summary>
+    public static int? Padrao(string? id, bool retrato) => Valido(id) switch
+    {
+        Lateral => retrato ? null : 38,
+        Meio => 50,
+        Musica => 34,
+        _ => null,
+    };
+
+    public static int Minimo(string? id) => Valido(id) switch { Meio => 35, _ => 22 };
+
+    public static int Maximo(string? id) => Valido(id) switch { Meio => 65, _ => 55 };
+
+    /// <summary>Chave de <see cref="Configuracoes.TamanhoPainelCarro"/>.</summary>
+    public static string Chave(string? id, bool retrato) => retrato ? $"{Valido(id)}-r" : Valido(id);
+
+    /// <summary>Tamanho em uso: o escolhido (dentro dos limites) ou o padrão.</summary>
+    public static int? Tamanho(Configuracoes cfg, string? id, bool retrato) =>
+        !TemTamanho(id) ? null
+        : cfg.TamanhoPainelCarro.TryGetValue(Chave(id, retrato), out var v) ? Math.Clamp(v, Minimo(id), Maximo(id))
+        : Padrao(id, retrato);
+
+    /// <summary>O próximo da lista (botão rápido no Modo Carro).</summary>
+    public static string Proximo(string? id) => Todos[(Todos.ToList().IndexOf(Valido(id)) + 1) % Todos.Count];
+}
+
+/// <summary>
 /// Teste do visor da central (Pioneer) pelo Bluetooth: o CrankoHub manda os próprios textos de "título / artista / álbum"
 /// (AVRCP) e a pessoa conta no app o que apareceu.
 /// <para>

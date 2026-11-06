@@ -198,8 +198,12 @@ window.modoCarro = (() => {
       else if (!previa && (eraPrevia || navegando)) this.seguir();
     },
 
-    // A tela girou ou mudou de tamanho
-    redimensionar() { mapa?.resize(); },
+    // A tela girou ou mudou de tamanho (layout trocado, painel arrastado): ajusta e mantém o carro no lugar
+    redimensionar() {
+      if (!mapa) return;
+      mapa.resize();
+      if (seguindo && !previa && ultima) centralizar(false);
+    },
 
     destruir() {
       marcador?.remove();

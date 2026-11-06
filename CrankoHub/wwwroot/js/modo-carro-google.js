@@ -182,7 +182,8 @@ window.modoCarroGoogle = (() => {
       }
     },
 
-    redimensionar() { /* o Google acompanha o tamanho do elemento sozinho */ },
+    // O Google acompanha o tamanho do elemento sozinho; só recoloca o carro no lugar (o centro fica à frente dele)
+    redimensionar() { if (mapa && seguindo && !previa) centralizar(false); },
 
     destruir() {
       cancelAnimationFrame(animacao);
