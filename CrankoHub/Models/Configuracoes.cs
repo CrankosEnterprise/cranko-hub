@@ -29,6 +29,15 @@ public class Configuracoes
     /// <summary>Chave da API do RAWG (jogos).</summary>
     public string? ChaveRawg { get; set; }
 
+    /// <summary>
+    /// Chave do Google Maps Platform (Maps JavaScript, Places New e Routes). Com ela, o Modo Carro usa mapa, busca e rotas
+    /// do Google; sem ela, OpenStreetMap/Photon/Valhalla. Fica só no aparelho (não vai para a conta).
+    /// </summary>
+    public string? ChaveGoogleMaps { get; set; }
+
+    /// <summary>ID do mapa do Google (vetorial, com inclinação e rotação). Sem ele, usa o DEMO_MAP_ID.</summary>
+    public string? MapaIdGoogle { get; set; }
+
     /// <summary>Módulos escondidos do menu, do Início e dos avisos (os dados continuam salvos).</summary>
     public List<string> ModulosOcultos { get; set; } = [];
 

@@ -989,6 +989,7 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 .mc-opcao-linha em { margin-left: auto; font-style: normal; font-size: 12px; font-weight: 700; color: #30d158; }
 .mc-com-pedagio { display: inline-flex; align-items: center; gap: 6px; color: #ffb300; font-weight: 700; }
 .mc-sem-pedagio { color: #30d158; font-weight: 700; }
+.mc-transito { color: #ff9f0a; font-weight: 700; }
 .mc-pedagio-ponto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ffb300; box-shadow: 0 0 0 2px #fff; flex: none; }
 .mc-evitar {
   display: flex; align-items: center; gap: 8px; flex: none; min-height: 44px; padding: 0 2px; border: 0; background: none;

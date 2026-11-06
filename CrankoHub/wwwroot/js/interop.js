@@ -49,6 +49,15 @@ window.crankohub = {
     });
   },
 
+  // Esvazia um elemento (ex.: o mapa do Google antes de abrir o do OpenStreetMap no mesmo lugar)
+  limpar(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.replaceChildren();
+    el.removeAttribute('style');
+    el.className = el.className.split(' ').filter(c => c.startsWith('mc-')).join(' ');
+  },
+
   carregarCss(url) {
     if (document.querySelector(`link[data-href="${url}"]`)) return;
     const l = document.createElement('link');

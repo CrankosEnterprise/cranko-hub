@@ -48,6 +48,23 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
 
     public event Action? Mudou;
 
+    // ===== Google (opcional) =====
+
+    private readonly GoogleMaps _google = new(http);
+    private string? _sessaoBusca;
+
+    /// <summary>Chave do Google em Configurações → Integrações, ou null (aí tudo vem do OpenStreetMap/Valhalla).</summary>
+    private string? ChaveGoogle => store.Dados.Config.ChaveGoogleMaps is { Length: > 0 } c ? c.Trim() : null;
+
+    public bool UsaGoogle => ChaveGoogle is not null;
+
+    /// <summary>Último erro do Google (chave inválida, API desativada, cota do dia): a busca e a rota seguiram sem ele.</summary>
+    public string? ErroGoogle { get; private set; }
+
+    // Teto de rotas pedidas por destino (prévia + recálculos): um defeito em loop não gasta a cota do Google
+    private const int MaximoRotasPorViagem = 25;
+    private int _rotasPedidas;
+
     // ===== Busca =====
 
     private const double RaioBuscaGraus = 3; // ~300 km em volta da posição
@@ -59,7 +76,24 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
     /// </summary>
     public async Task<List<LugarBusca>> Buscar(string texto, PosicaoCarro? perto, CancellationToken ct)
     {
-        var q = $"https://photon.komoot.io/api/?q={Uri.EscapeDataString(texto)}&limit=12";
+        if (ChaveGoogle is { } chave)
+        {
+            try
+            {
+                // Uma "sessão" do Google = as sugestões enquanto digita + a escolhida (cobradas juntas)
+                _sessaoBusca ??= Guid.NewGuid().ToString();
+                var sugestoes = await _google.Autocompletar(chave, texto, perto, _sessaoBusca, ct);
+                ErroGoogle = null;
+                return sugestoes;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                ErroGoogle = ex.Message; // segue pelo Photon
+            }
+        }
+
+        var q =$"https://photon.komoot.io/api/?q={Uri.EscapeDataString(texto)}&limit=12";
         var lugares = new List<LugarBusca>();
         if (perto is not null)
         {
@@ -119,13 +153,36 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
     {
         Destino = destino;
         _origemPrevia = _posicao = origem;
-        GuardarRecente(destino);
         Calculando = true;
         Opcoes = null;
         Versao++;
         Mudou?.Invoke();
 
-        var opcoes = await Calcular(origem, destino, alternativas: 2);
+        // Sugestão do Google: pede a posição agora (fecha a "sessão" da busca)
+        if (destino.PlaceId is not null)
+        {
+            try
+            {
+                destino = await _google.Resolver(ChaveGoogle ?? "", destino, _sessaoBusca ?? Guid.NewGuid().ToString());
+                Destino = destino;
+            }
+            catch (Exception ex)
+            {
+                ErroGoogle = ex.Message;
+                Destino = null;
+                Calculando = false;
+                Mudou?.Invoke();
+                return false;
+            }
+            finally
+            {
+                _sessaoBusca = null;
+            }
+        }
+        GuardarRecente(destino);
+        _rotasPedidas = 0;
+
+        var opcoes = await Calcular(origem, destino, alternativas: 2, previa: true);
         Calculando = false;
         if (opcoes.Count == 0)
         {
@@ -191,10 +248,39 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
         Mudou?.Invoke();
     }
 
+    // ===== Cálculo: Google (com chave) ou Valhalla =====
+
+    /// <summary>
+    /// Rota principal + alternativas, cada uma com limites e praças de pedágio. Com a chave do Google, as rotas vêm dele
+    /// (trânsito; na prévia, também o preço do pedágio); se o Google falhar, cai no Valhalla.
+    /// </summary>
+    private async Task<List<RotaAtiva>> Calcular(PosicaoCarro origem, LugarBusca destino, int alternativas, bool previa)
+    {
+        if (++_rotasPedidas > MaximoRotasPorViagem) return [];
+        if (ChaveGoogle is { } chave)
+        {
+            try
+            {
+                var rotas = await _google.Rotas(chave, origem, destino, alternativas > 0, store.Dados.Config.EvitarPedagios, comPedagio: previa);
+                ErroGoogle = null;
+                if (rotas.Count > 0)
+                {
+                    await Task.WhenAll(rotas.Select(Detalhar));
+                    return rotas;
+                }
+            }
+            catch (Exception ex)
+            {
+                ErroGoogle = ex.Message;
+            }
+        }
+        return await CalcularValhalla(origem, destino, alternativas);
+    }
+
     // ===== Valhalla =====
 
-    /// <summary>Rota principal + até <paramref name="alternativas"/> alternativas, cada uma com as praças de pedágio.</summary>
-    private async Task<List<RotaAtiva>> Calcular(PosicaoCarro origem, LugarBusca destino, int alternativas)
+    /// <summary>Rota principal + até <paramref name="alternativas"/> alternativas pelo Valhalla.</summary>
+    private async Task<List<RotaAtiva>> CalcularValhalla(PosicaoCarro origem, LugarBusca destino, int alternativas)
     {
         var rotas = new List<RotaAtiva>();
         try
@@ -237,7 +323,7 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
         var perna = viagem.GetProperty("legs")[0];
         var forma = perna.GetProperty("shape").GetString()!;
         var resumo = viagem.GetProperty("summary");
-        var rota = new RotaAtiva(destino, Decodificar(forma), resumo.GetProperty("length").GetDouble() * 1000, resumo.GetProperty("time").GetDouble())
+        var rota = new RotaAtiva(destino, GoogleMaps.Decodificar(forma, 1e6), resumo.GetProperty("length").GetDouble() * 1000, resumo.GetProperty("time").GetDouble())
         {
             Forma = forma,
             TemPedagio = resumo.TryGetProperty("has_toll", out var p) && p.GetBoolean(),
@@ -255,18 +341,46 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
     /// Pede ao Valhalla os atributos da linha (<c>trace_attributes</c>): o limite de velocidade de cada trecho e os nós
     /// que são praça de pedágio. Se falhar, a rota segue sem eles.
     /// </summary>
+    private const double PedacoDetalheMetros = 150_000; // o trace do servidor público tem limite de distância
+
     private async Task Detalhar(RotaAtiva rota)
+    {
+        foreach (var (de, ate) in Pedacos(rota)) await DetalharPedaco(rota, de, ate);
+    }
+
+    /// <summary>Índices [de, ate] da linha em pedaços de até ~150 km.</summary>
+    private static IEnumerable<(int De, int Ate)> Pedacos(RotaAtiva rota)
+    {
+        var fim = rota.Coordenadas.Length - 1;
+        var inicio = 0;
+        for (var i = 1; i <= fim; i++)
+        {
+            if (i == fim || rota.MetrosAte(i) - rota.MetrosAte(inicio) >= PedacoDetalheMetros)
+            {
+                yield return (inicio, i);
+                inicio = i;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Um pedaço da linha no <c>trace_attributes</c> do Valhalla. A rota do próprio Valhalla casa direto com o mapa dele
+    /// (<c>edge_walk</c>); a do Google é encaixada (<c>map_snap</c>). Os trechos voltam numa linha própria (<c>shape</c>),
+    /// e cada ponto dela é projetado na rota para saber os metros desde o começo.
+    /// </summary>
+    private async Task DetalharPedaco(RotaAtiva rota, int de, int ate)
     {
         try
         {
+            var pontos = rota.Coordenadas[de..(ate + 1)];
             var pedido = new
             {
-                encoded_polyline = rota.Forma,
-                shape_match = "edge_walk",
+                encoded_polyline = GoogleMaps.Codificar(pontos, 1e6),
+                shape_match = rota.DoGoogle ? "map_snap" : "edge_walk",
                 costing = "auto",
                 filters = new
                 {
-                    attributes = new[] { "edge.begin_shape_index", "edge.end_shape_index", "edge.speed_limit", "edge.names", "node.type" },
+                    attributes = new[] { "shape", "edge.begin_shape_index", "edge.end_shape_index", "edge.speed_limit", "edge.names", "node.type" },
                     action = "include",
                 },
             };
@@ -274,25 +388,39 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
                 new StringContent(JsonSerializer.Serialize(pedido), Encoding.UTF8, "application/json"));
             using var json = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
             if (!json.RootElement.TryGetProperty("edges", out var arestas)) return;
+            var forma = json.RootElement.TryGetProperty("shape", out var s) && s.GetString() is { Length: > 0 } f ? GoogleMaps.Decodificar(f, 1e6) : pontos;
+
+            // Projeta sempre para frente, perto do último ponto achado (a linha é percorrida em ordem)
+            var janela = de;
+            double Metros(int indice)
+            {
+                var p = forma[Math.Clamp(indice, 0, forma.Length - 1)];
+                var (ao, idx, _) = rota.Projetar(p[1], p[0], Math.Max(0, janela - 5), janela + 400);
+                janela = idx;
+                return ao;
+            }
+
             foreach (var a in arestas.EnumerateArray())
             {
-                var de = rota.MetrosAte(a.TryGetProperty("begin_shape_index", out var b) ? b.GetInt32() : 0);
-                var ate = rota.MetrosAte(a.TryGetProperty("end_shape_index", out var e) ? e.GetInt32() : 0);
+                var iDe = a.TryGetProperty("begin_shape_index", out var b) ? b.GetInt32() : 0;
+                var iAte = a.TryGetProperty("end_shape_index", out var e) ? e.GetInt32() : iDe;
+                var metrosDe = Metros(iDe);
+                var metrosAte = Metros(iAte);
 
                 // Limite: 0 = desconhecido; trechos seguidos com o mesmo limite viram um só
-                if (a.TryGetProperty("speed_limit", out var sl) && sl.ValueKind == JsonValueKind.Number && sl.GetInt32() is var kmh and > 0 and < 200)
+                if (a.TryGetProperty("speed_limit", out var sl) && sl.ValueKind == JsonValueKind.Number && sl.GetInt32() is var kmh and > 0 and < 200 && metrosAte > metrosDe)
                 {
-                    if (rota.Limites.Count > 0 && rota.Limites[^1] is var ultimo && ultimo.Kmh == kmh && de - ultimo.Fim < 1)
-                        rota.Limites[^1] = ultimo with { Fim = ate };
-                    else rota.Limites.Add(new TrechoLimite(de, ate, kmh));
+                    if (rota.Limites.Count > 0 && rota.Limites[^1] is var ultimo && ultimo.Kmh == kmh && metrosDe - ultimo.Fim < 30)
+                        rota.Limites[^1] = ultimo with { Fim = metrosAte };
+                    else rota.Limites.Add(new TrechoLimite(metrosDe, metrosAte, kmh));
                 }
 
                 if (!a.TryGetProperty("end_node", out var no) || !no.TryGetProperty("type", out var tipo) || tipo.GetString() != "toll_booth") continue;
-                var i = Math.Clamp(e.GetInt32(), 0, rota.Coordenadas.Length - 1);
+                var ponto = forma[Math.Clamp(iAte, 0, forma.Length - 1)];
                 string? via = a.TryGetProperty("names", out var nomes) && nomes.GetArrayLength() > 0 ? nomes[0].GetString() : null;
                 // Duas cabines da mesma praça (pistas separadas) contam uma vez só
-                if (rota.Pedagios.Any(p => Math.Abs(p.Inicio - ate) < 500)) continue;
-                rota.Pedagios.Add(new PedagioRota(via, rota.Coordenadas[i][1], rota.Coordenadas[i][0], ate));
+                if (rota.Pedagios.Any(p => Math.Abs(p.Inicio - metrosAte) < 500)) continue;
+                rota.Pedagios.Add(new PedagioRota(via, ponto[1], ponto[0], metrosAte));
             }
         }
         catch { }
@@ -324,32 +452,6 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
             lista.Add(r with { Inicio = ao });
         }
         return lista.OrderBy(r => r.Inicio).ToList();
-    }
-
-    /// <summary>Linha codificada do Valhalla (polyline, precisão 6) → [longitude, latitude].</summary>
-    private static double[][] Decodificar(string s)
-    {
-        var pontos = new List<double[]>();
-        int i = 0, lat = 0, lng = 0;
-        while (i < s.Length)
-        {
-            lat += Proximo();
-            lng += Proximo();
-            pontos.Add([lng / 1e6, lat / 1e6]);
-        }
-        return pontos.ToArray();
-
-        int Proximo()
-        {
-            int resultado = 0, deslocamento = 0, b;
-            do
-            {
-                b = s[i++] - 63;
-                resultado |= (b & 0x1f) << deslocamento;
-                deslocamento += 5;
-            } while (b >= 0x20);
-            return (resultado & 1) != 0 ? ~(resultado >> 1) : resultado >> 1;
-        }
     }
 
     /// <summary>Seta da manobra a partir do tipo do Valhalla (enum <c>Maneuver::Type</c>).</summary>
@@ -421,7 +523,7 @@ public sealed class RotaService(HttpClient http, ModoCarroService modo, Armazena
         _ultimoRecalculo = DateTime.Now;
         Calculando = true;
         Mudou?.Invoke();
-        var nova = (await Calcular(p, atual.Destino, alternativas: 0)).FirstOrDefault();
+        var nova = (await Calcular(p, atual.Destino, alternativas: 0, previa: false)).FirstOrDefault();
         Calculando = false;
         if (nova is null || Atual is null) // sem internet, ou encerrou no meio: segue com a rota antiga
         {
@@ -596,6 +698,15 @@ public sealed class RotaAtiva
 
     /// <summary>A rota passa por via com pedágio (mesmo que a praça não tenha sido achada).</summary>
     public bool TemPedagio { get; init; }
+
+    /// <summary>Rota calculada pelo Google (com trânsito); senão, pelo Valhalla.</summary>
+    public bool DoGoogle { get; init; }
+
+    /// <summary>Preço estimado do pedágio na rota inteira ("R$ 32,40"), quando o Google informa.</summary>
+    public string? PrecoPedagio { get; init; }
+
+    /// <summary>Segundos a mais por causa do trânsito agora (só nas rotas do Google).</summary>
+    public double Transito { get; init; }
 
     public List<PassoRota> Passos { get; } = [];
 

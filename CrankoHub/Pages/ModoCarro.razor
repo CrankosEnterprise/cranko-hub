@@ -187,17 +187,18 @@
                                 <button class="mc-opcao @(i == Rota.Escolhida ? "ativa" : "")" type="button" @onclick="() => Rota.Escolher(indice)">
                                     <span class="mc-opcao-linha"><b>@RotaService.TextoTempo(TimeSpan.FromSeconds(o.Duracao))</b><span>@KmTexto(o.Distancia) km</span>@if (i == 0) {<em>Mais rápida</em>}</span>
                                     <span class="mc-opcao-linha"><span>Chegada @((DateTime.Now + TimeSpan.FromSeconds(o.Duracao)).ToString("HH:mm"))</span>
-                                        @if (o.Pedagios.Count > 0)
+                                        @if (o.Pedagios.Count > 0 || o.TemPedagio)
                                         {
-                                            <span class="mc-com-pedagio"><span class="mc-pedagio-ponto"></span>@(o.Pedagios.Count == 1 ? "1 pedágio" : $"{o.Pedagios.Count} pedágios")</span>
-                                        }
-                                        else if (o.TemPedagio)
-                                        {
-                                            <span class="mc-com-pedagio"><span class="mc-pedagio-ponto"></span>Com pedágio</span>
+                                            var quantos = o.Pedagios.Count switch { 0 => "Com pedágio", 1 => "1 pedágio", var n => $"{n} pedágios" };
+                                            <span class="mc-com-pedagio"><span class="mc-pedagio-ponto"></span>@quantos@(o.PrecoPedagio is { } preco ? $" · {preco}" : "")</span>
                                         }
                                         else
                                         {
                                             <span class="mc-sem-pedagio">Sem pedágio</span>
+                                        }
+                                        @if (o.Transito >= 180)
+                                        {
+                                            <span class="mc-transito">+@Math.Round(o.Transito / 60) min de trânsito</span>
                                         }
                                         @if (o.Radares.Count > 0)
                                         {
@@ -269,6 +270,66 @@
     private PosicaoCarro? _enviada;
     private int _versaoEnviada = -1;
 
+    // Objeto JS do mapa: "modoCarroGoogle" (com a chave do Google) ou "modoCarro" (MapLibre/OpenStreetMap)
+    private string _js = "modoCarro";
+
+    /// <summary>Abre o mapa do Google (com a chave) ou o do OpenStreetMap. Se o Google não abrir, usa o OpenStreetMap.</summary>
+    private async Task<bool> AbrirMapa(bool google)
+    {
+        try
+        {
+            if (google)
+            {
+                await JS.InvokeVoidAsync("crankohub.carregarScript", "js/modo-carro-google.js");
+                var cfg = Store.Dados.Config;
+                if (await JS.InvokeAsync<bool>("modoCarroGoogle.iniciar", "mc-mapa", _ref, cfg.ChaveGoogleMaps, cfg.MapaIdGoogle))
+                {
+                    _js = "modoCarroGoogle";
+                    _mapaPronto = true;
+                    return true;
+                }
+                Toast.Erro("Não foi possível abrir o mapa do Google: usando o OpenStreetMap.");
+            }
+            await JS.InvokeVoidAsync("crankohub.carregarCss", "lib/maplibre-gl/maplibre-gl.css");
+            await JS.InvokeVoidAsync("crankohub.carregarScript", "lib/maplibre-gl/maplibre-gl.js");
+            await JS.InvokeVoidAsync("crankohub.carregarScript", "js/modo-carro.js");
+            await JS.InvokeVoidAsync("modoCarro.iniciar", "mc-mapa", _ref);
+            _js = "modoCarro";
+            _mapaPronto = true;
+            return true;
+        }
+        catch (JSException ex)
+        {
+            Toast.Erro($"Não foi possível abrir o mapa: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>O Google recusou a chave depois de abrir: troca para o mapa do OpenStreetMap e redesenha tudo.</summary>
+    [JSInvokable]
+    public async Task GoogleFalhou(string mensagem)
+    {
+        if (_js != "modoCarroGoogle") return;
+        Toast.Erro($"{mensagem} Usando o OpenStreetMap.");
+        _mapaPronto = false;
+        try { await JS.InvokeVoidAsync("modoCarroGoogle.destruir"); } catch (JSException) { }
+        await JS.InvokeVoidAsync("crankohub.limpar", "mc-mapa");
+        if (!await AbrirMapa(google: false)) return;
+        _versaoEnviada = -1;
+        _enviada = null;
+        StateHasChanged();
+    }
+
+    // Erro do Google na busca ou na rota: avisa uma vez por mensagem (a busca e a rota seguiram pelo OpenStreetMap)
+    private string? _erroGoogleAvisado;
+
+    private void AvisarErroGoogle()
+    {
+        if (Rota.ErroGoogle is not { } erro || erro == _erroGoogleAvisado) return;
+        _erroGoogleAvisado = erro;
+        Toast.Erro($"{erro} Usando o OpenStreetMap.");
+    }
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -285,20 +346,8 @@
         if (!Modo.Disponivel) return;
         if (firstRender)
         {
-            try
-            {
-                await JS.InvokeVoidAsync("crankohub.carregarCss", "lib/maplibre-gl/maplibre-gl.css");
-                await JS.InvokeVoidAsync("crankohub.carregarScript", "lib/maplibre-gl/maplibre-gl.js");
-                await JS.InvokeVoidAsync("crankohub.carregarScript", "js/modo-carro.js");
-                _ref = DotNetObjectReference.Create(this);
-                await JS.InvokeVoidAsync("modoCarro.iniciar", "mc-mapa", _ref);
-                _mapaPronto = true;
-            }
-            catch (JSException ex)
-            {
-                Toast.Erro($"Não foi possível abrir o mapa: {ex.Message}");
-                return;
-            }
+            _ref = DotNetObjectReference.Create(this);
+            if (!await AbrirMapa(google: Rota.UsaGoogle)) return;
         }
         if (_focarBusca)
         {
@@ -317,7 +366,7 @@
         Rota.Atualizar(p);
         try
         {
-            await JS.InvokeVoidAsync("modoCarro.posicao", p.Latitude, p.Longitude, p.Direcao, p.VelocidadeKmh);
+            await JS.InvokeVoidAsync($"{_js}.posicao", p.Latitude, p.Longitude, p.Direcao, p.VelocidadeKmh);
         }
         catch (JSDisconnectedException) { }
     }
@@ -335,7 +384,7 @@
         var radares = lista.Length > 0 ? lista[marcada].Radares.Select(r => new[] { r.Longitude, r.Latitude }).ToArray() : [];
         try
         {
-            await JS.InvokeVoidAsync("modoCarro.rotas", lista.Select(r => r.Coordenadas).ToArray(), marcada, pracas, radares, modo);
+            await JS.InvokeVoidAsync($"{_js}.rotas", lista.Select(r => r.Coordenadas).ToArray(), marcada, pracas, radares, modo);
         }
         catch (JSDisconnectedException) { }
     }
@@ -348,7 +397,7 @@
         StateHasChanged();
     }
 
-    private async Task Recentralizar() => await JS.InvokeVoidAsync("modoCarro.seguir");
+    private async Task Recentralizar() => await JS.InvokeVoidAsync($"{_js}.seguir");
 
     // ===== Busca de destino =====
 
@@ -390,6 +439,7 @@
         {
             await Task.Delay(450, busca.Token);
             _resultados = await Rota.Buscar(_termo.Trim(), Modo.Posicao, busca.Token);
+            AvisarErroGoogle();
         }
         catch (OperationCanceledException)
         {
@@ -411,7 +461,9 @@
             Toast.Erro("Esperando o GPS para calcular a rota.");
             return;
         }
-        if (!await Rota.Planejar(lugar, origem))
+        var ok = await Rota.Planejar(lugar, origem);
+        AvisarErroGoogle();
+        if (!ok)
             Toast.Erro("Não foi possível calcular a rota até esse lugar. Confira a internet ou tente outro destino.");
     }
 
@@ -420,8 +472,11 @@
     // Distância em linha reta na frente do endereço, para escolher o certo entre nomes iguais
     private string? Detalhe(LugarBusca l)
     {
-        if (Modo.Posicao is not { } p) return l.Detalhe;
-        var longe = RotaService.TextoDistancia(RotaService.Distancia(p.Latitude, p.Longitude, l.Latitude, l.Longitude));
+        // Sugestão do Google: ainda sem coordenada, a distância vem dele
+        double? metros = l.PlaceId is not null ? l.Metros
+            : Modo.Posicao is { } p ? RotaService.Distancia(p.Latitude, p.Longitude, l.Latitude, l.Longitude) : null;
+        if (metros is not { } m) return l.Detalhe;
+        var longe = RotaService.TextoDistancia(m);
         return l.Detalhe is null ? longe : $"{longe} · {l.Detalhe}";
     }
 
@@ -451,7 +506,7 @@
         Modo.Sair();
         if (_mapaPronto)
         {
-            try { await JS.InvokeVoidAsync("modoCarro.destruir"); }
+            try { await JS.InvokeVoidAsync($"{_js}.destruir"); }
             catch (JSDisconnectedException) { }
         }
         _ref?.Dispose();

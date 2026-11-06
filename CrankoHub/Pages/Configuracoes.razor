@@ -52,6 +52,17 @@
             </div>
             <p class="muted" style="margin-top:10px">Sem chave, filmes, séries, animações e jogos vêm da <b>Wikipedia</b> e da <b>Wikidata</b> (pôsteres de séries pelo <b>TVmaze</b>); animes do <b>AniList</b> e livros da <b>Open Library</b>. Itens pouco conhecidos podem não estar lá: aí a chave ajuda (crie grátis em <b>themoviedb.org</b> → Configurações → API e em <b>rawg.io/apidocs</b>) ou cadastre manualmente.</p>
         </section>
+
+        <section class="card">
+            <div class="card-head"><div><h2>Google Maps</h2><p>Opcional, para o Modo Carro: com a chave, o mapa, a busca (bairros, números, estabelecimentos) e as rotas (com trânsito e preço do pedágio) vêm do Google.</p></div></div>
+            <div class="form-grid">
+                <label class="field"><span>Chave da API (Maps JavaScript, Places New e Routes)</span>
+                    <input type="password" placeholder="AIza…" autocomplete="off" value="@cfg.ChaveGoogleMaps" @onchange="e => SalvarGoogle(e, chave: true)"></label>
+                <label class="field"><span>ID do mapa (opcional: mapa vetorial escuro, girando)</span>
+                    <input type="text" placeholder="Ex.: 1a2b3c4d5e6f7a8b" autocomplete="off" value="@cfg.MapaIdGoogle" @onchange="e => SalvarGoogle(e, chave: false)"></label>
+            </div>
+            <p class="muted" style="margin-top:10px">Sem chave, o Modo Carro usa o <b>OpenStreetMap</b> (mapa, busca pelo Photon e rotas pelo Valhalla). A chave fica só neste aparelho. O Google cobra acima da cota grátis do mês: configure no Google Cloud os <b>limites diários</b> de cada API e um <b>alerta de orçamento</b>. Radares e limite de velocidade continuam vindo do OpenStreetMap.</p>
+        </section>
         break;
 
     case "aplicativo":
@@ -186,6 +197,14 @@
         Store.Salvar();
         await JS.InvokeVoidAsync("crankohub.aplicarTema", tema);
         Janela.TemaMudou(tema);
+    }
+
+    private void SalvarGoogle(ChangeEventArgs e, bool chave)
+    {
+        var valor = e.Value?.ToString()?.Trim() is { Length: > 0 } v ? v : null;
+        if (chave) Store.Dados.Config.ChaveGoogleMaps = valor; else Store.Dados.Config.MapaIdGoogle = valor;
+        Store.Salvar();
+        Toast.Ok(chave ? (valor is null ? "Chave do Google removida: o Modo Carro volta ao OpenStreetMap." : "Chave do Google salva.") : "ID do mapa salvo.");
     }
 
     private void SalvarChave(ChangeEventArgs e, bool tmdb)

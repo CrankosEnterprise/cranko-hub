@@ -11,7 +11,15 @@ public sealed record PosicaoCarro(double Latitude, double Longitude, double? Dir
 
 /// <summary>Lugar achado na busca de destino (ou guardado nos recentes).</summary>
 /// <param name="Detalhe">Rua, bairro e cidade, para diferenciar resultados com o mesmo nome.</param>
-public sealed record LugarBusca(string Nome, string? Detalhe, double Latitude, double Longitude);
+public sealed record LugarBusca(string Nome, string? Detalhe, double Latitude, double Longitude)
+{
+    /// <summary>Sugestão do Google ainda sem coordenada: a posição é pedida só quando ela é escolhida.</summary>
+    public string? PlaceId { get; init; }
+
+    /// <summary>Distância até a sugestão informada pelo Google (só na lista da busca).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double? Metros { get; init; }
+}
 
 /// <summary>Uma manobra da rota.</summary>
 /// <param name="Icone">Chave da seta (ver <c>Icones.Manobra</c>): frente, esquerda, direita, leve-esquerda, leve-direita, retorno, rotatoria, chegada.</param>
