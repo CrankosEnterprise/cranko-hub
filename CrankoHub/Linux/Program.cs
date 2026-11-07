@@ -48,6 +48,7 @@ servicos.AddSingleton<SincronizacaoService>();
 servicos.AddSingleton<ModoCarroService>();
 servicos.AddSingleton<RotaService>();
 servicos.AddSingleton<VisorCarroService>();
+servicos.AddSingleton<CarroBluetoothService>();
 builder.RootComponents.Add<Main>("#app");
 
 var app = builder.Build();

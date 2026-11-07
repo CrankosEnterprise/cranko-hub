@@ -22,6 +22,9 @@ public sealed class ModoCarroService(HttpClient http)
 
     public PosicaoCarro? Posicao { get; private set; }
 
+    /// <summary>Quando chegou a última posição (o Bluetooth do carro usa para guardar onde estacionou).</summary>
+    public DateTime PosicaoEm { get; private set; }
+
     public bool SemLocalizacao { get; private set; }
 
     public MusicaAtual? Musica { get; private set; }
@@ -49,6 +52,9 @@ public sealed class ModoCarroService(HttpClient http)
     // ===== Entrar / Sair =====
 
     private bool _dentro;
+
+    /// <summary>A página do Modo Carro está aberta.</summary>
+    public bool Dentro => _dentro;
 
     public async Task Entrar()
     {
@@ -136,6 +142,7 @@ public sealed class ModoCarroService(HttpClient http)
     private void Atualizar(Location l)
     {
         Posicao = new PosicaoCarro(l.Latitude, l.Longitude, l.Course, Math.Max(0, (l.Speed ?? 0) * 3.6));
+        PosicaoEm = DateTime.Now;
         Mudou?.Invoke();
     }
 

@@ -7,6 +7,8 @@
 @inject IJSRuntime JS
 @inject BandejaService Bandeja
 @inject AtualizacaoService Atualizacao
+@inject CarroBluetoothService Bluetooth
+@implements IDisposable
 
 @{
     var d = Store.Dados;
@@ -65,6 +67,177 @@
         </section>
         break;
 
+    case "carro":
+        var lc = LayoutsCarro.Valido(cfg.LayoutCarro);
+        var oQue = lc == LayoutsCarro.Musica ? "mapa" : "painel";
+        var permissoes = Bluetooth.Permissoes();
+        var faltam = permissoes.Where(p => p.Necessaria && p.Ativada == false).ToList();
+        if (faltam.Count > 0)
+        {
+            <div class="mc-cfg-alerta" role="status">
+                <b>Falta @(faltam.Count == 1 ? "ativar 1 permissão" : $"ativar {faltam.Count} permissões") para o que você escolheu.</b>
+                <span>@string.Join(", ", faltam.Select(p => p.Nome)). Veja em <a href="configuracoes?aba=carro#permissoes-carro">Permissões do Modo Carro</a>, no fim da página.</span>
+            </div>
+        }
+
+        <section class="card">
+            <div class="card-head"><div><h2>Tela</h2><p>Como o Modo Carro (página Carro → Modo carro) divide a tela entre o mapa e o Spotify.</p></div></div>
+            <div class="lc-config">
+                <span class="lc-rotulo">Layout da tela <span class="muted">· também troca pelo botão de layout no Modo Carro</span></span>
+                <div class="lc-opcoes" role="radiogroup" aria-label="Layout do Modo Carro">
+                    @foreach (var l in LayoutsCarro.Todos)
+                    {
+                        <button type="button" role="radio" aria-checked="@(l == lc)" class="lc-opcao @(l == lc ? "ativa" : "")" @onclick="() => MudarLayoutCarro(l)">
+                            <span class="lc-mini lc-@l @(cfg.PainelCarroEsquerda ? "esquerda" : "")" aria-hidden="true"><i class="m"></i><i class="p"></i></span>
+                            <span>@LayoutsCarro.Nome(l)</span>
+                        </button>
+                    }
+                </div>
+
+                @if (LayoutsCarro.TemTamanho(lc))
+                {
+                    @foreach (var retrato in new[] { false, true })
+                    {
+                        var r = retrato;
+                        var t = LayoutsCarro.Tamanho(cfg, lc, r);
+                        <label class="lc-linha">
+                            <span>Tamanho do @oQue <span class="muted">· @(r ? "celular em pé" : "celular deitado")</span></span>
+                            <input type="range" min="@LayoutsCarro.Minimo(lc)" max="@LayoutsCarro.Maximo(lc)" step="1"
+                                   value="@(t ?? LayoutsCarro.Minimo(lc))" @onchange="e => MudarTamanhoCarro(e, r)" />
+                            <b>@(t is { } v ? $"{v}%" : "Automático")</b>
+                        </label>
+                    }
+                    <div class="lc-linha">
+                        <span class="muted">Também dá para arrastar a barra entre o mapa e o painel no Modo Carro (toque duplo nela volta ao padrão).</span>
+                        <button type="button" class="btn" @onclick="PadraoTamanhoCarro">Tamanho padrão</button>
+                    </div>
+                }
+
+                <div class="lc-linha">
+                    <span>Lado do @(lc == LayoutsCarro.Mapa ? "mini player" : oQue == "mapa" ? "Spotify" : "painel")</span>
+                    <div class="chips" role="radiogroup" aria-label="Lado do painel">
+                        <button type="button" role="radio" aria-checked="@(!cfg.PainelCarroEsquerda)" class="chip @(!cfg.PainelCarroEsquerda ? "active" : "")" @onclick="() => MudarLadoCarro(false)">Direita · embaixo</button>
+                        <button type="button" role="radio" aria-checked="@cfg.PainelCarroEsquerda" class="chip @(cfg.PainelCarroEsquerda ? "active" : "")" @onclick="() => MudarLadoCarro(true)">Esquerda · em cima</button>
+                    </div>
+                </div>
+            </div>
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@(!cfg.AtalhosOcultosCarro.Contains(lc))" @onchange="MudarAtalhosCarro"> <span>Atalhos do Spotify, Maps e Waze neste layout <span class="muted">· a hora e o Sair continuam aparecendo</span></span></label>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><div><h2>Navegação</h2><p>A rota dentro do Modo Carro.</p></div></div>
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@cfg.VozModoCarro" @onchange="@(e => Mudar(e, v => cfg.VozModoCarro = v))"> <span>Avisos por voz na rota <span class="muted">· manobras, radares, pedágios e limite de velocidade</span></span></label>
+                <label class="check"><input type="checkbox" checked="@cfg.EvitarPedagios" @onchange="@(e => Mudar(e, v => cfg.EvitarPedagios = v))"> <span>Evitar pedágios nas rotas <span class="muted">· também dá para mudar na escolha da rota</span></span></label>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><div><h2>Bluetooth do carro</h2><p>Marque a central do carro: o CrankoHub percebe quando o celular conecta (carro ligado) e desconecta (carro desligado).</p></div></div>
+            @if (Pendente(permissoes, PermissoesCarro.Bluetooth) is { } pb)
+            {
+                <PermissaoLinha Permissao="pb" AoAtivar="AtivarPermissao" />
+            }
+            else
+            {
+                var pareados = Bluetooth.Pareados();
+                var antigos = cfg.CarrosBluetooth.Where(c => pareados.All(p => !MesmoEndereco(p.Endereco, c.Endereco))).ToList();
+                <span class="lc-rotulo">Qual é o carro? <span class="muted">· aparelhos pareados neste celular (os de som primeiro)</span></span>
+                <div class="opcoes" role="group" aria-label="Aparelhos Bluetooth pareados">
+                    @if (pareados.Count == 0 && antigos.Count == 0)
+                    {
+                        <p class="muted">Nenhum aparelho pareado. Pareie a central nas configurações de Bluetooth do Android e volte aqui.</p>
+                    }
+                    @foreach (var a in pareados)
+                    {
+                        var aparelho = a;
+                        var marcado = cfg.CarrosBluetooth.Any(c => MesmoEndereco(c.Endereco, aparelho.Endereco));
+                        <label class="check" @key="aparelho.Endereco"><input type="checkbox" checked="@marcado" @onchange="e => MarcarCarro(aparelho, e.Value is true)">
+                            <span><b>@aparelho.Nome</b> <span class="muted">· @(aparelho.Audio ? "som / central" : "outro aparelho")</span></span></label>
+                    }
+                    @foreach (var c in antigos)
+                    {
+                        var carro = c;
+                        <div class="lc-linha" @key="carro.Endereco">
+                            <span><b>@carro.Nome</b> <span class="muted">· não está mais pareado</span></span>
+                            <button type="button" class="btn" aria-label="Remover @carro.Nome" @onclick="() => RemoverCarro(carro)">Remover</button>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="lc-config mc-cfg-bloco">
+                <span class="lc-rotulo">Ao ligar o carro (Bluetooth conectou)</span>
+                <div class="chips" role="radiogroup" aria-label="Ao ligar o carro">
+                    @foreach (var (valor, rotulo) in AcoesAoConectar)
+                    {
+                        <button type="button" role="radio" aria-checked="@(cfg.AoConectarCarro == valor)" class="chip @(cfg.AoConectarCarro == valor ? "active" : "")" @onclick="() => MudarAoConectar(valor)">@rotulo</button>
+                    }
+                </div>
+                <span class="muted">@(cfg.AoConectarCarro switch
+                {
+                    AcoesConexao.Abrir => "Abre o Modo Carro sozinho. Com o celular bloqueado, espera você desbloquear.",
+                    AcoesConexao.Notificar => "Aparece a notificação \"Modo Carro pronto\": toque para abrir.",
+                    _ => "Não faz nada ao ligar o carro.",
+                })</span>
+                @if (cfg.AoConectarCarro != AcoesConexao.Nada && Pendente(permissoes, PermissoesCarro.Notificacoes) is { } pn)
+                {
+                    <PermissaoLinha Permissao="pn" AoAtivar="AtivarPermissao" />
+                }
+                @if (cfg.AoConectarCarro == AcoesConexao.Abrir && Pendente(permissoes, PermissoesCarro.Sobrepor) is { } ps)
+                {
+                    <PermissaoLinha Permissao="ps" AoAtivar="AtivarPermissao" />
+                }
+            </div>
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@cfg.SairAoDesconectar" @onchange="@(e => Mudar(e, v => cfg.SairAoDesconectar = v))"> <span>Sair do Modo Carro ao desligar o carro <span class="muted">· a rota em andamento continua guardada</span></span></label>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head"><div><h2>Onde estacionei</h2><p>Quando o Bluetooth do carro desconecta, o CrankoHub guarda onde o carro ficou: aparece numa notificação e no Início, com o caminho a pé no Google Maps.</p></div></div>
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@cfg.LembrarEstacionado" @onchange="@(e => Mudar(e, v => cfg.LembrarEstacionado = v))"> <span>Lembrar onde estacionei <span class="muted">· usa o GPS do Modo Carro</span></span></label>
+                @if (cfg.LembrarEstacionado)
+                {
+                    <label class="check"><input type="checkbox" checked="@cfg.EstacionadoComAppFechado" @onchange="@(e => Mudar(e, v => cfg.EstacionadoComAppFechado = v))"> <span>Funcionar também com o Modo Carro fechado <span class="muted">· precisa da localização "o tempo todo"</span></span></label>
+                }
+            </div>
+            @if (cfg.LembrarEstacionado && cfg.EstacionadoComAppFechado && Pendente(permissoes, PermissoesCarro.LocalizacaoSempre) is { } pl)
+            {
+                <PermissaoLinha Permissao="pl" AoAtivar="AtivarPermissao" />
+            }
+            @if (cfg.Estacionado is { } est)
+            {
+                <div class="lc-linha mc-cfg-bloco">
+                    <span><b>Carro estacionado</b> <span class="muted">· @(est.Endereco ?? "endereço não encontrado") · @est.Quando.ToString("dd/MM HH:mm")</span></span>
+                    <button type="button" class="btn" @onclick="Bluetooth.ComoChegar">Como chegar</button>
+                    <button type="button" class="btn" @onclick="Bluetooth.EsquecerEstacionado">Esquecer</button>
+                </div>
+            }
+        </section>
+
+        <section class="card">
+            <div class="card-head"><div><h2>Visor da central</h2><p>A próxima curva no visor do som do carro, pelo Bluetooth.</p></div></div>
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@cfg.VisorCentral" @onchange="@(e => Mudar(e, v => cfg.VisorCentral = v))"> <span>Mostrar a rota no visor da central <span class="muted">· a próxima curva no lugar do nome da música, durante a rota</span></span></label>
+                <label class="check"><input type="checkbox" checked="@cfg.TesteVisor" @onchange="@(e => Mudar(e, v => cfg.TesteVisor = v))"> <span>Botão "Testar visor da central" <span class="muted">· diagnóstico com log, no Modo Carro</span></span></label>
+            </div>
+        </section>
+
+        <section class="card" id="permissoes-carro">
+            <div class="card-head"><div><h2>Permissões do Modo Carro</h2><p>Tudo o que o Android precisa liberar. Toque em <b>Ativar</b> para pedir a permissão ou abrir a tela certa do Android; o estado atualiza quando você volta.</p></div></div>
+            <ul class="mc-permissoes">
+                @foreach (var p in permissoes)
+                {
+                    <li @key="p.Id"><PermissaoLinha Permissao="p" AoAtivar="AtivarPermissao" Lista="true" /></li>
+                }
+            </ul>
+        </section>
+        break;
+
     case "aplicativo":
         <section class="card">
             <div class="card-head"><div><h2>Aplicativo</h2><p>@(Android ? "Notificações dos vencimentos (aparecem enquanto o app está aberto)." : "Ícone na bandeja do Windows (perto do relógio) e notificações dos vencimentos.")</p></div></div>
@@ -84,62 +257,6 @@
             </div>
         </section>
 
-        @if (Android)
-        {
-            <section class="card">
-                <div class="card-head"><div><h2>Modo Carro</h2><p>Navegação dentro do app (página Carro → Modo carro).</p></div></div>
-                @{
-                    var lc = LayoutsCarro.Valido(cfg.LayoutCarro);
-                    var oQue = lc == LayoutsCarro.Musica ? "mapa" : "painel";
-                }
-                <div class="lc-config">
-                    <span class="lc-rotulo">Layout da tela <span class="muted">· também troca pelo botão de layout no Modo Carro</span></span>
-                    <div class="lc-opcoes" role="radiogroup" aria-label="Layout do Modo Carro">
-                        @foreach (var l in LayoutsCarro.Todos)
-                        {
-                            <button type="button" role="radio" aria-checked="@(l == lc)" class="lc-opcao @(l == lc ? "ativa" : "")" @onclick="() => MudarLayoutCarro(l)">
-                                <span class="lc-mini lc-@l @(cfg.PainelCarroEsquerda ? "esquerda" : "")" aria-hidden="true"><i class="m"></i><i class="p"></i></span>
-                                <span>@LayoutsCarro.Nome(l)</span>
-                            </button>
-                        }
-                    </div>
-
-                    @if (LayoutsCarro.TemTamanho(lc))
-                    {
-                        @foreach (var retrato in new[] { false, true })
-                        {
-                            var r = retrato;
-                            var t = LayoutsCarro.Tamanho(cfg, lc, r);
-                            <label class="lc-linha">
-                                <span>Tamanho do @oQue <span class="muted">· @(r ? "celular em pé" : "celular deitado")</span></span>
-                                <input type="range" min="@LayoutsCarro.Minimo(lc)" max="@LayoutsCarro.Maximo(lc)" step="1"
-                                       value="@(t ?? LayoutsCarro.Minimo(lc))" @onchange="e => MudarTamanhoCarro(e, r)" />
-                                <b>@(t is { } v ? $"{v}%" : "Automático")</b>
-                            </label>
-                        }
-                        <div class="lc-linha">
-                            <span class="muted">Também dá para arrastar a barra entre o mapa e o painel no Modo Carro (toque duplo nela volta ao padrão).</span>
-                            <button type="button" class="btn" @onclick="PadraoTamanhoCarro">Tamanho padrão</button>
-                        </div>
-                    }
-
-                    <div class="lc-linha">
-                        <span>Lado do @(lc == LayoutsCarro.Mapa ? "mini player" : oQue == "mapa" ? "Spotify" : "painel")</span>
-                        <div class="chips">
-                            <button type="button" class="chip @(!cfg.PainelCarroEsquerda ? "active" : "")" @onclick="() => MudarLadoCarro(false)">Direita · embaixo</button>
-                            <button type="button" class="chip @(cfg.PainelCarroEsquerda ? "active" : "")" @onclick="() => MudarLadoCarro(true)">Esquerda · em cima</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="opcoes">
-                    <label class="check"><input type="checkbox" checked="@(!cfg.AtalhosOcultosCarro.Contains(lc))" @onchange="MudarAtalhosCarro"> <span>Atalhos do Spotify, Maps e Waze neste layout <span class="muted">· a hora e o Sair continuam aparecendo</span></span></label>
-                    <label class="check"><input type="checkbox" checked="@cfg.VozModoCarro" @onchange="@(e => Mudar(e, v => cfg.VozModoCarro = v))"> <span>Avisos por voz na rota <span class="muted">· manobras, radares, pedágios e limite de velocidade</span></span></label>
-                    <label class="check"><input type="checkbox" checked="@cfg.EvitarPedagios" @onchange="@(e => Mudar(e, v => cfg.EvitarPedagios = v))"> <span>Evitar pedágios nas rotas <span class="muted">· também dá para mudar na escolha da rota</span></span></label>
-                    <label class="check"><input type="checkbox" checked="@cfg.VisorCentral" @onchange="@(e => Mudar(e, v => cfg.VisorCentral = v))"> <span>Mostrar a rota no visor da central <span class="muted">· pelo Bluetooth: a próxima curva no lugar do nome da música, durante a rota</span></span></label>
-                    <label class="check"><input type="checkbox" checked="@cfg.TesteVisor" @onchange="@(e => Mudar(e, v => cfg.TesteVisor = v))"> <span>Botão "Testar visor da central" <span class="muted">· diagnóstico com log, no Modo Carro</span></span></label>
-                </div>
-            </section>
-        }
 
         <section class="card">
             <div class="card-head">
@@ -208,16 +325,59 @@
 }
 
 @code {
+    // A aba Modo Carro só existe no celular
     private static readonly (string Chave, string Rotulo)[] Abas =
     [
         ("aparencia", "Aparência"),
         ("modulos", "Módulos"),
         ("integracoes", "Integrações"),
+        .. OperatingSystem.IsAndroid() ? new[] { ("carro", "Modo Carro") } : [],
         ("aplicativo", "Aplicativo"),
     ];
 
     // No celular não há bandeja nem inicialização com o sistema
     private static bool Android => OperatingSystem.IsAndroid();
+
+    // As permissões mudam fora do app (telas do Android) e o carro estacionado chega pelo Bluetooth
+    protected override void OnInitialized() => Bluetooth.Mudou += Redesenhar;
+
+    private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Bluetooth.Mudou -= Redesenhar;
+
+    // ===== Bluetooth do carro (CarroBluetoothService) =====
+
+    private static readonly (string Valor, string Rotulo)[] AcoesAoConectar =
+        [(AcoesConexao.Nada, "Nada"), (AcoesConexao.Notificar, "Notificação"), (AcoesConexao.Abrir, "Abrir direto")];
+
+    /// <summary>A permissão, se ainda falta ativar (null = já ativada ou não dá para conferir).</summary>
+    private static PermissaoCarro? Pendente(IReadOnlyList<PermissaoCarro> lista, string id) =>
+        lista.FirstOrDefault(p => p.Id == id && p.Ativada == false);
+
+    private static bool MesmoEndereco(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+    private Task AtivarPermissao(string id) => Bluetooth.Ativar(id);
+
+    private void MarcarCarro(AparelhoBluetooth aparelho, bool marcado)
+    {
+        var carros = Store.Dados.Config.CarrosBluetooth;
+        carros.RemoveAll(c => MesmoEndereco(c.Endereco, aparelho.Endereco));
+        if (marcado) carros.Add(new CarroPareado(aparelho.Endereco, aparelho.Nome));
+        Store.Salvar();
+        if (marcado) Toast.Ok($"{aparelho.Nome} marcado como o seu carro.");
+    }
+
+    private void RemoverCarro(CarroPareado carro)
+    {
+        Store.Dados.Config.CarrosBluetooth.Remove(carro);
+        Store.Salvar();
+    }
+
+    private void MudarAoConectar(string valor)
+    {
+        Store.Dados.Config.AoConectarCarro = valor;
+        Store.Salvar();
+    }
 
     // Aba aberta, mantida enquanto o app estiver aberto
     private static string _aba = "aparencia";

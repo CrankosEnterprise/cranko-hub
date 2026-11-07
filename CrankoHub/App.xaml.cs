@@ -90,6 +90,7 @@ public partial class App : Application
         servicos.AddSingleton<ModoCarroService>();
         servicos.AddSingleton<RotaService>();
         servicos.AddSingleton<VisorCarroService>();
+        servicos.AddSingleton<CarroBluetoothService>();
         return servicos.BuildServiceProvider();
     }
 

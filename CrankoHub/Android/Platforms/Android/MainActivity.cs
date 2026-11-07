@@ -17,6 +17,19 @@ public class MainActivity : MauiAppCompatActivity
         AbrirLink(Intent);
     }
 
+    // Voltou das telas do Android (permissões): as Configurações releem o estado
+    protected override void OnResume()
+    {
+        base.OnResume();
+        IPlatformApplication.Current?.Services.GetService<CarroBluetoothService>()?.Voltou();
+    }
+
+    protected override void OnPause()
+    {
+        base.OnPause();
+        IPlatformApplication.Current?.Services.GetService<CarroBluetoothService>()?.Saiu();
+    }
+
     // Toque numa notificação com o app já aberto
     protected override void OnNewIntent(Intent? intent)
     {

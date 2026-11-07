@@ -38,6 +38,7 @@ public static class MauiProgram
         servicos.AddSingleton<ModoCarroService>();
         servicos.AddSingleton<RotaService>();
         servicos.AddSingleton<VisorCarroService>();
+        servicos.AddSingleton<CarroBluetoothService>();
 
         return builder.Build();
     }

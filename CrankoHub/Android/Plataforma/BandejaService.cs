@@ -83,6 +83,46 @@ public sealed class BandejaService : IDisposable
         catch { } // sem permissão ou canal bloqueado: segue sem notificação
     }
 
+    private const string CanalCarro = "modo-carro";
+
+    /// <summary>
+    /// Aviso do Modo Carro (canal próprio, "Modo Carro"): o toque abre <paramref name="toque"/> (o Modo Carro, ou o Google Maps).
+    /// O id fixo faz o aviso novo substituir o anterior e permite <see cref="Cancelar"/>.
+    /// </summary>
+    public static void MostrarCarro(int id, string titulo, string texto, Intent toque)
+    {
+        var ctx = global::Android.App.Application.Context;
+        try
+        {
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+            {
+                var gerenciador = (NotificationManager)ctx.GetSystemService(Context.NotificationService)!;
+                if (gerenciador.GetNotificationChannel(CanalCarro) is null)
+                    gerenciador.CreateNotificationChannel(new NotificationChannel(CanalCarro, "Modo Carro", NotificationImportance.High)
+                    {
+                        Description = "Modo Carro pronto ao ligar o carro e onde o carro ficou estacionado",
+                    });
+            }
+            var pendente = PendingIntent.GetActivity(ctx, id, toque, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
+            var aviso = new NotificationCompat.Builder(ctx, CanalCarro);
+            aviso.SetSmallIcon(Resource.Mipmap.appicon);
+            aviso.SetContentTitle(titulo);
+            aviso.SetContentText(texto);
+            aviso.SetStyle(new NotificationCompat.BigTextStyle().BigText(texto));
+            aviso.SetContentIntent(pendente);
+            aviso.SetAutoCancel(true);
+            aviso.SetCategory(NotificationCompat.CategoryNavigation);
+            NotificationManagerCompat.From(ctx)!.Notify(id, aviso.Build());
+        }
+        catch { } // sem permissão ou canal bloqueado: segue sem notificação
+    }
+
+    public static void Cancelar(int id)
+    {
+        try { NotificationManagerCompat.From(global::Android.App.Application.Context)!.Cancel(id); }
+        catch { }
+    }
+
     /// <summary>Android 13+: pede a permissão de notificações na primeira vez que o app abre.</summary>
     public static async Task PedirPermissao()
     {

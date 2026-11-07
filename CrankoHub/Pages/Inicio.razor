@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject ArmazenamentoService Store
 @inject ContaService Conta
+@inject CarroBluetoothService Bluetooth
 
 @{
     var d = Store.Dados;
@@ -57,6 +58,22 @@
     <h1>@(saudacao)!</h1>
     <p>Seu painel pessoal de parâmetros. Escolha uma área para registrar e acompanhar sua evolução.</p>
 </section>
+
+@if (verCarro && cfg.Estacionado is { } estacionado)
+{
+    @* Guardado quando o Bluetooth do carro desconectou (Configurações → Modo Carro → Onde estacionei) *@
+    <section class="card estacionado" aria-label="Carro estacionado">
+        <span class="estacionado-icone" aria-hidden="true">@Icones.Carro</span>
+        <div class="estacionado-texto">
+            <b>Carro estacionado</b>
+            <span>@(estacionado.Endereco ?? "Endereço não encontrado") · @HaQuanto(estacionado.Quando)</span>
+        </div>
+        <div class="estacionado-acoes">
+            <button type="button" class="btn primary" @onclick="Bluetooth.ComoChegar">Como chegar</button>
+            <button type="button" class="btn" @onclick="Bluetooth.EsquecerEstacionado">Já peguei o carro</button>
+        </div>
+    </section>
+}
 
 <div class="grid-2 @(verAssin ? "" : "um")">
     <section class="card">
@@ -293,8 +310,26 @@
     // O Início pode ficar aberto por horas (o app fica na bandeja): redesenha a cada minuto para a saudação e a data acompanharem
     private System.Threading.Timer? _relogio;
 
-    protected override void OnInitialized() =>
+    protected override void OnInitialized()
+    {
         _relogio = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+        // O carro estacionado chega pelo Bluetooth (desligou o carro com o app aberto)
+        Bluetooth.Mudou += Redesenhar;
+    }
 
-    public void Dispose() => _relogio?.Dispose();
+    private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
+
+    private static string HaQuanto(DateTime quando)
+    {
+        var t = DateTime.Now - quando;
+        var ha = t.TotalMinutes < 1 ? "agora há pouco" : t.TotalHours < 1 ? $"há {(int)t.TotalMinutes} min"
+            : t.TotalDays < 1 ? $"há {(int)t.TotalHours} h" : $"há {(int)t.TotalDays} {((int)t.TotalDays == 1 ? "dia" : "dias")}";
+        return $"{ha} · {(quando.Date == DateTime.Today ? quando.ToString("HH:mm") : quando.ToString("dd/MM HH:mm"))}";
+    }
+
+    public void Dispose()
+    {
+        _relogio?.Dispose();
+        Bluetooth.Mudou -= Redesenhar;
+    }
 }

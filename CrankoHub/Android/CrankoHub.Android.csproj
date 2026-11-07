@@ -60,7 +60,7 @@
     <Compile Include="..\Models\**\*.cs" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Components\**\*.cs" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Services\**\*.cs" Link="Services\%(RecursiveDir)%(Filename)%(Extension)"
-             Exclude="..\Services\BandejaService.cs;..\Services\DialogoService.cs;..\Services\InicializacaoWindows.cs;..\Services\AtualizacaoService.cs;..\Services\CofreSessao.cs;..\Services\ModoCarroService.cs;..\Services\VisorCarroService.cs" />
+             Exclude="..\Services\BandejaService.cs;..\Services\DialogoService.cs;..\Services\InicializacaoWindows.cs;..\Services\AtualizacaoService.cs;..\Services\CofreSessao.cs;..\Services\ModoCarroService.cs;..\Services\VisorCarroService.cs;..\Services\CarroBluetoothService.cs" />
     <!-- Peças da versão Linux que servem igual aqui -->
     <Compile Include="..\Linux\Plataforma\DispatcherTimer.cs;..\Linux\Plataforma\ArquivosDoApp.cs" Link="Plataforma\%(Filename)%(Extension)" />
 

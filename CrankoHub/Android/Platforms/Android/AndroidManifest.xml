@@ -11,6 +11,15 @@
 	<!-- Modo Carro: posição no mapa (GPS) -->
 	<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 	<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+	<!-- Modo Carro, Bluetooth do carro (CarroBluetoothService): reconhecer a central e listar os pareados -->
+	<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+	<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+	<!-- Abrir o Modo Carro sozinho quando o carro conecta (opção "Abrir direto") -->
+	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+	<!-- Guardar onde estacionou com o Modo Carro fechado (opcional) -->
+	<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+	<!-- O Android não atrasar o aviso do Bluetooth do carro (pedido nas Configurações) -->
+	<uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 	<!-- Modo Carro: abrir Waze, Maps e Spotify (visibilidade de pacotes no Android 11+) -->
 	<queries>
 		<package android:name="com.waze" />

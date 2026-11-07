@@ -594,6 +594,43 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 .lc-linha > span:first-child { flex: 1 1 200px; }
 .lc-linha input[type=range] { flex: 1 1 160px; accent-color: var(--accent); }
 .lc-linha b { min-width: 82px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.lc-linha > span:first-child b { min-width: 0; text-align: left; }
+
+/* Configurações → Modo Carro: permissões (Components/PermissaoLinha.razor) e avisos */
+.mc-cfg-bloco { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); border-bottom: 0; margin-bottom: 4px; }
+.mc-cfg-alerta {
+  display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; padding: 12px 16px; border-radius: var(--radius);
+  background: var(--warn-bg); color: var(--text); font-size: 13px; line-height: 1.4;
+}
+.mc-cfg-alerta b { color: var(--warn); }
+.mc-cfg-alerta a { color: var(--accent); font-weight: 600; }
+.mc-permissoes { list-style: none; display: flex; flex-direction: column; }
+.mc-permissoes li + li { border-top: 1px solid var(--border); }
+.mc-permissao { display: flex; align-items: center; gap: 12px; padding: 10px 0; min-width: 0; }
+.mc-permissao.em-linha { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: var(--warn-bg); }
+.mc-permissao-estado {
+  display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%;
+  font-size: 14px; font-weight: 800; background: var(--surface-2); color: var(--text-2);
+}
+.mc-permissao.ok .mc-permissao-estado { background: var(--good-bg); color: var(--good); }
+.mc-permissao.falta .mc-permissao-estado { background: var(--bad-bg); color: var(--bad); }
+.mc-permissao.conferir .mc-permissao-estado { background: var(--warn-bg); color: var(--warn); }
+.mc-permissao-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--text-2); line-height: 1.4; }
+.mc-permissao-texto b { color: var(--text); font-size: 14px; }
+.mc-permissao-selo { margin-left: 6px; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 700; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+.mc-permissao.ok .mc-permissao-selo { background: var(--good-bg); color: var(--good); }
+.mc-permissao.falta .mc-permissao-selo { background: var(--bad-bg); color: var(--bad); }
+.mc-permissao.conferir .mc-permissao-selo { background: var(--warn-bg); color: var(--warn); }
+.mc-permissao .btn { flex: none; min-height: 38px; }
+
+/* Início: carro estacionado (CarroBluetoothService) */
+.estacionado { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.estacionado-icone { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); }
+.estacionado-icone svg { width: 26px; height: 26px; }
+.estacionado-texto { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.estacionado-texto b { font-size: 15px; }
+.estacionado-texto span { color: var(--text-2); font-size: 13px; }
+.estacionado-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ===== Controles estilo macOS ===== */
 .btn { height: 32px; padding: 0 14px; border-radius: 8px; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.06); }

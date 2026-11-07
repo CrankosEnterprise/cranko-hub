@@ -74,4 +74,22 @@ public class Configuracoes
 
     /// <summary>Modo Carro: layouts em que os atalhos (Spotify, Maps, Waze) ficam escondidos.</summary>
     public List<string> AtalhosOcultosCarro { get; set; } = [];
+
+    /// <summary>Modo Carro: aparelhos Bluetooth marcados como "o meu carro" (centrais). Fones e caixinhas não entram.</summary>
+    public List<CarroPareado> CarrosBluetooth { get; set; } = [];
+
+    /// <summary>Modo Carro: o que fazer ao conectar no Bluetooth do carro (ver <see cref="AcoesConexao"/>).</summary>
+    public string AoConectarCarro { get; set; } = AcoesConexao.Notificar;
+
+    /// <summary>Modo Carro: sair do Modo Carro quando o Bluetooth do carro desconecta (a rota continua guardada).</summary>
+    public bool SairAoDesconectar { get; set; } = true;
+
+    /// <summary>Modo Carro: guardar onde o carro ficou quando o Bluetooth dele desconecta.</summary>
+    public bool LembrarEstacionado { get; set; } = true;
+
+    /// <summary>Modo Carro: guardar o estacionado mesmo com o Modo Carro fechado (precisa da localização "o tempo todo").</summary>
+    public bool EstacionadoComAppFechado { get; set; }
+
+    /// <summary>Modo Carro: onde o carro ficou (null = não guardado, ou já voltou ao carro).</summary>
+    public CarroEstacionado? Estacionado { get; set; }
 }
