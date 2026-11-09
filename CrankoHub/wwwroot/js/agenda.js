@@ -54,6 +54,8 @@ class GradeAgenda {
       redimensionar: !!e.target.closest('.ag-alca'),
       x: e.clientX, y: e.clientY,
       altura: ev.offsetHeight,
+      alturaOriginal: ev.style.height,  // o height inline que o Blazor pôs (para restaurar)
+      alturaArrasto: null,              // o height que o arrasto pôs
       ativo: false, dias: 0, minutos: 0,
       toque: e.pointerType === 'touch',
       timer: null,
@@ -87,15 +89,25 @@ class GradeAgenda {
     if (a.redimensionar) {
       const minimo = ENCAIXE * this.#pxPorMinuto;
       a.ev.style.height = Math.max(minimo, a.altura + a.minutos * this.#pxPorMinuto) + 'px';
+      a.alturaArrasto = a.ev.style.height; // lido de volta: o navegador pode arredondar
     } else {
-      // Dia: a coluna que está debaixo do ponteiro
-      const alvo = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.ag-dia');
-      const i = alvo ? a.colunas.indexOf(alvo) : -1;
-      if (i >= 0) a.dias = i - a.indice;
-      const largura = a.coluna.getBoundingClientRect().width;
-      a.ev.style.transform = `translate(${a.dias * largura}px, ${a.minutos * this.#pxPorMinuto}px)`;
+      // Dia: a coluna na altura horizontal do ponteiro. Não usa elementFromPoint: debaixo do ponteiro
+      // quase sempre está o próprio evento arrastado, que ainda mora na coluna original — o dia "voltava".
+      const i = this.#colunaEm(a, e.clientX);
+      a.dias = i - a.indice;
+      const dx = a.colunas[i].getBoundingClientRect().left - a.coluna.getBoundingClientRect().left;
+      a.ev.style.transform = `translate(${dx}px, ${a.minutos * this.#pxPorMinuto}px)`;
     }
     this.#mostrarHorario(a);
+  }
+
+  // Índice da coluna de dia sob o x da tela; fora da grade, fica na primeira/última
+  #colunaEm(a, x) {
+    let i = 0;
+    for (; i < a.colunas.length - 1; i++) {
+      if (x < a.colunas[i].getBoundingClientRect().right) break;
+    }
+    return i;
   }
 
   // Atualiza o horário escrito no evento enquanto arrasta
@@ -108,7 +120,7 @@ class GradeAgenda {
     campo.textContent = `${hora(novoIni)} – ${hora(novoFim)}`;
   }
 
-  #soltou() {
+  async #soltou() {
     const a = this.#arrasto;
     if (!a) return;
     clearTimeout(a.timer);
@@ -116,15 +128,19 @@ class GradeAgenda {
     if (!a.ativo) return; // foi um clique: o evento "click" cuida
     this.#engolirClique = true;
     setTimeout(() => { this.#engolirClique = false; }, 0);
-    this.#limpar(a);
+    a.ev.classList.remove('arrastando');
+    this.#grade.classList.remove('arrastando');
     const total = a.dias * 1440 + a.minutos;
-    if (a.redimensionar ? a.minutos === 0 : total === 0) return;
-    this.#chamar(SOLTOU, {
+    if (a.redimensionar ? a.minutos === 0 : total === 0) { this.#limpar(a); return; }
+    // Mantém o evento onde foi solto até o Blazor redesenhar no lugar novo
+    // (antes ele piscava de volta no dia antigo). Se a pessoa cancelar a pergunta "só este/todos", volta.
+    await this.#chamar(SOLTOU, {
       id: a.ev.dataset.id,
       data: a.ev.dataset.data,
       inicio: a.redimensionar ? 0 : total,
       fim: total,
     });
+    this.#limpar(a);
   }
 
   #cancelar() {
@@ -139,7 +155,8 @@ class GradeAgenda {
     a.ev.classList.remove('arrastando');
     this.#grade.classList.remove('arrastando');
     a.ev.style.transform = '';
-    a.ev.style.height = '';
+    // Só desfaz a altura se ainda for a do arrasto: se o Blazor já redesenhou, a altura nova é dele
+    if (a.alturaArrasto !== null && a.ev.style.height === a.alturaArrasto) a.ev.style.height = a.alturaOriginal;
   }
 
   #clicou(e) {
