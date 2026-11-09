@@ -107,9 +107,58 @@
         }).ToList();
 
         <section class="kpis k6">
-            <div class="kpi"><span class="kpi-label">Consumo médio</span>
-                <span class="kpi-value">@Num(st.Media, 2)<small>km/l</small></span>
-                <span class="kpi-sub">@(st.N > 0 ? $"melhor {Num(st.Melhor, 1)} · pior {Num(st.Pior, 1)}" : "Nenhum abastecimento ainda")</span></div>
+            <div class="kpi com-dica">
+                <div class="kpi-head">
+                    <span class="kpi-label">@(_consumoUltimo ? "Último consumo" : "Consumo médio")
+                        <button type="button" class="dica" aria-label="O que é este número?" aria-describedby="dica-consumo">@Icones.Info</button>
+                    <span class="dica-balao" role="tooltip" id="dica-consumo">
+                        @if (_consumoUltimo)
+                        {
+                            <b>Último consumo</b><br />
+                            <span>Quanto o carro fez entre o abastecimento anterior e o último: km rodados nesse trecho ÷ litros colocados no último abastecimento.</span><br />
+                            <span>Mostra como o carro está agora (trânsito, estrada, combustível). Fica mais preciso quando você enche o tanque nos dois abastecimentos.</span><br />
+                            <span>O selo compara com o trecho anterior.</span>
+                        }
+                        else
+                        {
+                            <b>Consumo médio</b><br />
+                            <span>Média de todos os abastecimentos: total de km rodados ÷ total de litros.</span><br />
+                            <span>Mostra o consumo geral do carro ao longo do tempo, sem oscilar a cada abastecimento.</span>
+                        }
+                    </span>
+                    </span>
+                    <div class="chips mini" role="group" aria-label="Consumo a mostrar">
+                        <button type="button" class="chip @(_consumoUltimo ? "active" : "")" aria-pressed="@_consumoUltimo" title="Entre o último abastecimento e o anterior" @onclick="() => _consumoUltimo = true">Último</button>
+                        <button type="button" class="chip @(!_consumoUltimo ? "active" : "")" aria-pressed="@(!_consumoUltimo)" title="Média de todos os abastecimentos" @onclick="() => _consumoUltimo = false">Média</button>
+                    </div>
+                </div>
+                @if (_consumoUltimo)
+                {
+                    // Cada abastecimento guarda os km desde o anterior: o km/l dele é o consumo daquele trecho
+                    var ultimo = list.LastOrDefault();
+                    var penultimo = list.Count > 1 ? list[^2] : null;
+                    <span class="kpi-value">@Num(ultimo?.Kml, 2)<small>km/l</small></span>
+                    <span class="kpi-sub">
+                        @if (ultimo is null)
+                        {
+                            <span>Nenhum abastecimento ainda</span>
+                        }
+                        else
+                        {
+                            <span>@Num(ultimo.Km, 0) km em @DataBR(ultimo.Data)</span>
+                            @if (penultimo is not null)
+                            {
+                                <span> · </span><Delta Valor="ultimo.Kml - penultimo.Kml" Unidade=" km/l" Casas="1" BomQuandoCai="false" /><span> vs anterior</span>
+                            }
+                        }
+                    </span>
+                }
+                else
+                {
+                    <span class="kpi-value">@Num(st.Media, 2)<small>km/l</small></span>
+                    <span class="kpi-sub">@(st.N > 0 ? $"melhor {Num(st.Melhor, 1)} · pior {Num(st.Pior, 1)}" : "Nenhum abastecimento ainda")</span>
+                }
+            </div>
             <div class="kpi"><span class="kpi-label">Custo por km</span>
                 <span class="kpi-value">@Money(st.CustoKm)</span>
                 <span class="kpi-sub">@(st.CustoKm > 0 ? Money(st.CustoKm * 100) + " a cada 100 km" : "Informe os valores pagos")</span></div>
@@ -222,6 +271,9 @@
 
     // Aba aberta, mantida enquanto o app estiver aberto
     private static string _aba = "resumo";
+
+    // Card de consumo do Resumo: último trecho (padrão) ou média geral; mantido enquanto o app estiver aberto
+    private static bool _consumoUltimo = true;
 
     /// <summary>Permite abrir uma aba direto pelo link (ex.: carro?aba=manutencao).</summary>
     [SupplyParameterFromQuery(Name = "aba")] public string? AbaInicial { get; set; }
