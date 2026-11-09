@@ -78,7 +78,7 @@
         var outros = lembretes.Where(s => s != oleo && s.TemLembrete).Take(4).ToList();
         var recentes = list.Select(a => (a.Data, Icone: Icones.Bomba, Texto: $"{Combustivel.NomeDe(a.Combustivel)} · {Num(a.Litros, 1)} L",
                                          Sub: $"{Num(a.Kml, 2)} km/l · {Money(a.Valor)}"))
-            .Concat(manut.Select(m => (m.Data, Icone: Icones.Ferramenta, Texto: TipoManutencao.NomeDe(m.Tipo),
+            .Concat(manut.Select(m => (m.Data, Icone: Icones.Ferramenta, Texto: TipoManutencao.NomeDe(m),
                                        Sub: string.Join(" · ", new[] { m.Descricao, m.Valor is not null ? Money(m.Valor) : null }.Where(s => !string.IsNullOrEmpty(s))))))
             .OrderByDescending(x => x.Data).Take(6).ToList();
         var gastosMensais = Formatacao.UltimosMeses(12).Select(m =>

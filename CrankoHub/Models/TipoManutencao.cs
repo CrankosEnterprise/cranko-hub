@@ -18,4 +18,14 @@ public record TipoManutencao(string Chave, string Nome, double? Km, int? Meses)
     public static TipoManutencao Buscar(string chave) => Todos.FirstOrDefault(t => t.Chave == chave) ?? Todos[^1];
 
     public static string NomeDe(string chave) => Buscar(chave).Nome;
+
+    /// <summary>Nome do serviço feito: o informado pelo usuário em "Outro serviço", senão o do tipo.</summary>
+    public static string NomeDe(Manutencao m) =>
+        m.Tipo == "outro" && !string.IsNullOrWhiteSpace(m.Servico) ? m.Servico.Trim() : NomeDe(m.Tipo);
+
+    /// <summary>
+    /// Chave que agrupa serviços iguais (lembretes, gastos): o tipo, ou "outro:&lt;nome&gt;" para cada outro serviço informado.
+    /// </summary>
+    public static string ChaveDe(Manutencao m) =>
+        m.Tipo == "outro" && !string.IsNullOrWhiteSpace(m.Servico) ? "outro:" + m.Servico.Trim().ToLowerInvariant() : m.Tipo;
 }

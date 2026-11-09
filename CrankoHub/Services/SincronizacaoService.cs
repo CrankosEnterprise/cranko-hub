@@ -285,6 +285,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     private static readonly (string Tabela, string Coluna, string Migration)[] ColunasNovas =
     [
         ("cards", "prazo_hora", "0004_tarefas_hora.sql"),
+        ("manutencoes", "servico", "0005_manutencao_servico.sql"),
     ];
 
     private readonly HashSet<string> _semTabela = [];

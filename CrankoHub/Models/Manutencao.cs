@@ -10,6 +10,9 @@ public class Manutencao
     /// <summary>Chave do tipo ("oleo", "revisao"...). Ver <see cref="TipoManutencao"/>.</summary>
     public string Tipo { get; set; } = "oleo";
 
+    /// <summary>Nome do serviço quando o tipo é "outro" (ex.: "Troca da correia dentada").</summary>
+    public string? Servico { get; set; }
+
     public DateOnly Data { get; set; }
 
     /// <summary>Quilometragem do veículo no dia do serviço.</summary>

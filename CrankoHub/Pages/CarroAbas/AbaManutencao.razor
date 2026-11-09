@@ -15,8 +15,8 @@
     var outros = lembretes.Where(s => s != oleo).ToList();
     var ed = Editando();
     var total = list.Sum(m => m.Valor ?? 0);
-    var porTipo = list.Where(m => m.Valor > 0).GroupBy(m => m.Tipo)
-        .Select(g => (Tipo: TipoManutencao.Buscar(g.Key), Valor: g.Sum(m => m.Valor!.Value), N: g.Count()))
+    var porTipo = list.Where(m => m.Valor > 0).GroupBy(TipoManutencao.ChaveDe)
+        .Select(g => (Nome: TipoManutencao.NomeDe(g.Last()), Valor: g.Sum(m => m.Valor!.Value), N: g.Count()))
         .OrderByDescending(x => x.Valor).ToList();
     var tabela = Enumerable.Reverse(list).Where(m => _filtro == "" || m.Tipo == _filtro).ToList();
 }
@@ -69,6 +69,18 @@
                         <option value="@t.Chave">@t.Nome</option>
                     }
                 </select></label>
+            @if (_fTipo == "outro")
+            {
+                <label class="field"><span>Qual serviço?</span>
+                    <input maxlength="60" required placeholder="ex.: troca da correia dentada" list="servicos-outros" @bind="_fServico"></label>
+                <datalist id="servicos-outros">
+                    @foreach (var nome in list.Where(m => m.Tipo == "outro" && !string.IsNullOrWhiteSpace(m.Servico))
+                                              .Select(m => m.Servico!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Order())
+                    {
+                        <option value="@nome"></option>
+                    }
+                </datalist>
+            }
             <label class="field"><span>Data</span><input type="date" required @bind="_fData"></label>
             <label class="field"><span>Odômetro (km)</span><input inputmode="decimal" placeholder="@(odoAtual is not null ? $"estimado: {Num(odoAtual, 0)}" : "ex.: 52300")" @bind="_fOdometro" @bind:event="oninput"></label>
             <label class="field"><span>Valor (R$)</span><input inputmode="decimal" placeholder="ex.: 289,90" @bind="_fValor" @bind:event="oninput"></label>
@@ -115,7 +127,7 @@
                 @foreach (var x in porTipo)
                 {
                     <li>
-                        <div class="a-text">@x.Tipo.Nome<small>@x.N @Plural(x.N, "serviço", "serviços")</small></div>
+                        <div class="a-text">@x.Nome<small>@x.N @Plural(x.N, "serviço", "serviços")</small></div>
                         <b>@Money(x.Valor)</b>
                     </li>
                 }
@@ -150,7 +162,7 @@
                     if (m.IntervaloMeses > 0) prox.Add(DataBR(m.Data.AddMonths(m.IntervaloMeses.Value)));
                     <tr @key="m.Id">
                         <td>@DataBR(m.Data)</td>
-                        <td><b>@TipoManutencao.NomeDe(m.Tipo)</b></td>
+                        <td><b>@TipoManutencao.NomeDe(m)</b></td>
                         <td class="obs">@m.Descricao</td>
                         <td class="num">@(m.Odometro is not null ? Num(m.Odometro, 0) : Vazio)</td>
                         <td class="num">@Money(m.Valor)</td>
@@ -183,6 +195,7 @@
 
     private DateOnly? _fData = Hoje;
     private string _fTipo = "oleo";
+    private string _fServico = "";
     private string _fOdometro = "", _fValor = "", _fDescricao = "", _fLocal = "", _fObs = "", _fIntervaloKm = "", _fIntervaloMeses = "";
 
     private DadosCarro Dados => Store.Dados.Carro;
@@ -207,15 +220,19 @@
 
     private void LimparFormulario() => Preparar("oleo", rolar: false);
 
-    /// <summary>Formulário novo para um tipo, repetindo intervalo, descrição e oficina do último serviço igual.</summary>
+    /// <summary>
+    /// Formulário novo para um tipo (ou um "outro:&lt;nome&gt;" de <see cref="TipoManutencao.ChaveDe"/>),
+    /// repetindo nome, intervalo, descrição e oficina do último serviço igual.
+    /// </summary>
     private void NovoDoTipo(string tipo) => Preparar(tipo, rolar: true);
 
     private void Preparar(string tipo, bool rolar)
     {
-        var anterior = ManutencaoCalculos.DoVeiculo(Dados, Veiculo.Id).LastOrDefault(m => m.Tipo == tipo);
-        var t = TipoManutencao.Buscar(tipo);
+        var anterior = ManutencaoCalculos.DoVeiculo(Dados, Veiculo.Id).LastOrDefault(m => TipoManutencao.ChaveDe(m) == tipo);
+        var t = TipoManutencao.Buscar(anterior?.Tipo ?? tipo);
         _editId = null;
         _fTipo = t.Chave;
+        _fServico = anterior?.Servico ?? "";
         _fData = Hoje;
         _fOdometro = InVal(OdometroAtual(), 0);
         _fValor = "";
@@ -231,7 +248,9 @@
     private void AoTrocarTipo()
     {
         if (_editId is not null) return;
-        var anterior = ManutencaoCalculos.DoVeiculo(Dados, Veiculo.Id).LastOrDefault(m => m.Tipo == _fTipo);
+        _fServico = "";
+        // Para "Outro serviço" não há um anterior igual até o nome ser informado
+        var anterior = _fTipo == "outro" ? null : ManutencaoCalculos.DoVeiculo(Dados, Veiculo.Id).LastOrDefault(m => m.Tipo == _fTipo);
         var t = TipoManutencao.Buscar(_fTipo);
         _fIntervaloKm = InVal(anterior is not null ? anterior.IntervaloKm : t.Km, 0);
         _fIntervaloMeses = InVal(anterior is not null ? anterior.IntervaloMeses : t.Meses, 0);
@@ -243,6 +262,7 @@
     {
         _editId = m.Id;
         _fTipo = m.Tipo;
+        _fServico = m.Servico ?? "";
         _fData = m.Data;
         _fOdometro = InVal(m.Odometro, 0);
         _fValor = InVal(m.Valor, 2);
@@ -256,7 +276,7 @@
 
     private async Task Excluir(Manutencao m)
     {
-        if (!await Dialogo.Confirmar($"Excluir \"{TipoManutencao.NomeDe(m.Tipo)}\" de {DataBR(m.Data)}?")) return;
+        if (!await Dialogo.Confirmar($"Excluir \"{TipoManutencao.NomeDe(m)}\" de {DataBR(m.Data)}?")) return;
         Dados.Manutencoes.Remove(m);
         if (_editId == m.Id) LimparFormulario();
         Store.Salvar();
@@ -270,6 +290,7 @@
         var valor = Pf(_fValor);
         var intervaloKm = Pf(_fIntervaloKm);
         var intervaloMeses = Pf(_fIntervaloMeses);
+        if (_fTipo == "outro" && string.IsNullOrWhiteSpace(_fServico)) { Toast.Erro("Informe qual foi o serviço."); return; }
         if (_fData is not DateOnly data) { Toast.Erro("Informe a data."); return; }
         if (odometro is < 0) { Toast.Erro("Odômetro inválido."); return; }
         if (valor is not null && valor is not > 0) { Toast.Erro("Valor inválido."); return; }
@@ -279,6 +300,7 @@
         void Preencher(Manutencao m)
         {
             m.Tipo = _fTipo;
+            m.Servico = _fTipo == "outro" ? _fServico.Trim() : null;
             m.Data = data;
             m.Odometro = odometro;
             m.Valor = valor;
@@ -300,7 +322,7 @@
             var novo = new Manutencao { Id = ArmazenamentoService.NovoId(), VeiculoId = Veiculo.Id };
             Preencher(novo);
             Dados.Manutencoes.Add(novo);
-            Toast.Ok($"Serviço registrado: {TipoManutencao.NomeDe(novo.Tipo)}.");
+            Toast.Ok($"Serviço registrado: {TipoManutencao.NomeDe(novo)}.");
         }
         Store.Salvar();
         LimparFormulario();

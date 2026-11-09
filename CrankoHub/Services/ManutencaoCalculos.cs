@@ -2,7 +2,10 @@ using CrankoHub.Models;
 
 namespace CrankoHub.Services;
 
-/// <summary>Situação do lembrete de um tipo de manutenção, a partir do último serviço registrado.</summary>
+/// <summary>
+/// Situação do lembrete de um tipo de manutenção, a partir do último serviço registrado.
+/// Em <see cref="Tipo"/>, Chave e Nome são os do grupo (ver <see cref="TipoManutencao.ChaveDe"/>).
+/// </summary>
 public record StatusManutencao(
     TipoManutencao Tipo, Manutencao Ultima,
     double? ProximaKm, DateOnly? ProximaData,
@@ -78,7 +81,7 @@ public static class ManutencaoCalculos
     /// <summary>Situação de cada tipo já registrado, com o último serviço de cada um; mais urgentes primeiro.</summary>
     public static List<StatusManutencao> Lembretes(IEnumerable<Manutencao> manutencoes, double? odometroAtual, double? kmPorDia, DateOnly hoje) =>
         manutencoes
-            .GroupBy(m => m.Tipo)
+            .GroupBy(TipoManutencao.ChaveDe)
             .Select(g => Status(g.OrderBy(m => m.Data).ThenBy(m => m.Odometro ?? 0).Last(), odometroAtual, kmPorDia, hoje))
             .OrderByDescending(s => s.Progresso ?? -1)
             .ThenBy(s => s.Tipo.Nome)
@@ -86,7 +89,8 @@ public static class ManutencaoCalculos
 
     public static StatusManutencao Status(Manutencao ultima, double? odometroAtual, double? kmPorDia, DateOnly hoje)
     {
-        var tipo = TipoManutencao.Buscar(ultima.Tipo);
+        // "Outro serviço" com nome: cada serviço vira um lembrete próprio, com o nome informado
+        var tipo = TipoManutencao.Buscar(ultima.Tipo) with { Chave = TipoManutencao.ChaveDe(ultima), Nome = TipoManutencao.NomeDe(ultima) };
 
         double? proximaKm = ultima.Odometro is not null && ultima.IntervaloKm > 0 ? ultima.Odometro + ultima.IntervaloKm : null;
         DateOnly? proximaData = ultima.IntervaloMeses > 0 ? ultima.Data.AddMonths(ultima.IntervaloMeses.Value) : null;
