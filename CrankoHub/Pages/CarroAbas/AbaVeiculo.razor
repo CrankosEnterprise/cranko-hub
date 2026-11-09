@@ -85,69 +85,120 @@ else
                 <p>Nome, marca e ano são obrigatórios. O resto é opcional: preencha à mão ou puxe da tabela FIPE.</p></div>
         </div>
 
-        @* ---- Puxar da FIPE ---- *@
-        <div class="fipe">
-            @if (!_fipeAberto)
-            {
-                <button class="btn sm" type="button" @onclick="AbrirFipe">Puxar dados da tabela FIPE</button>
-            }
-            else
-            {
-                <div class="form-grid">
-                    @* Marca: digita e escolhe na lista (o <select> nativo com ~90 marcas abria por cima de si mesmo
-                       no Windows e o soltar do clique já escolhia uma marca) *@
-                    <label class="field"><span>Marca (FIPE)</span>
-                        <input placeholder="@(_marcas.Count == 0 ? "carregando..." : "digite a marca, ex.: chev")" disabled="@(_marcas.Count == 0)"
-                               @bind="_termoMarca" @bind:event="oninput" @bind:after="AoDigitarMarca"></label>
-                    <label class="field"><span>Modelo</span>
-                        <input placeholder="@(_marcaSel == "" ? "escolha a marca primeiro" : "ex.: onix lt 1.0")" disabled="@(_marcaSel == "")"
-                               @bind="_termo" @bind:event="oninput" @bind:after="AoDigitarModelo"></label>
+        @* ---- Puxar da FIPE: convite em destaque e, aberto, 3 passos (marca → modelo → ano) que dá para voltar ---- *@
+        @if (!_fipeAberto)
+        {
+            <div class="fipe fipe-convite">
+                <span class="fipe-icone" aria-hidden="true">@Icones.Carro</span>
+                <div class="fipe-convite-texto">
+                    <b>Preencha pela tabela FIPE</b>
+                    <small>Escolha marca, modelo e ano: motor, câmbio, portas, combustível e o valor FIPE vêm prontos.</small>
                 </div>
-                @if (_marcaSel == "" && _termoMarca.Trim().Length > 0 && _marcas.Count > 0)
-                {
-                    var marcasAchadas = FipeService.Filtrar(_marcas, _termoMarca);
-                    <ul class="fipe-lista">
-                        @if (marcasAchadas.Count == 0)
-                        {
-                            <li class="muted">Nenhuma marca com esse nome.</li>
-                        }
-                        @foreach (var m in marcasAchadas)
-                        {
-                            <li><button type="button" @onclick="() => EscolherMarca(m)">@m.Nome</button></li>
-                        }
-                    </ul>
-                }
-                @if (_modeloSel is null && _termo.Trim().Length > 0 && _modelos.Count > 0)
-                {
-                    var achados = FipeService.Filtrar(_modelos, _termo);
-                    <ul class="fipe-lista">
-                        @if (achados.Count == 0)
-                        {
-                            <li class="muted">Nenhuma versão com essas palavras.</li>
-                        }
-                        @foreach (var m in achados)
-                        {
-                            <li><button type="button" @onclick="() => EscolherModelo(m)">@m.Nome</button></li>
-                        }
-                    </ul>
-                }
-                @if (_modeloSel is not null)
-                {
-                    <div class="form-grid fipe-escolha">
-                        <div class="field full"><span>Versão escolhida</span><b>@_modeloSel.Nome</b></div>
-                        <label class="field"><span>Ano</span>
-                            <select @bind="_anoSel" @bind:after="AtualizarLinkCnw" disabled="@(_anos.Count == 0)">
-                                @if (_anos.Count == 0) { <option value="">carregando...</option> }
-                                @foreach (var a in _anos)
+                <button class="btn primary" type="button" @onclick="AbrirFipe">Usar a FIPE</button>
+            </div>
+        }
+        else
+        {
+            var passo = _marcaSel == "" ? 1 : _modeloSel is null ? 2 : 3;
+            <div class="fipe">
+                <div class="fipe-topo">
+                    <b>Tabela FIPE</b>
+                    <button class="btn sm" type="button" @onclick="FecharFipe">Preencher à mão</button>
+                </div>
+                <ol class="fipe-passos">
+                    @* 1. Marca *@
+                    <li class="@(passo > 1 ? "feito" : "atual")">
+                        <span class="fp-num">@(passo > 1 ? "✓" : "1")</span>
+                        <div class="fp-corpo">
+                            @if (passo > 1)
+                            {
+                                <div class="fp-escolha"><small>Marca</small><b>@_termoMarca</b></div>
+                                <button class="btn sm" type="button" @onclick="VoltarParaMarca">Trocar</button>
+                            }
+                            else
+                            {
+                                @* O <select> nativo com ~90 marcas abria por cima de si mesmo no Windows e o soltar do clique já escolhia uma *@
+                                <label class="field"><span>Marca</span>
+                                    <input placeholder="@(_marcas.Count == 0 ? "carregando..." : "digite a marca, ex.: chev")" disabled="@(_marcas.Count == 0)"
+                                           @bind="_termoMarca" @bind:event="oninput" @bind:after="AoDigitarMarca"></label>
+                                @if (_termoMarca.Trim().Length > 0 && _marcas.Count > 0)
                                 {
-                                    <option value="@a.Codigo">@a.Nome</option>
+                                    var marcasAchadas = FipeService.Filtrar(_marcas, _termoMarca);
+                                    <ul class="fipe-lista">
+                                        @if (marcasAchadas.Count == 0)
+                                        {
+                                            <li class="muted">Nenhuma marca com esse nome.</li>
+                                        }
+                                        @foreach (var m in marcasAchadas)
+                                        {
+                                            <li><button type="button" @onclick="() => EscolherMarca(m)">@m.Nome</button></li>
+                                        }
+                                    </ul>
                                 }
-                            </select></label>
-                        <div class="field"><span>&nbsp;</span>
-                            <button class="btn primary" type="button" disabled="@(_anoSel == "" || _carregando)" @onclick="PreencherDaFipe">
-                                @(_carregando ? "Buscando..." : "Preencher")</button></div>
-                    </div>
-                }
+                            }
+                        </div>
+                    </li>
+                    @* 2. Modelo / versão *@
+                    <li class="@(passo > 2 ? "feito" : passo == 2 ? "atual" : "")">
+                        <span class="fp-num">@(passo > 2 ? "✓" : "2")</span>
+                        <div class="fp-corpo">
+                            @if (passo > 2)
+                            {
+                                <div class="fp-escolha"><small>Versão</small><b>@_modeloSel!.Nome</b></div>
+                                <button class="btn sm" type="button" @onclick="VoltarParaModelo">Trocar</button>
+                            }
+                            else if (passo == 2)
+                            {
+                                <label class="field"><span>Modelo e versão</span>
+                                    <input placeholder="@(_modelos.Count == 0 ? "carregando..." : "ex.: onix lt 1.0")" disabled="@(_modelos.Count == 0)"
+                                           @bind="_termo" @bind:event="oninput" @bind:after="AoDigitarModelo"></label>
+                                @if (_termo.Trim().Length > 0 && _modelos.Count > 0)
+                                {
+                                    var achados = FipeService.Filtrar(_modelos, _termo);
+                                    <ul class="fipe-lista">
+                                        @if (achados.Count == 0)
+                                        {
+                                            <li class="muted">Nenhuma versão com essas palavras.</li>
+                                        }
+                                        @foreach (var m in achados)
+                                        {
+                                            <li><button type="button" @onclick="() => EscolherModelo(m)">@m.Nome</button></li>
+                                        }
+                                    </ul>
+                                }
+                            }
+                            else
+                            {
+                                <span class="fp-pendente">Modelo e versão</span>
+                            }
+                        </div>
+                    </li>
+                    @* 3. Ano e preencher *@
+                    <li class="@(passo == 3 ? "atual" : "")">
+                        <span class="fp-num">3</span>
+                        <div class="fp-corpo">
+                            @if (passo == 3)
+                            {
+                                <div class="fp-ano">
+                                    <label class="field"><span>Ano</span>
+                                        <select @bind="_anoSel" @bind:after="AtualizarLinkCnw" disabled="@(_anos.Count == 0)">
+                                            @if (_anos.Count == 0) { <option value="">carregando...</option> }
+                                            @foreach (var a in _anos)
+                                            {
+                                                <option value="@a.Codigo">@a.Nome</option>
+                                            }
+                                        </select></label>
+                                    <button class="btn primary" type="button" disabled="@(_anoSel == "" || _carregando)" @onclick="PreencherDaFipe">
+                                        @(_carregando ? "Buscando..." : "Preencher a ficha")</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="fp-pendente">Ano</span>
+                            }
+                        </div>
+                    </li>
+                </ol>
                 @if (_erroFipe is not null)
                 {
                     <p class="fipe-erro">@_erroFipe</p>
@@ -170,8 +221,8 @@ else
                         <span>confira em <a href="@(_linkCnw?.Url ?? LinkBuscaCnw())" target="_blank" rel="noopener">Carros na Web</a> e digite abaixo.</span>
                     }
                 </p>
-            }
-        </div>
+            </div>
+        }
 
         <h3 class="form-secao">Identificação</h3>
         <div class="form-grid cols-4">
@@ -512,6 +563,27 @@ else
         if (pedido != _pedidoCnw) return; // trocou de versão/ano enquanto procurava
         _linkCnw = link;
         _procurandoCnw = false;
+    }
+
+    /// <summary>Volta ao passo da marca, mantendo o que foi digitado (a lista aparece de novo).</summary>
+    private Task VoltarParaMarca()
+    {
+        _termo = "";
+        return CarregarModelos("");
+    }
+
+    /// <summary>Volta ao passo do modelo, mantendo a busca digitada; descarta o ano.</summary>
+    private void VoltarParaModelo()
+    {
+        AoDigitarModelo();
+        _anos = [];
+        _anoSel = "";
+    }
+
+    private void FecharFipe()
+    {
+        _fipeAberto = false;
+        _erroFipe = null;
     }
 
     private void AoDigitarModelo()

@@ -1477,8 +1477,30 @@ html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; 
 .vn-mais svg { width: 20px; height: 20px; }
 @media (max-width: 600px) { .veiculo-acoes { width: 100%; } .veiculo-acoes .btn { flex: 1; } }
 .fipe { padding: 14px; border: 1px dashed var(--border); border-radius: 12px; background: var(--surface-2); }
-.fipe-escolha { margin-top: 12px; }
-.fipe-escolha .field > b { font-size: 13.5px; overflow-wrap: anywhere; }
+/* Convite em destaque (antes de abrir) */
+.fipe.fipe-convite { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-style: solid; background: var(--accent-soft); }
+.fipe-icone { flex: 0 0 auto; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }
+.fipe-icone svg { width: 24px; height: 24px; }
+.fipe-convite-texto { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fipe-convite-texto small { color: var(--text-2); font-size: 12.5px; }
+/* Passos: marca → modelo → ano; o já escolhido vira resumo com "Trocar" */
+.fipe-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.fipe-passos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.fipe-passos > li { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; position: relative; }
+.fipe-passos > li:not(:last-child)::after { content: ""; position: absolute; left: 13px; top: 38px; bottom: -6px; width: 2px; background: var(--border); }
+.fipe-passos > li.feito:not(:last-child)::after { background: var(--accent); }
+.fp-num { flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 12.5px; font-weight: 700; background: var(--surface); border: 2px solid var(--border); color: var(--muted); }
+.fipe-passos > li.atual .fp-num { border-color: var(--accent); color: var(--accent); }
+.fipe-passos > li.feito .fp-num { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.fp-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.fipe-passos > li.feito .fp-corpo { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.fp-escolha { display: flex; flex-direction: column; min-width: 0; }
+.fp-escolha small { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.fp-escolha b { font-size: 13.5px; overflow-wrap: anywhere; }
+.fp-pendente { padding-top: 4px; color: var(--muted); font-size: 13.5px; }
+.fp-ano { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.fp-ano .field { flex: 0 1 200px; }
+.fipe-passos .fipe-lista { margin-top: 0; }
 .fipe-lista { list-style: none; margin: 10px 0 0; padding: 4px; max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
 .fipe-lista li { font-size: 13px; }
 .fipe-lista li.muted { padding: 8px 10px; }
