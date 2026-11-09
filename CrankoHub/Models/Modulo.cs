@@ -15,7 +15,7 @@ public record Modulo(string Id, string Nome, string Descricao, MarkupString Icon
 
     public static readonly IReadOnlyList<Modulo> Todos =
     [
-        new(Dieta, "Dieta", "Peso, medidas, IMC e meta", Icones.Dieta),
+        new(Dieta, "Dieta", "Peso, medidas e meta", Icones.Dieta),
         new(Carro, "Carro", "Abastecimentos, manutenção e documentos", Icones.Carro),
         new(Assinaturas, "Assinaturas", "Serviços recorrentes e cobranças", Icones.Assinaturas),
         new(Entretenimento, "Entretenimento", "Livros, filmes, séries, animes e jogos", Icones.Entretenimento),

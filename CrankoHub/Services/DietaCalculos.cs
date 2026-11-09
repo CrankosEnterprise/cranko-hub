@@ -2,24 +2,11 @@ using CrankoHub.Models;
 
 namespace CrankoHub.Services;
 
-/// <summary>Contas da Dieta: IMC, tendência, variação semanal, média móvel e previsão da meta.</summary>
+/// <summary>Contas da Dieta: tendência, variação semanal, média móvel e previsão da meta.</summary>
 public static class DietaCalculos
 {
     public static List<RegistroPeso> Ordenados(IEnumerable<RegistroPeso> registros) =>
         registros.OrderBy(r => r.Data).ToList();
-
-    public static double Imc(double peso, double alturaCm) => peso / Math.Pow(alturaCm / 100, 2);
-
-    /// <summary>Classificação do IMC: texto e classe CSS do selo.</summary>
-    public static (string Rotulo, string Classe) ClasseImc(double imc) => imc switch
-    {
-        < 18.5 => ("Abaixo do peso", "warning"),
-        < 25 => ("Peso normal", "good"),
-        < 30 => ("Sobrepeso", "warning"),
-        < 35 => ("Obesidade grau I", "serious"),
-        < 40 => ("Obesidade grau II", "critical"),
-        _ => ("Obesidade grau III", "critical"),
-    };
 
     /// <summary>Tendência em kg/dia pela regressão linear dos últimos 30 dias.</summary>
     public static double? Tendencia(IReadOnlyList<RegistroPeso> rs)
