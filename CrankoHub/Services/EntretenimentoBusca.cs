@@ -8,7 +8,17 @@ using CrankoHub.Models;
 namespace CrankoHub.Services;
 
 /// <summary>Um resultado de busca, já no formato para preencher um <see cref="ItemEntretenimento"/>.</summary>
-public record ResultadoBusca(string Titulo, int? Ano, string? UrlCapa, string? Sinopse, string? Criadores, string? Generos, string Fonte, string FonteId);
+public record ResultadoBusca(string Titulo, int? Ano, string? UrlCapa, string? Sinopse, string? Criadores, string? Generos, string Fonte, string FonteId)
+{
+    /// <summary>Categoria em que foi buscado (chave de <see cref="CategoriaEntretenimento"/>).</summary>
+    public string? Categoria { get; init; }
+}
+
+/// <summary>Uma página de resultados e se ainda há mais para buscar.</summary>
+public record PaginaBusca(List<ResultadoBusca> Itens, bool TemMais);
+
+/// <summary>Resultados da busca geral e as categorias que ainda têm mais páginas.</summary>
+public record PaginaGeral(List<ResultadoBusca> Itens, List<string> ComMais);
 
 /// <summary>Erro de busca com mensagem pronta para mostrar ao usuário.</summary>
 public class BuscaException(string mensagem) : Exception(mensagem);
@@ -25,25 +35,32 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
     /// <summary>Identificação nas requisições (a Wikimedia limita quem não diz quem é).</summary>
     public const string UserAgent = "CrankoHub/1.0 (https://github.com/CrankosEnterprise/cranko-hub)";
 
-    public async Task<List<ResultadoBusca>> Buscar(CategoriaEntretenimento cat, string termo)
+    /// <summary>Categorias da busca geral. "Animações" fica de fora: usa a mesma fonte dos filmes e só repetiria resultados.</summary>
+    public static readonly IReadOnlyList<CategoriaEntretenimento> CategoriasGeral =
+        CategoriaEntretenimento.Todas.Where(c => c.Chave != "animacao").ToList();
+
+    /// <summary>Uma página (a partir de 1) da busca numa categoria.</summary>
+    public async Task<PaginaBusca> Buscar(CategoriaEntretenimento cat, string termo, int pagina = 1, CancellationToken ct = default)
     {
         termo = termo.Trim();
-        if (termo.Length == 0) return [];
+        if (termo.Length == 0) return new([], false);
         try
         {
-            return cat.Api switch
+            var p = cat.Api switch
             {
-                "tmdb-filme" when ChaveTmdb() is null => await Wikipedia("Info/Filme", termo),
-                "tmdb-serie" when ChaveTmdb() is null => await Wikipedia("Info/Televisão", termo),
-                "rawg" when ChaveRawg() is null => await Wikipedia("Info/Jogo eletrônico", termo),
-                "tmdb-filme" => await Tmdb("movie", termo),
-                "tmdb-serie" => await Tmdb("tv", termo),
-                "rawg" => await Rawg(termo),
-                "anilist" => await AniList(termo),
-                _ => await OpenLibrary(termo),
+                "tmdb-filme" when ChaveTmdb() is null => await Wikipedia("Info/Filme", termo, pagina, ct),
+                "tmdb-serie" when ChaveTmdb() is null => await Wikipedia("Info/Televisão", termo, pagina, ct),
+                "rawg" when ChaveRawg() is null => await Wikipedia("Info/Jogo eletrônico", termo, pagina, ct),
+                "tmdb-filme" => await Tmdb("movie", termo, pagina, ct),
+                "tmdb-serie" => await Tmdb("tv", termo, pagina, ct),
+                "rawg" => await Rawg(termo, pagina, ct),
+                "anilist" => await AniList(termo, pagina, ct),
+                _ => await OpenLibrary(termo, pagina, ct),
             };
+            return p with { Itens = p.Itens.Select(r => r with { Categoria = cat.Chave }).ToList() };
         }
         catch (BuscaException) { throw; }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (HttpRequestException e) when (e.StatusCode is System.Net.HttpStatusCode.Unauthorized)
         {
             throw new BuscaException("A chave da API foi recusada. Confira nas Configurações.");
@@ -52,6 +69,38 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
         {
             throw new BuscaException("Não foi possível buscar agora. Verifique a internet ou cadastre manualmente.");
         }
+    }
+
+    /// <summary>
+    /// Busca em todas as categorias ao mesmo tempo e mistura os resultados, com os títulos mais parecidos primeiro.
+    /// <paramref name="somente"/> limita às categorias que ainda têm páginas (para o "Ver mais").
+    /// </summary>
+    public async Task<PaginaGeral> BuscarGeral(string termo, int pagina = 1, IReadOnlyCollection<string>? somente = null, CancellationToken ct = default)
+    {
+        var cats = CategoriasGeral.Where(c => somente is null || somente.Contains(c.Chave)).ToList();
+        var respostas = await Task.WhenAll(cats.Select(async c =>
+        {
+            try { return (Cat: c, Pagina: await Buscar(c, termo, pagina, ct), Erro: (BuscaException?)null); }
+            catch (BuscaException e) { return (Cat: c, Pagina: (PaginaBusca?)null, Erro: e); }
+        }));
+        // Só reclama se nenhuma fonte respondeu
+        if (respostas.Length > 0 && respostas.All(r => r.Erro is not null)) throw respostas[0].Erro!;
+
+        var alvo = Normalizar(termo);
+        int Parecido(ResultadoBusca r) => Normalizar(r.Titulo) is var t && t == alvo ? 0 : t.StartsWith(alvo) ? 1 : t.Contains(alvo) ? 2 : 3;
+        // Intercala as categorias (1º de cada, 2º de cada...) e sobe os títulos mais parecidos com o que foi digitado
+        var itens = respostas.Where(r => r.Pagina is not null)
+            .SelectMany((r, ordemCat) => r.Pagina!.Itens.Select((item, i) => (item, i, ordemCat)))
+            .OrderBy(x => Parecido(x.item)).ThenBy(x => x.i).ThenBy(x => x.ordemCat)
+            .Select(x => x.item).ToList();
+        return new(itens, respostas.Where(r => r.Pagina?.TemMais == true).Select(r => r.Cat.Chave).ToList());
+    }
+
+    /// <summary>Minúsculas e sem acentos, para comparar títulos.</summary>
+    private static string Normalizar(string texto)
+    {
+        var d = texto.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+        return new string(d.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
     }
 
     /// <summary>Completa o resultado escolhido com o que a busca não traz (diretor, estúdio, sinopse...).</summary>
@@ -93,32 +142,35 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
 
     // ---- APIs ----
 
-    private async Task<List<ResultadoBusca>> Tmdb(string tipo, string termo)
+    // O TMDB devolve 20 por página (não dá para mudar)
+    private async Task<PaginaBusca> Tmdb(string tipo, string termo, int pagina, CancellationToken ct)
     {
         var filme = tipo == "movie";
-        var j = await Get(UrlTmdb($"search/{tipo}", "query=" + Uri.EscapeDataString(termo)), Bearer());
-        return (j["results"]?.AsArray() ?? []).Take(Maximo).Select(x => new ResultadoBusca(
+        var j = await Get(UrlTmdb($"search/{tipo}", $"page={pagina}&query=" + Uri.EscapeDataString(termo)), Bearer(), ct);
+        var itens = (j["results"]?.AsArray() ?? []).Select(x => new ResultadoBusca(
             Texto(x?[filme ? "title" : "name"]) ?? "",
             Ano(Texto(x?[filme ? "release_date" : "first_air_date"])),
             Texto(x?["poster_path"]) is string p ? "https://image.tmdb.org/t/p/w500" + p : null,
             Texto(x?["overview"]), null, null, "tmdb-" + tipo, x?["id"]?.ToString() ?? "")).ToList();
+        return new(itens, pagina < ((int?)j["total_pages"] ?? 0));
     }
 
-    private async Task<List<ResultadoBusca>> Rawg(string termo)
+    private async Task<PaginaBusca> Rawg(string termo, int pagina, CancellationToken ct)
     {
-        var j = await Get($"https://api.rawg.io/api/games?page_size={Maximo}&search={Uri.EscapeDataString(termo)}&key={Uri.EscapeDataString(ChaveRawg() ?? "")}");
-        return (j["results"]?.AsArray() ?? []).Select(x => new ResultadoBusca(
+        var j = await Get($"https://api.rawg.io/api/games?page_size={Maximo}&page={pagina}&search={Uri.EscapeDataString(termo)}&key={Uri.EscapeDataString(ChaveRawg() ?? "")}", ct: ct);
+        var itens = (j["results"]?.AsArray() ?? []).Select(x => new ResultadoBusca(
             Texto(x?["name"]) ?? "", Ano(Texto(x?["released"])), Texto(x?["background_image"]), null, null,
             Juntar(x?["genres"]?.AsArray().Select(g => Texto(g?["name"]))), "rawg", x?["id"]?.ToString() ?? "")).ToList();
+        return new(itens, Texto(j["next"]) is not null);
     }
 
-    private async Task<List<ResultadoBusca>> AniList(string termo)
+    private async Task<PaginaBusca> AniList(string termo, int pagina, CancellationToken ct)
     {
-        const string query = "query ($q: String) { Page(perPage: 12) { media(search: $q, type: ANIME) { id title { romaji english } startDate { year } coverImage { extraLarge } description(asHtml: false) genres studios(isMain: true) { nodes { name } } } } }";
-        using var resp = await http.PostAsJsonAsync("https://graphql.anilist.co", new { query, variables = new { q = termo } });
+        const string query = "query ($q: String, $p: Int) { Page(page: $p, perPage: 12) { pageInfo { hasNextPage } media(search: $q, type: ANIME) { id title { romaji english } startDate { year } coverImage { extraLarge } description(asHtml: false) genres studios(isMain: true) { nodes { name } } } } }";
+        using var resp = await http.PostAsJsonAsync("https://graphql.anilist.co", new { query, variables = new { q = termo, p = pagina } }, ct);
         resp.EnsureSuccessStatusCode();
-        var j = JsonNode.Parse(await resp.Content.ReadAsStringAsync())!;
-        return (j["data"]?["Page"]?["media"]?.AsArray() ?? []).Select(x => new ResultadoBusca(
+        var j = JsonNode.Parse(await resp.Content.ReadAsStringAsync(ct))!;
+        var itens = (j["data"]?["Page"]?["media"]?.AsArray() ?? []).Select(x => new ResultadoBusca(
             Texto(x?["title"]?["english"]) ?? Texto(x?["title"]?["romaji"]) ?? "",
             x?["startDate"]?["year"]?.GetValueKind() == JsonValueKind.Number ? (int)x["startDate"]!["year"]! : null,
             Texto(x?["coverImage"]?["extraLarge"]),
@@ -126,27 +178,29 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
             Juntar(x?["studios"]?["nodes"]?.AsArray().Select(s => Texto(s?["name"]))),
             Juntar(x?["genres"]?.AsArray().Select(Texto)),
             "anilist", x?["id"]?.ToString() ?? "")).ToList();
+        return new(itens, j["data"]?["Page"]?["pageInfo"]?["hasNextPage"]?.GetValueKind() == JsonValueKind.True);
     }
 
-    private async Task<List<ResultadoBusca>> OpenLibrary(string termo)
+    private async Task<PaginaBusca> OpenLibrary(string termo, int pagina, CancellationToken ct)
     {
-        var j = await Get($"https://openlibrary.org/search.json?limit={Maximo}&fields=key,title,author_name,first_publish_year,cover_i,subject&q={Uri.EscapeDataString(termo)}");
-        return (j["docs"]?.AsArray() ?? []).Select(x => new ResultadoBusca(
+        var j = await Get($"https://openlibrary.org/search.json?limit={Maximo}&page={pagina}&fields=key,title,author_name,first_publish_year,cover_i,subject&q={Uri.EscapeDataString(termo)}", ct: ct);
+        var itens = (j["docs"]?.AsArray() ?? []).Select(x => new ResultadoBusca(
             Texto(x?["title"]) ?? "",
             x?["first_publish_year"]?.GetValueKind() == JsonValueKind.Number ? (int)x["first_publish_year"]! : null,
             x?["cover_i"] is JsonNode c ? $"https://covers.openlibrary.org/b/id/{c}-L.jpg" : null, null,
             Juntar(x?["author_name"]?.AsArray().Take(3).Select(Texto)),
             Juntar(x?["subject"]?.AsArray().Take(3).Select(Texto)),
             "openlibrary", Texto(x?["key"]) ?? "")).ToList();
+        return new(itens, ((int?)j["numFound"] ?? 0) > pagina * Maximo);
     }
 
     // Busca só entre as páginas com a ficha (infobox) do tipo certo: Info/Filme, Info/Televisão, Info/Jogo eletrônico
-    private async Task<List<ResultadoBusca>> Wikipedia(string ficha, string termo)
+    private async Task<PaginaBusca> Wikipedia(string ficha, string termo, int pagina, CancellationToken ct)
     {
-        var j = await Get(UrlWikipedia("generator=search&gsrlimit=" + Maximo
+        var j = await Get(UrlWikipedia("generator=search&gsrlimit=" + Maximo + "&gsroffset=" + (pagina - 1) * Maximo
             + "&gsrsearch=" + Uri.EscapeDataString($"{termo} hastemplate:\"{ficha}\"")
-            + "&prop=pageimages&piprop=thumbnail&pithumbsize=600"));
-        return (j["query"]?["pages"]?.AsArray() ?? [])
+            + "&prop=pageimages&piprop=thumbnail&pithumbsize=600"), ct: ct);
+        var itens = (j["query"]?["pages"]?.AsArray() ?? [])
             .OrderBy(x => (int?)x?["index"] ?? 99)
             .Select(x =>
             {
@@ -157,6 +211,8 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
                 return new ResultadoBusca(m.Success ? titulo[..m.Index] : titulo, ano,
                     Texto(x?["thumbnail"]?["source"]), null, null, null, "wikipedia", x?["pageid"]?.ToString() ?? "");
             }).ToList();
+        // A Wikipedia manda "continue" quando há mais páginas
+        return new(itens, j["continue"]?["gsroffset"] is not null);
     }
 
     // Resumo da Wikipedia + direção/criação, gêneros e data da Wikidata (e pôster do TVmaze para séries)
@@ -232,13 +288,13 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
         return chave.Length > 40 ? url : url + "&api_key=" + Uri.EscapeDataString(chave);
     }
 
-    private async Task<JsonNode> Get(string url, string? bearer = null)
+    private async Task<JsonNode> Get(string url, string? bearer = null, CancellationToken ct = default)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
         if (bearer is not null) req.Headers.Authorization = new("Bearer", bearer);
-        using var resp = await http.SendAsync(req);
+        using var resp = await http.SendAsync(req, ct);
         resp.EnsureSuccessStatusCode();
-        return JsonNode.Parse(await resp.Content.ReadAsStringAsync())!;
+        return JsonNode.Parse(await resp.Content.ReadAsStringAsync(ct))!;
     }
 
     private static string? Texto(JsonNode? n) =>

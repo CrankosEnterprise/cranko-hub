@@ -4,6 +4,7 @@
 @inject IDialogoService Dialogo
 @inject EntretenimentoBusca Busca
 @inject CapasService Capas
+@implements IDisposable
 
 @{
     var hoje = Hoje;
@@ -116,19 +117,21 @@
 @* ---- Adicionar: busca nas APIs ---- *@
 @if (_modo == Modo.Buscar)
 {
-    var cat = CategoriaEntretenimento.Buscar(_fCategoria);
+    var geral = _buscaCategoria == Geral;
+    var placeholder = geral ? "Buscar filme, série, anime, jogo ou livro..." : $"Título do {CategoriaEntretenimento.Buscar(_buscaCategoria).Singular}...";
     <div class="modal-backdrop" @onclick="Fechar">
         <div class="card modal modal-largo" @onclick:stopPropagation="true">
-            <div class="card-head"><div><h2>Adicionar à estante</h2><p>Busque pelo título para preencher tudo e baixar a capa.</p></div></div>
-            <div class="chips">
-                @foreach (var c in CategoriaEntretenimento.Todas)
-                {
-                    <button type="button" class="chip @(_fCategoria == c.Chave ? "active" : "")" @onclick="() => MudarCategoriaBusca(c.Chave)">@c.Nome</button>
-                }
-            </div>
-            <form class="busca-linha" autocomplete="off" @onsubmit="Pesquisar">
-                <input class="select" placeholder="Título do @cat.Singular..." @bind="_termo" @bind:event="oninput">
-                <button class="btn primary" type="submit" disabled="@_buscando">@(_buscando ? "Buscando..." : "Buscar")</button>
+            <div class="card-head"><div><h2>Adicionar à estante</h2><p>Digite o título — os resultados aparecem enquanto você escreve.</p></div></div>
+            <form class="busca-linha" autocomplete="off" @onsubmit="BuscarAgora">
+                <input class="select" type="search" placeholder="@placeholder" autofocus aria-label="Título"
+                       @bind="_termo" @bind:event="oninput" @bind:after="AoDigitar">
+                <select class="select" aria-label="Tipo de conteúdo" @bind="_buscaCategoria" @bind:after="BuscarAgora">
+                    <option value="@Geral">Geral</option>
+                    @foreach (var c in CategoriaEntretenimento.Todas)
+                    {
+                        <option value="@c.Chave">@c.Nome</option>
+                    }
+                </select>
             </form>
             @if (_erroBusca is not null)
             {
@@ -139,7 +142,7 @@
                 <div class="resultados">
                     @foreach (var r in _resultados)
                     {
-                        <button type="button" class="resultado" disabled="@_buscando" @onclick="() => Escolher(r)">
+                        <button type="button" class="resultado" disabled="@_escolhendo" @onclick="() => Escolher(r)">
                             @if (r.UrlCapa is not null)
                             {
                                 <img src="@r.UrlCapa" alt="" loading="lazy">
@@ -148,14 +151,25 @@
                             {
                                 <span class="capa-vazia mini">@Inicial(r.Titulo)</span>
                             }
-                            <span><b>@r.Titulo</b><small>@(string.Join(" · ", new[] { r.Ano?.ToString(), r.Criadores }.Where(x => x is not null)))</small></span>
+                            <span>
+                                <b>@r.Titulo</b>
+                                <small>@(string.Join(" · ", new[] { geral && r.Categoria is not null ? Maiuscula(CategoriaEntretenimento.Buscar(r.Categoria).Singular) : null, r.Ano?.ToString(), r.Criadores }.Where(x => x is not null)))</small>
+                            </span>
                         </button>
+                    }
+                    @if (_temMais)
+                    {
+                        <button type="button" class="btn ver-mais" disabled="@_buscando" @onclick="VerMais">@(_buscando ? "Carregando..." : "Ver mais resultados")</button>
                     }
                 </div>
             }
+            else if (_buscando)
+            {
+                <p class="muted">Buscando...</p>
+            }
             else if (_buscou && _erroBusca is null)
             {
-                <p class="muted">Nada encontrado. Tente outro título ou cadastre manualmente.</p>
+                <p class="muted">Nada encontrado. Tente outro título, outro tipo ou cadastre manualmente.</p>
             }
             <div class="form-actions">
                 <button class="btn" type="button" @onclick="Fechar">Cancelar</button>
@@ -283,12 +297,20 @@
     private Modo _modo;
     private string? _detalheId, _editId;
 
-    private string _termo = "";
+    // Busca: "geral" procura em todas as categorias de uma vez
+    private const string Geral = "geral";
+    private const int AtrasoDigitacaoMs = 450;  // espera parar de digitar antes de buscar (poupa as APIs)
+    private const int MinimoLetras = 2;
+    private string _termo = "", _buscaCategoria = Geral;
     private List<ResultadoBusca> _resultados = [];
     private string? _erroBusca;
-    private bool _buscando, _buscou, _salvando;
+    private bool _buscando, _buscou, _escolhendo, _salvando;
+    private int _pagina;
+    private bool _temMais;
+    private List<string> _geralComMais = [];   // categorias da busca geral que ainda têm páginas
+    private CancellationTokenSource? _ctsBusca;
 
-    private string _fCategoria = "filme", _fTitulo = "", _fAno = "", _fStatus = "concluido", _fCriadores = "", _fGeneros = "", _fSinopse = "", _fObs = "";
+    private string _fCategoria = "filme", _fTitulo = "", _fAno = "", _fStatus = "quero", _fCriadores = "", _fGeneros = "", _fSinopse = "", _fObs = "";
     private DateOnly? _fData;
     private double? _fNota;
     private string? _fCapa, _fUrlCapa, _fFonte, _fFonteId;
@@ -299,14 +321,24 @@
 
     private static string Inicial(string titulo) => titulo.Length > 0 ? titulo[..1].ToUpperInvariant() : "?";
 
+    private static string Maiuscula(string s) => s.Length > 0 ? char.ToUpperInvariant(s[0]) + s[1..] : s;
+
     private void AbrirBusca()
     {
-        _fCategoria = _filtroCategoria == "todas" ? "filme" : _filtroCategoria;
+        _buscaCategoria = _filtroCategoria == "todas" ? Geral : _filtroCategoria;
         _termo = "";
+        LimparResultados();
+        _modo = Modo.Buscar;
+    }
+
+    private void LimparResultados()
+    {
+        _ctsBusca?.Cancel();
         _resultados = [];
         _erroBusca = null;
-        _buscou = false;
-        _modo = Modo.Buscar;
+        _buscou = _buscando = _temMais = false;
+        _pagina = 0;
+        _geralComMais = [];
     }
 
     private void AbrirDetalhe(ItemEntretenimento e)
@@ -317,27 +349,90 @@
 
     private void Fechar()
     {
+        _ctsBusca?.Cancel();
         foreach (var c in _capasNovas) CapasService.Excluir(c);
         _capasNovas.Clear();
         _modo = Modo.Nenhum;
     }
 
-    private async Task MudarCategoriaBusca(string chave)
+    public void Dispose() => _ctsBusca?.Cancel();
+
+    /// <summary>A cada letra: espera a pessoa parar de digitar e então busca.</summary>
+    private Task AoDigitar() => Pesquisar(atraso: true);
+
+    /// <summary>Enter ou troca do tipo: busca na hora.</summary>
+    private Task BuscarAgora() => Pesquisar(atraso: false);
+
+    private async Task Pesquisar(bool atraso)
     {
-        _fCategoria = chave;
-        _resultados = [];
-        _erroBusca = null;
-        _buscou = false;
-        if (_termo.Trim().Length > 0) await Pesquisar();
+        // Cancela a espera/busca anterior: só a última digitação vale
+        _ctsBusca?.Cancel();
+        var termo = _termo.Trim();
+        if (termo.Length < MinimoLetras)
+        {
+            LimparResultados();
+            return;
+        }
+        var cts = _ctsBusca = new CancellationTokenSource();
+        try
+        {
+            if (atraso) await Task.Delay(AtrasoDigitacaoMs, cts.Token);
+            _buscando = true;
+            _erroBusca = null;
+            StateHasChanged();
+            await CarregarPagina(termo, 1, cts.Token);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
     }
 
-    private async Task Pesquisar()
+    private async Task VerMais()
     {
-        if (_termo.Trim().Length == 0 || _buscando) return;
+        if (_buscando || !_temMais) return;
+        _ctsBusca?.Cancel();
+        var cts = _ctsBusca = new CancellationTokenSource();
         _buscando = true;
-        _erroBusca = null;
-        try { _resultados = await Busca.Buscar(CategoriaEntretenimento.Buscar(_fCategoria), _termo); }
-        catch (BuscaException e) { _resultados = []; _erroBusca = e.Message; }
+        try { await CarregarPagina(_termo.Trim(), _pagina + 1, cts.Token); }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+    }
+
+    private async Task CarregarPagina(string termo, int pagina, CancellationToken ct)
+    {
+        List<ResultadoBusca> novos;
+        try
+        {
+            if (_buscaCategoria == Geral)
+            {
+                var g = await Busca.BuscarGeral(termo, pagina, pagina == 1 ? null : _geralComMais, ct);
+                novos = g.Itens;
+                _geralComMais = g.ComMais;
+                _temMais = g.ComMais.Count > 0;
+            }
+            else
+            {
+                var p = await Busca.Buscar(CategoriaEntretenimento.Buscar(_buscaCategoria), termo, pagina, ct);
+                novos = p.Itens;
+                _temMais = p.TemMais;
+            }
+        }
+        catch (BuscaException e)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (pagina == 1) _resultados = [];
+            _erroBusca = e.Message;
+            _temMais = false;
+            _buscando = false;
+            _buscou = true;
+            return;
+        }
+        ct.ThrowIfCancellationRequested();
+        if (pagina == 1) _resultados = novos;
+        else
+        {
+            // As páginas podem se sobrepor quando a fonte reordena: não repete o que já está na lista
+            var vistos = _resultados.Select(r => (r.Fonte, r.FonteId)).ToHashSet();
+            _resultados.AddRange(novos.Where(r => vistos.Add((r.Fonte, r.FonteId))));
+        }
+        _pagina = pagina;
         _buscando = false;
         _buscou = true;
     }
@@ -346,10 +441,11 @@
     {
         var existente = Lista.FirstOrDefault(e => e.Fonte == r.Fonte && e.FonteId == r.FonteId && r.FonteId.Length > 0);
         if (existente is not null && !await Dialogo.Confirmar($"\"{existente.Titulo}\" já está na sua estante.\nAdicionar de novo (ex.: assistiu outra vez)?")) return;
-        _buscando = true;
+        _ctsBusca?.Cancel();
+        _escolhendo = true;
         StateHasChanged();
         r = await Busca.Detalhar(r);
-        _buscando = false;
+        _escolhendo = false;
         AbrirFormulario(null, r);
     }
 
@@ -357,10 +453,11 @@
     {
         _capasNovas.Clear();
         _editId = e?.Id;
-        _fCategoria = e?.Categoria ?? _fCategoria;
+        // Item da estante > categoria do resultado > tipo escolhido na busca (Geral cai em filme)
+        _fCategoria = e?.Categoria ?? r?.Categoria ?? (_buscaCategoria == Geral ? "filme" : _buscaCategoria);
         _fTitulo = e?.Titulo ?? r?.Titulo ?? _termo.Trim();
         _fAno = (e?.Ano ?? r?.Ano)?.ToString() ?? "";
-        _fStatus = e?.Status ?? "concluido";
+        _fStatus = e?.Status ?? "quero";  // item novo entra como "Quero ver"
         _fData = e is not null ? e.Data : Hoje;
         _fNota = e?.Nota;
         _fCriadores = e?.Criadores ?? r?.Criadores ?? "";
