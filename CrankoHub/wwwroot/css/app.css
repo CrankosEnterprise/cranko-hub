@@ -283,9 +283,10 @@ html.vidro, html.vidro body { background: transparent; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .page-head p { color: var(--text-2); margin-top: 4px; }
 .page-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Barra no topo de uma aba (texto à esquerda, ação principal à direita) */
+.aba-barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+@media (max-width: 600px) { .aba-barra .btn { width: 100%; } }
 .kpi-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.chips.chips-mini { padding: 2px; }
-.chips.chips-mini .chip { padding: 2px 8px; font-size: 11.5px; }
 .filtros-linha { display: flex; gap: 8px; flex-wrap: wrap; }
 .modal.modal-medio { max-width: 560px; max-height: calc(100vh - 32px); overflow: auto; }
 @media (max-width: 600px) { .page-acoes { width: 100%; } .page-acoes .btn { flex: 1; justify-content: center; } }
@@ -1444,7 +1445,37 @@ html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; 
 .ficha-grupo dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 13.5px; }
 .ficha-grupo dt { color: var(--text-2); }
 .ficha-grupo dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
-.ficha-vazia { margin-top: 10px; }
+.ficha-vazia { margin-top: 10px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Aba Veículos: veículo em uso, os outros e o cartão para cadastrar mais um */
+.veh-nome { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.veh-nome:hover { background: var(--surface-2); }
+.veh-nome svg { width: 18px; height: 18px; color: var(--accent); }
+.veiculo-titulo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.veiculo-icone { flex: 0 0 auto; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.veiculo-icone svg { width: 24px; height: 24px; }
+.veiculo-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.veiculos-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 6px 2px -4px; }
+.veiculos-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.veiculo-mini { display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-align: left; font: inherit; color: var(--text); cursor: pointer; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); transition: border-color .15s, transform .15s; }
+.veiculo-mini:hover { border-color: var(--accent); transform: translateY(-1px); }
+.vm-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vm-texto small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vm-ir { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.vm-ir svg { width: 14px; height: 14px; }
+/* Cartão "bloqueado": esqueleto apagado de um veículo, com o convite por cima */
+.veiculo-novo { position: relative; min-height: 132px; padding: 16px; overflow: hidden; font: inherit; color: var(--text-2); text-align: center; cursor: pointer; background: color-mix(in srgb, var(--surface-2) 60%, transparent); border: 2px dashed var(--border); border-radius: var(--radius); transition: border-color .15s, background .15s, color .15s; }
+.veiculo-novo:hover, .veiculo-novo:focus-visible { border-color: var(--accent); background: var(--accent-soft); color: var(--text); outline: none; }
+.vn-esqueleto { position: absolute; inset: 16px; display: flex; flex-direction: column; gap: 10px; opacity: .45; filter: blur(1.5px); pointer-events: none; }
+.vn-esqueleto i { display: block; height: 10px; border-radius: 6px; background: var(--border); }
+.vn-esqueleto i:nth-child(1) { width: 42px; height: 42px; border-radius: 12px; }
+.vn-esqueleto i:nth-child(2) { width: 60%; }
+.vn-esqueleto i:nth-child(3) { width: 40%; }
+.veiculo-novo:hover .vn-esqueleto { opacity: .25; }
+.vn-cta { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.vn-cta small { color: var(--muted); font-size: 12px; max-width: 260px; }
+.vn-mais { display: grid; place-items: center; width: 38px; height: 38px; margin-bottom: 4px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--accent); box-shadow: var(--shadow); }
+.vn-mais svg { width: 20px; height: 20px; }
+@media (max-width: 600px) { .veiculo-acoes { width: 100%; } .veiculo-acoes .btn { flex: 1; } }
 .fipe { padding: 14px; border: 1px dashed var(--border); border-radius: 12px; background: var(--surface-2); }
 .fipe-escolha { margin-top: 12px; }
 .fipe-escolha .field > b { font-size: 13.5px; overflow-wrap: anywhere; }
@@ -1458,10 +1489,11 @@ html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; 
 .fipe-nota a { color: var(--accent); }
 
 /* ---- KPI com seletor (ex.: consumo Último | Média no Resumo do Carro) ---- */
-.kpi-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.kpi-head { display: flex; align-items: center; justify-content: space-between; gap: 6px 8px; min-width: 0; flex-wrap: wrap; }
 .kpi-head .kpi-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chips.mini { padding: 2px; border-radius: 8px; flex: none; }
 .chips.mini .chip { padding: 2px 8px; font-size: 11px; border-radius: 6px; }
+@media (max-width: 600px) { .chips.mini .chip { padding: 2px 6px; } }
 .kpi-sub .delta { font-size: 11.5px; padding: 0 6px; }
 
 /* ---- Dica (ⓘ com balão explicativo; abre com mouse, foco do teclado ou toque) ---- */

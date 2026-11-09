@@ -85,6 +85,7 @@ public partial class App : Application
         servicos.AddSingleton<CapasService>();
         servicos.AddSingleton<EntretenimentoBusca>();
         servicos.AddSingleton<FipeService>();
+        servicos.AddSingleton<CarrosNaWeb>();
         servicos.AddSingleton<SupabaseCliente>();
         servicos.AddSingleton<ContaService>();
         servicos.AddSingleton<SincronizacaoService>();

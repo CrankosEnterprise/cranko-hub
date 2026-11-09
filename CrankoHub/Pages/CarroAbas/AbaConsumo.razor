@@ -1,4 +1,4 @@
-@* Aba "Consumo" do Carro: gráficos de consumo, gastos com combustível e preços *@
+@* Aba "Consumo" do Carro: registrar abastecimentos, gráficos de consumo/gastos/preços e o histórico *@
 @inject ArmazenamentoService Store
 
 @{
@@ -20,6 +20,11 @@
             list.Where(a => a.Combustivel == f.Chave && a.Valor > 0).Select(a => new PontoLinha(a.Data, a.Valor!.Value / a.Litros)).ToList()))
         .Where(s => s.Points.Count > 0).ToList();
 }
+
+<div class="aba-barra">
+    <p class="muted">@(st.N > 0 ? $"{st.N} {Plural(st.N, "abastecimento", "abastecimentos")} de {Veiculo.Nome}" : $"Registre o primeiro abastecimento de {Veiculo.Nome} para ver o consumo.")</p>
+    <button class="btn primary" type="button" @onclick="() => _historico?.Novo()">@Icones.Mais Novo abastecimento</button>
+</div>
 
 <section class="kpis">
     <div class="kpi"><span class="kpi-label">Último consumo</span>
@@ -110,8 +115,18 @@
     </section>
 </div>
 
+<HistoricoAbastecimentos @ref="_historico" Veiculo="Veiculo" NovoAoAbrir="NovoAoAbrir" Alterado="Alterado" />
+
 @code {
     [Parameter, EditorRequired] public Veiculo Veiculo { get; set; } = default!;
+
+    /// <summary>Avisa a página do Carro que os dados mudaram (atualiza resumo e contadores).</summary>
+    [Parameter] public EventCallback Alterado { get; set; }
+
+    /// <summary>Já abre a janela de novo abastecimento (atalho do Resumo).</summary>
+    [Parameter] public bool NovoAoAbrir { get; set; }
+
+    private HistoricoAbastecimentos? _historico;
 
     private static readonly (int Dias, string Rotulo)[] Periodos = [(90, "3 meses"), (180, "6 meses"), (365, "1 ano"), (0, "Tudo")];
 

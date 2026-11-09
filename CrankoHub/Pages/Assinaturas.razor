@@ -63,7 +63,7 @@
     <div class="kpi">
         <div class="kpi-topo">
             <span class="kpi-label">Custo @(_custoAnual ? "anual" : "mensal")</span>
-            <div class="chips chips-mini" role="group" aria-label="Ver custo por mês ou por ano">
+            <div class="chips mini" role="group" aria-label="Ver custo por mês ou por ano">
                 <button type="button" class="chip @(!_custoAnual ? "active" : "")" aria-pressed="@(!_custoAnual)" @onclick="() => _custoAnual = false">Mês</button>
                 <button type="button" class="chip @(_custoAnual ? "active" : "")" aria-pressed="@_custoAnual" @onclick="() => _custoAnual = true">Ano</button>
             </div>

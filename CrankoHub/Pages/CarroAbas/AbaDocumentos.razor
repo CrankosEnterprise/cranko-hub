@@ -2,7 +2,6 @@
 @inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject IDialogoService Dialogo
-@inject IJSRuntime JS
 
 @{
     var hoje = Hoje;
@@ -11,6 +10,11 @@
     var ed = Editando();
     var tipoForm = TipoDocumento.Buscar(_fTipo);
 }
+
+<div class="aba-barra">
+    <p class="muted">@(pendentes.Count > 0 ? $"{pendentes.Count} {Plural(pendentes.Count, "vencimento pendente", "vencimentos pendentes")}" : "IPVA, licenciamento, seguro e CNH: cadastre os vencimentos para ser lembrado.")</p>
+    <button class="btn primary" type="button" @onclick="@(() => Novo("ipva"))">@Icones.Mais Novo vencimento</button>
+</div>
 
 <section class="lembretes">
     @foreach (var t in TipoDocumento.Todos)
@@ -40,31 +44,6 @@
     }
 </section>
 
-<form class="card" autocomplete="off" @ref="_form" @onsubmit="Salvar">
-    <div class="card-head"><div><h2>@(ed is not null ? "Editar documento" : "Novo vencimento")</h2><p>IPVA parcelado: cadastre cada parcela com o seu vencimento. A CNH vale para todos os veículos.</p></div></div>
-    <div class="form-grid cols-4">
-        <label class="field"><span>Documento</span>
-            <select @bind="_fTipo">
-                @foreach (var t in TipoDocumento.Todos)
-                {
-                    <option value="@t.Chave">@t.Nome</option>
-                }
-            </select></label>
-        <label class="field"><span>@(_fTipo == "cnh" ? "Validade" : "Vencimento")</span><input type="date" required @bind="_fVencimento"></label>
-        <label class="field"><span>Valor (R$)</span><input inputmode="decimal" placeholder="@(_fTipo == "cnh" ? "opcional" : "ex.: 812,40")" @bind="_fValor" @bind:event="oninput"></label>
-        <label class="field"><span>Detalhe</span><input maxlength="80" placeholder="@(_fTipo switch { "ipva" => "ex.: Parcela 1/3", "seguro" => "ex.: seguradora, franquia", "cnh" => "ex.: Categoria B", _ => "opcional" })" @bind="_fDescricao"></label>
-        <label class="field full"><span>Observação</span><input maxlength="140" placeholder="opcional" @bind="_fObs"></label>
-        <label class="check"><input type="checkbox" @bind="_fPago"> @tipoForm.AcaoPago</label>
-    </div>
-    <div class="form-actions">
-        <button class="btn primary" type="submit">@(ed is not null ? "Salvar alterações" : "Adicionar")</button>
-        @if (ed is not null)
-        {
-            <button class="btn" type="button" @onclick="() => Novo(_fTipo, rolar: false)">Cancelar</button>
-        }
-    </div>
-</form>
-
 <section class="card">
     <div class="card-head"><div><h2>Histórico de documentos</h2><p>@Veiculo.Nome · @list.Count @Plural(list.Count, "registro", "registros") · @pendentes.Count @Plural(pendentes.Count, "pendente", "pendentes")</p></div></div>
     <div class="table-wrap">
@@ -73,7 +52,7 @@
             <tbody>
                 @if (list.Count == 0)
                 {
-                    <tr><td colspan="7" class="empty-row">Nenhum documento cadastrado ainda.</td></tr>
+                    <tr><td colspan="7" class="empty-row">Nenhum documento cadastrado ainda. Toque em "Novo vencimento" no topo ⬆</td></tr>
                 }
                 @foreach (var x in Enumerable.Reverse(list))
                 {
@@ -100,6 +79,34 @@
     </div>
 </section>
 
+@* ---- Novo / editar vencimento ---- *@
+@if (_aberto)
+{
+<div class="modal-backdrop" @onclick="Fechar">
+<form class="card modal modal-medio" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="Salvar">
+    <div><h2>@(ed is not null ? "Editar documento" : "Novo vencimento")</h2><p class="muted">IPVA parcelado: cadastre cada parcela com o seu vencimento. A CNH vale para todos os veículos.</p></div>
+    <div class="form-grid">
+        <label class="field"><span>Documento</span>
+            <select @bind="_fTipo">
+                @foreach (var t in TipoDocumento.Todos)
+                {
+                    <option value="@t.Chave">@t.Nome</option>
+                }
+            </select></label>
+        <label class="field"><span>@(_fTipo == "cnh" ? "Validade" : "Vencimento")</span><input type="date" required @bind="_fVencimento"></label>
+        <label class="field"><span>Valor (R$)</span><input inputmode="decimal" placeholder="@(_fTipo == "cnh" ? "opcional" : "ex.: 812,40")" @bind="_fValor" @bind:event="oninput"></label>
+        <label class="field"><span>Detalhe</span><input maxlength="80" placeholder="@(_fTipo switch { "ipva" => "ex.: Parcela 1/3", "seguro" => "ex.: seguradora, franquia", "cnh" => "ex.: Categoria B", _ => "opcional" })" @bind="_fDescricao"></label>
+        <label class="field full"><span>Observação</span><input maxlength="140" placeholder="opcional" @bind="_fObs"></label>
+        <label class="check"><input type="checkbox" @bind="_fPago"> @tipoForm.AcaoPago</label>
+    </div>
+    <div class="form-actions">
+        <button class="btn" type="button" @onclick="Fechar">Cancelar</button>
+        <button class="btn primary" type="submit">@(ed is not null ? "Salvar alterações" : "Adicionar")</button>
+    </div>
+</form>
+</div>
+}
+
 @code {
     [Parameter, EditorRequired] public Veiculo Veiculo { get; set; } = default!;
 
@@ -107,8 +114,7 @@
     [Parameter] public EventCallback Alterado { get; set; }
 
     private string? _editId;
-    private ElementReference _form;
-    private bool _rolarParaFormulario;
+    private bool _aberto;
 
     private string _fTipo = "ipva";
     private DateOnly? _fVencimento = Hoje;
@@ -119,23 +125,22 @@
 
     private DocumentoCarro? Editando() => _editId is null ? null : Dados.Documentos.FirstOrDefault(x => x.Id == _editId);
 
-    protected override void OnInitialized() => Novo("ipva", rolar: false);
+    protected override void OnInitialized() => Novo("ipva", abrir: false);
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private void Fechar()
     {
-        if (!_rolarParaFormulario) return;
-        _rolarParaFormulario = false;
-        await JS.InvokeVoidAsync("crankohub.rolarAte", _form);
+        _aberto = false;
+        Novo(_fTipo, abrir: false);
     }
 
-    private void Novo(string tipo, bool rolar = true)
+    private void Novo(string tipo, bool abrir = true)
     {
         _editId = null;
         _fTipo = tipo;
         _fVencimento = Hoje;
         _fValor = _fDescricao = _fObs = "";
         _fPago = false;
-        _rolarParaFormulario = rolar;
+        _aberto = abrir;
     }
 
     private void Editar(DocumentoCarro x)
@@ -147,7 +152,7 @@
         _fDescricao = x.Descricao ?? "";
         _fObs = x.Obs ?? "";
         _fPago = x.Pago;
-        _rolarParaFormulario = true;
+        _aberto = true;
     }
 
     private async Task MarcarPago(DocumentoCarro x)
@@ -179,7 +184,6 @@
     {
         if (!await Dialogo.Confirmar($"Excluir \"{TipoDocumento.NomeDe(x.Tipo)}\" com vencimento em {DataBR(x.Vencimento)}?")) return;
         Dados.Documentos.Remove(x);
-        if (_editId == x.Id) Novo(_fTipo, rolar: false);
         Store.Salvar();
         Toast.Ok("Documento excluído.");
         await Alterado.InvokeAsync();
@@ -216,7 +220,7 @@
             Toast.Ok($"{TipoDocumento.NomeDe(novo.Tipo)} cadastrado.");
         }
         Store.Salvar();
-        Novo(_fTipo, rolar: false);
+        Fechar();
         await Alterado.InvokeAsync();
     }
 }

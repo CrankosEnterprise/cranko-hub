@@ -1,8 +1,8 @@
-@* Aba "Abastecimentos" do Carro: formulário de registro e histórico do veículo *@
+@* Abastecimentos do veículo (dentro da aba Consumo): histórico e a janela para registrar/editar.
+   A aba abre a janela pelo método Novo(); editar abre pela linha do histórico. *@
 @inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject IDialogoService Dialogo
-@inject IJSRuntime JS
 
 @{
     var list = DoVeiculo();
@@ -10,9 +10,12 @@
     var ed = Editando();
 }
 
-<form class="card" autocomplete="off" @ref="_formAbastecimento" @onsubmit="SalvarAbastecimento">
-    <div class="card-head"><div><h2>@(ed is not null ? "Editar abastecimento" : "Novo abastecimento")</h2><p>Informe os km rodados desde o último abastecimento e os litros colocados.</p></div></div>
-    <div class="form-grid cols-4">
+@if (_aberto)
+{
+<div class="modal-backdrop" @onclick="Fechar">
+<form class="card modal modal-medio" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="SalvarAbastecimento">
+    <div><h2>@(ed is not null ? "Editar abastecimento" : "Novo abastecimento")</h2><p class="muted">Informe os km rodados desde o último abastecimento e os litros colocados.</p></div>
+    <div class="form-grid">
         <label class="field"><span>Data</span><input type="date" required @bind="_fData"></label>
         <label class="field"><span>Combustível</span>
             <select @bind="_fComb">
@@ -21,7 +24,7 @@
                     <option value="@f.Chave">@f.Nome</option>
                 }
             </select></label>
-        <label class="field"><span>Km rodados *</span><input inputmode="decimal" required placeholder="ex.: 420" @bind="_fKm" @bind:event="oninput" @bind:after="@(() => AoDigitar("km"))"></label>
+        <label class="field"><span>Km rodados *</span><input inputmode="decimal" required placeholder="ex.: 420" autofocus @bind="_fKm" @bind:event="oninput" @bind:after="@(() => AoDigitar("km"))"></label>
         <label class="field"><span>Litros *</span><input inputmode="decimal" required placeholder="ex.: 36,5" @bind="_fLitros" @bind:event="oninput" @bind:after="@(() => AoDigitar("litros"))"></label>
         <label class="field"><span>Valor total (R$)</span><input inputmode="decimal" placeholder="ex.: 215,90" @bind="_fValor" @bind:event="oninput" @bind:after="@(() => AoDigitar("valor"))"></label>
         <label class="field"><span>Preço por litro (R$)</span><input inputmode="decimal" placeholder="calculado automaticamente" @bind="_fPreco" @bind:event="oninput" @bind:after="@(() => AoDigitar("preco"))"></label>
@@ -44,13 +47,12 @@
         </div>
     }
     <div class="form-actions">
+        <button class="btn" type="button" @onclick="Fechar">Cancelar</button>
         <button class="btn primary" type="submit">@(ed is not null ? "Salvar alterações" : "Adicionar abastecimento")</button>
-        @if (ed is not null)
-        {
-            <button class="btn" type="button" @onclick="LimparFormulario">Cancelar</button>
-        }
     </div>
 </form>
+</div>
+}
 
 <section class="card">
     <div class="card-head"><div><h2>Histórico de abastecimentos</h2><p>@Veiculo.Nome · @list.Count @Plural(list.Count, "registro", "registros")</p></div></div>
@@ -60,7 +62,7 @@
             <tbody>
                 @if (list.Count == 0)
                 {
-                    <tr><td colspan="11" class="empty-row">Nenhum abastecimento ainda. Adicione o primeiro acima ⬆</td></tr>
+                    <tr><td colspan="11" class="empty-row">Nenhum abastecimento ainda. Toque em "Novo abastecimento" no topo ⬆</td></tr>
                 }
                 @foreach (var a in Enumerable.Reverse(list))
                 {
@@ -92,9 +94,11 @@
     /// <summary>Avisa a página do Carro que os dados mudaram (atualiza resumo e contadores).</summary>
     [Parameter] public EventCallback Alterado { get; set; }
 
+    /// <summary>Abre a janela de novo abastecimento assim que aparece (atalho "+ Abastecimento" do Resumo).</summary>
+    [Parameter] public bool NovoAoAbrir { get; set; }
+
     private string? _editId;
-    private ElementReference _formAbastecimento;
-    private bool _rolarParaFormulario;
+    private bool _aberto;
 
     private DateOnly? _fData = Hoje;
     private string _fComb = "gasolina";
@@ -107,13 +111,24 @@
 
     private Abastecimento? Editando() => _editId is null ? null : Dados.Abastecimentos.FirstOrDefault(a => a.Id == _editId);
 
-    protected override void OnInitialized() => LimparFormulario();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnInitialized()
     {
-        if (!_rolarParaFormulario) return;
-        _rolarParaFormulario = false;
-        await JS.InvokeVoidAsync("crankohub.rolarAte", _formAbastecimento);
+        LimparFormulario();
+        _aberto = NovoAoAbrir;
+    }
+
+    /// <summary>Abre a janela para um abastecimento novo.</summary>
+    public void Novo()
+    {
+        LimparFormulario();
+        _aberto = true;
+        StateHasChanged();
+    }
+
+    private void Fechar()
+    {
+        _aberto = false;
+        LimparFormulario();
     }
 
     private void LimparFormulario()
@@ -167,14 +182,13 @@
         _fPosto = a.Posto ?? "";
         _fObs = a.Obs ?? "";
         _kmAutomatico = false;
-        _rolarParaFormulario = true;
+        _aberto = true;
     }
 
     private async Task Excluir(Abastecimento a)
     {
         if (!await Dialogo.Confirmar($"Excluir o abastecimento de {DataBR(a.Data)} ({Num(a.Litros, 2)} L)?")) return;
         Dados.Abastecimentos.Remove(a);
-        if (_editId == a.Id) LimparFormulario();
         Store.Salvar();
         Toast.Ok("Abastecimento excluído.");
         await Alterado.InvokeAsync();
@@ -219,7 +233,7 @@
             Toast.Ok($"Abastecimento salvo: {Num(km / litros, 2)} km/l");
         }
         Store.Salvar();
-        LimparFormulario();
+        Fechar();
         await Alterado.InvokeAsync();
     }
 }
