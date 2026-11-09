@@ -748,7 +748,6 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 /* ---- Tarefas (quadros Kanban) ---- */
 .quadros-barra { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .quadros-barra .tabs { flex: 1 1 auto; min-width: 0; }
-.quadro-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
 .tarefas-filtros { margin-bottom: 16px; align-items: center; }
 .kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; align-items: flex-start; }
 .coluna { flex: 0 0 280px; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); transition: border-color .12s, background .12s; }
@@ -762,8 +761,29 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 .coluna-cards { display: flex; flex-direction: column; gap: 8px; min-height: 12px; }
 .coluna-add { border: 1px dashed var(--border); background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; padding: 7px; border-radius: 8px; cursor: pointer; }
 .coluna-add:hover { color: var(--text); border-color: var(--axis); background: var(--surface); }
-.card-arrastavel { cursor: grab; }
-.card-arrastavel:active { cursor: grabbing; }
+.card-arrastavel { cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.card-arrastavel.arrastando-origem { opacity: .3; }
+.tab.arrastando-origem { opacity: .35; }
+/* Arrasto (wwwroot/js/tarefas.js): clone que segue o ponteiro e linha onde vai cair */
+.tarefa-fantasma { position: fixed; left: 0; top: 0; z-index: 1000; margin: 0; pointer-events: none; opacity: .95; box-shadow: 0 14px 32px -10px rgba(0,0,0,.45); border-radius: 10px; }
+.card-arrastavel.tarefa-fantasma > .tarefa { transform: rotate(1.5deg); }
+.tarefa-marca { position: fixed; z-index: 999; pointer-events: none; background: var(--accent); border-radius: 2px; box-shadow: 0 0 0 2px var(--accent-soft); }
+html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+.tab[data-quadro] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.tab-caret { font-size: 10px; opacity: .55; margin-left: -2px; }
+/* Menu do quadro (renomear / nova coluna / excluir) */
+.menu-fundo { position: fixed; inset: 0; z-index: 95; }
+.menu-flutuante { position: fixed; z-index: 96; min-width: 190px; padding: 4px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-alto); animation: enter .12s ease-out; }
+.menu-flutuante button { all: unset; display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--text); }
+.menu-flutuante button:hover, .menu-flutuante button:focus-visible { background: var(--surface-2); }
+.menu-flutuante button.danger { color: var(--bad); }
+.menu-flutuante button.danger:hover { background: var(--bad-bg); }
+.menu-flutuante svg { width: 15px; height: 15px; }
+.coluna-rodape { all: unset; align-self: center; font-size: 12px; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.coluna-rodape:hover { color: var(--text); background: var(--surface); }
+.coluna-nova { flex: 0 0 200px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; border: 1px dashed var(--border); border-radius: 12px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.coluna-nova:hover { color: var(--text); border-color: var(--axis); background: var(--surface-2); }
+.coluna-nova svg { width: 15px; height: 15px; }
 .tarefa { display: flex; flex-direction: column; gap: 6px; padding: 10px 11px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,.05); border-left: 3px solid var(--border); cursor: pointer; }
 .tarefa:hover { border-color: var(--axis); }
 .tarefa.prio-alta { border-left-color: var(--bad); }
