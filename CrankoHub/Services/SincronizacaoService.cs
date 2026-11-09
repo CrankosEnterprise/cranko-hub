@@ -286,6 +286,9 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     [
         ("cards", "prazo_hora", "0004_tarefas_hora.sql"),
         ("manutencoes", "servico", "0005_manutencao_servico.sql"),
+        ("veiculos", "marca", "0006_veiculo_ficha.sql"),
+        ("veiculos", "ano", "0006_veiculo_ficha.sql"),
+        ("veiculos", "ficha", "0006_veiculo_ficha.sql"),
     ];
 
     private readonly HashSet<string> _semTabela = [];

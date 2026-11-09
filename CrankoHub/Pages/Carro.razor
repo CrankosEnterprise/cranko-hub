@@ -5,10 +5,23 @@
 @inject IDialogoService Dialogo
 @inject ModoCarroService ModoCarro
 
+@if (CarroCalculos.VeiculoAtivo(Store.Dados.Carro) is null)
+{
+    // Sem veículo: o cadastro é obrigatório antes de usar o resto do Carro
+    <div class="page-head">
+        <div>
+            <h1>Carro</h1>
+            <p>Cadastre seu veículo para registrar abastecimentos, consumo, manutenção e documentos.</p>
+        </div>
+    </div>
+    <AbaVeiculo Veiculo="_semVeiculo" Inicio="novo" Obrigatorio="true" Criado="VeiculoCriado" />
+    return;
+}
+
 @{
     var hoje = Hoje;
     var c = Store.Dados.Carro;
-    var v = CarroCalculos.VeiculoAtivo(c);
+    var v = CarroCalculos.VeiculoAtivo(c)!;
     var list = CarroCalculos.DoVeiculo(c, v.Id);
     var manut = ManutencaoCalculos.DoVeiculo(c, v.Id);
     var st = CarroCalculos.Estatisticas(list);
@@ -35,8 +48,8 @@
                 <option value="@x.Id">@x.Nome</option>
             }
         </select>
-        <button class="btn sm" type="button" @onclick="AdicionarVeiculo">+ Veículo</button>
-        <button class="btn sm" type="button" @onclick="RenomearVeiculo">Renomear</button>
+        <button class="btn sm" type="button" @onclick="@(() => AbrirVeiculo("novo"))">+ Veículo</button>
+        <button class="btn sm" type="button" @onclick="@(() => AbrirVeiculo("editar"))">Editar</button>
         <button class="btn sm danger" type="button" @onclick="ExcluirVeiculo">Excluir</button>
     </div>
 </div>
@@ -55,6 +68,10 @@
 
 @switch (_aba)
 {
+    case "veiculo":
+        <AbaVeiculo @key="@($"{v.Id}:{_inicioVeiculo}:{_pedidoVeiculo}")" Veiculo="v" Inicio="@_inicioVeiculo"
+                    Criado="VeiculoCriado" Alterado="StateHasChanged" />
+        break;
     case "abastecimentos":
         <AbaAbastecimentos @key="v.Id" Veiculo="v" Alterado="StateHasChanged" />
         break;
@@ -191,12 +208,11 @@
         break;
 }
 
-<DialogoTexto @ref="_dialogoNome" />
-
 @code {
     private static readonly (string Chave, string Rotulo)[] Abas =
     [
         ("resumo", "Resumo"),
+        ("veiculo", "Veículo"),
         ("abastecimentos", "Abastecimentos"),
         ("consumo", "Consumo"),
         ("calculadoras", "Calculadoras"),
@@ -215,7 +231,9 @@
 
     private string? _abaDoLink, _veiculoDoLink;
     private string? _tipoNovo; // tipo pré-selecionado ao abrir a manutenção por um atalho
-    private DialogoTexto _dialogoNome = default!;
+    private string? _inicioVeiculo; // "novo" / "editar" ao abrir a aba Veículo pelos botões do topo
+    private int _pedidoVeiculo;      // muda a cada clique, para reabrir o formulário mesmo já estando na aba
+    private readonly Veiculo _semVeiculo = new(); // só para o formulário do primeiro cadastro
 
     private DadosCarro Dados => Store.Dados.Carro;
 
@@ -236,6 +254,7 @@
     {
         _aba = aba;
         _tipoNovo = null;
+        _inicioVeiculo = null;
     }
 
     private void RegistrarServico(string tipo)
@@ -254,29 +273,24 @@
 
     private void TrocarVeiculo(ChangeEventArgs e) => AtivarVeiculo(e.Value?.ToString() ?? "");
 
-    private async Task AdicionarVeiculo()
+    /// <summary>Abre a aba Veículo já no formulário: "novo" (cadastrar outro) ou "editar" (o ativo).</summary>
+    private void AbrirVeiculo(string inicio)
     {
-        var nome = await _dialogoNome.Perguntar("Novo veículo", "Nome do novo veículo (ex.: Onix 2020, Moto)");
-        if (nome is null) return;
-        var novo = new Veiculo { Id = ArmazenamentoService.NovoId(), Nome = nome[..Math.Min(nome.Length, 40)] };
-        Dados.Veiculos.Add(novo);
-        AtivarVeiculo(novo.Id);
-        Toast.Ok($"Veículo \"{novo.Nome}\" criado.");
+        _aba = "veiculo";
+        _tipoNovo = null;
+        _inicioVeiculo = inicio;
+        _pedidoVeiculo++;
     }
 
-    private async Task RenomearVeiculo()
+    private void VeiculoCriado(Veiculo novo)
     {
-        var v = CarroCalculos.VeiculoAtivo(Dados);
-        var nome = await _dialogoNome.Perguntar("Renomear veículo", "Novo nome do veículo", v.Nome);
-        if (nome is null) return;
-        v.Nome = nome[..Math.Min(nome.Length, 40)];
-        Store.Salvar();
+        _inicioVeiculo = null; // a aba passa a mostrar a ficha do novo veículo (ou o Resumo, no primeiro cadastro)
+        AtivarVeiculo(novo.Id);
     }
 
     private async Task ExcluirVeiculo()
     {
-        if (Dados.Veiculos.Count == 1) { Toast.Erro("Você precisa ter pelo menos um veículo."); return; }
-        var v = CarroCalculos.VeiculoAtivo(Dados);
+        if (CarroCalculos.VeiculoAtivo(Dados) is not { } v) return;
         var qtdAbast = Dados.Abastecimentos.Count(a => a.VeiculoId == v.Id);
         var qtdManut = Dados.Manutencoes.Count(m => m.VeiculoId == v.Id);
         var qtdDocs = Dados.Documentos.Count(x => x.VeiculoId == v.Id);
@@ -285,7 +299,10 @@
         Dados.Abastecimentos.RemoveAll(a => a.VeiculoId == v.Id);
         Dados.Manutencoes.RemoveAll(m => m.VeiculoId == v.Id);
         Dados.Veiculos.Remove(v);
-        AtivarVeiculo(Dados.Veiculos[0].Id);
+        // Sem nenhum veículo, a página volta para o cadastro
+        AtivarVeiculo(Dados.Veiculos.FirstOrDefault()?.Id ?? "");
+        _aba = "resumo";
+        _inicioVeiculo = null;
         Toast.Ok("Veículo excluído.");
     }
 }

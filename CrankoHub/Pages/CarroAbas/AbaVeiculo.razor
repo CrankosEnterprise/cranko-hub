@@ -1,0 +1,436 @@
+@* Aba "Veículo" do Carro: ficha do veículo (nome, marca e ano obrigatórios; o resto opcional, à mão ou pela FIPE) *@
+@inject ArmazenamentoService Store
+@inject ToastService Toast
+@inject FipeService Fipe
+
+@if (_modo == Modo.Ver)
+{
+    var f = Veiculo.Ficha;
+    var grupos = Grupos(Veiculo);
+    <section class="card">
+        <div class="card-head">
+            <div><h2>@Veiculo.Nome</h2><p>@(string.Join(" · ", new[] { Veiculo.Marca, Veiculo.Ano?.ToString(), f?.Versao }.Where(s => !string.IsNullOrEmpty(s))))</p></div>
+            <button class="btn sm primary" type="button" @onclick="() => AbrirFormulario(novo: false)">@Icones.Editar Editar</button>
+        </div>
+        @if (Veiculo.Marca is null || Veiculo.Ano is null)
+        {
+            <div class="preview"><span>Complete <b>marca</b> e <b>ano</b> deste veículo. Dá para puxar o resto da ficha pela tabela FIPE.</span>
+                <button class="btn sm" type="button" @onclick="() => AbrirFormulario(novo: false)">Completar</button></div>
+        }
+        @if (grupos.Count == 0)
+        {
+            <p class="muted ficha-vazia">Nenhum detalhe cadastrado ainda. Use <b>Editar</b> para preencher à mão ou puxar da FIPE.</p>
+        }
+        else
+        {
+            <div class="ficha">
+                @foreach (var (titulo, itens) in grupos)
+                {
+                    <div class="ficha-grupo">
+                        <h3>@titulo</h3>
+                        <dl>
+                            @foreach (var (rotulo, valor) in itens)
+                            {
+                                <dt>@rotulo</dt><dd>@valor</dd>
+                            }
+                        </dl>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
+else
+{
+    <form class="card" autocomplete="off" @onsubmit="Salvar">
+        <div class="card-head">
+            <div><h2>@(Obrigatorio ? "Cadastre seu veículo" : _modo == Modo.Novo ? "Novo veículo" : "Editar veículo")</h2>
+                <p>Nome, marca e ano são obrigatórios. O resto é opcional: preencha à mão ou puxe da tabela FIPE.</p></div>
+        </div>
+
+        @* ---- Puxar da FIPE ---- *@
+        <div class="fipe">
+            @if (!_fipeAberto)
+            {
+                <button class="btn sm" type="button" @onclick="AbrirFipe">Puxar dados da tabela FIPE</button>
+            }
+            else
+            {
+                <div class="form-grid">
+                    <label class="field"><span>Marca (FIPE)</span>
+                        <select value="@_marcaSel" @onchange="TrocarMarca" disabled="@(_marcas.Count == 0)">
+                            <option value="">@(_marcas.Count == 0 ? "carregando..." : "escolha a marca")</option>
+                            @foreach (var m in _marcas)
+                            {
+                                <option value="@m.Codigo">@m.Nome</option>
+                            }
+                        </select></label>
+                    <label class="field"><span>Modelo</span>
+                        <input placeholder="@(_marcaSel == "" ? "escolha a marca primeiro" : "ex.: onix lt 1.0")" disabled="@(_marcaSel == "")"
+                               @bind="_termo" @bind:event="oninput" @bind:after="() => _modeloSel = null"></label>
+                </div>
+                @if (_modeloSel is null && _termo.Trim().Length > 0 && _modelos.Count > 0)
+                {
+                    var achados = FipeService.Filtrar(_modelos, _termo);
+                    <ul class="fipe-lista">
+                        @if (achados.Count == 0)
+                        {
+                            <li class="muted">Nenhuma versão com essas palavras.</li>
+                        }
+                        @foreach (var m in achados)
+                        {
+                            <li><button type="button" @onclick="() => EscolherModelo(m)">@m.Nome</button></li>
+                        }
+                    </ul>
+                }
+                @if (_modeloSel is not null)
+                {
+                    <div class="form-grid fipe-escolha">
+                        <div class="field full"><span>Versão escolhida</span><b>@_modeloSel.Nome</b></div>
+                        <label class="field"><span>Ano</span>
+                            <select @bind="_anoSel" disabled="@(_anos.Count == 0)">
+                                @if (_anos.Count == 0) { <option value="">carregando...</option> }
+                                @foreach (var a in _anos)
+                                {
+                                    <option value="@a.Codigo">@a.Nome</option>
+                                }
+                            </select></label>
+                        <div class="field"><span>&nbsp;</span>
+                            <button class="btn primary" type="button" disabled="@(_anoSel == "" || _carregando)" @onclick="PreencherDaFipe">
+                                @(_carregando ? "Buscando..." : "Preencher")</button></div>
+                    </div>
+                }
+                @if (_erroFipe is not null)
+                {
+                    <p class="fipe-erro">@_erroFipe</p>
+                }
+                <p class="muted fipe-nota">A FIPE não informa potência e torque: confira em
+                    <a href="@LinkCarrosNaWeb()" target="_blank" rel="noopener">Carros na Web</a> e digite abaixo.</p>
+            }
+        </div>
+
+        <h3 class="form-secao">Identificação</h3>
+        <div class="form-grid cols-4">
+            <label class="field"><span>Nome *</span><input maxlength="40" required placeholder="ex.: Onix 2020" @bind="_fNome"></label>
+            <label class="field"><span>Marca *</span><input maxlength="40" required placeholder="ex.: Chevrolet" list="marcas-fipe" @bind="_fMarca"></label>
+            <label class="field"><span>Ano-modelo *</span><input inputmode="numeric" required placeholder="ex.: 2020" @bind="_fAno"></label>
+            <label class="field"><span>Ano de fabricação</span><input inputmode="numeric" placeholder="opcional" @bind="_fAnoFab"></label>
+            <label class="field full"><span>Versão</span><input maxlength="80" placeholder="ex.: LT 1.0 12V Flex 5p Mec." @bind="_fVersao"></label>
+            <label class="field"><span>Placa</span><input maxlength="8" placeholder="ex.: ABC1D23" style="text-transform:uppercase" @bind="_fPlaca"></label>
+            <label class="field"><span>Cor</span><input maxlength="30" placeholder="opcional" @bind="_fCor"></label>
+        </div>
+        @if (Fipe.MarcasCarregadas is { } marcas)
+        {
+            <datalist id="marcas-fipe">
+                @foreach (var m in marcas) { <option value="@NomeMarca(m.Nome)"></option> }
+            </datalist>
+        }
+
+        <h3 class="form-secao">Motor</h3>
+        <div class="form-grid cols-4">
+            <label class="field"><span>Motor (litros)</span><input inputmode="decimal" placeholder="ex.: 1,0" @bind="_fCilindrada"></label>
+            <label class="field"><span>Válvulas</span><input inputmode="numeric" placeholder="ex.: 12" @bind="_fValvulas"></label>
+            <label class="field"><span>Potência (cv)</span><input inputmode="decimal" placeholder="ex.: 82" @bind="_fCv"></label>
+            <label class="field"><span>Torque (kgfm)</span><input inputmode="decimal" placeholder="ex.: 10,6" @bind="_fTorque"></label>
+            <label class="field"><span>Turbo</span>
+                <select @bind="_fTurbo"><option value="">—</option><option value="sim">Sim</option><option value="nao">Não</option></select></label>
+            <label class="field"><span>Combustível</span><input maxlength="20" list="combustiveis-ficha" placeholder="ex.: Flex" @bind="_fCombustivel"></label>
+        </div>
+        <datalist id="combustiveis-ficha">
+            @foreach (var c in new[] { "Flex", "Gasolina", "Etanol", "Diesel", "Híbrido", "Elétrico", "GNV" }) { <option value="@c"></option> }
+        </datalist>
+
+        <h3 class="form-secao">Transmissão e carroceria</h3>
+        <div class="form-grid cols-4">
+            <label class="field"><span>Câmbio</span>
+                <select @bind="_fCambio">
+                    <option value="">—</option>
+                    @foreach (var c in new[] { "Manual", "Automático", "CVT", "Automatizado" }) { <option value="@c">@c</option> }
+                </select></label>
+            <label class="field"><span>Marchas</span><input inputmode="numeric" placeholder="ex.: 6" @bind="_fMarchas"></label>
+            <label class="field"><span>Tração</span>
+                <select @bind="_fTracao">
+                    <option value="">—</option>
+                    @foreach (var t in new[] { "Dianteira", "Traseira", "Integral (4x4/AWD)" }) { <option value="@t">@t</option> }
+                </select></label>
+            <label class="field"><span>Portas</span><input inputmode="numeric" placeholder="ex.: 4" @bind="_fPortas"></label>
+            <label class="field"><span>Carroceria</span><input maxlength="20" list="carrocerias-ficha" placeholder="ex.: Hatch" @bind="_fCarroceria"></label>
+        </div>
+        <datalist id="carrocerias-ficha">
+            @foreach (var c in new[] { "Hatch", "Sedã", "SUV", "Picape", "Perua", "Minivan", "Cupê", "Conversível" }) { <option value="@c"></option> }
+        </datalist>
+
+        <h3 class="form-secao">Medidas e consumo</h3>
+        <div class="form-grid cols-4">
+            <label class="field"><span>Tanque (litros)</span><input inputmode="decimal" placeholder="ex.: 44" @bind="_fTanque"></label>
+            <label class="field"><span>Porta-malas (litros)</span><input inputmode="decimal" placeholder="ex.: 275" @bind="_fPortaMalas"></label>
+            <label class="field"><span>Peso (kg)</span><input inputmode="decimal" placeholder="ex.: 1034" @bind="_fPeso"></label>
+            <label class="field"><span>Consumo cidade (km/l)</span><input inputmode="decimal" placeholder="Inmetro, ex.: 13,9" @bind="_fConsCidade"></label>
+            <label class="field"><span>Consumo estrada (km/l)</span><input inputmode="decimal" placeholder="Inmetro, ex.: 16,6" @bind="_fConsEstrada"></label>
+        </div>
+
+        <h3 class="form-secao">Tabela FIPE</h3>
+        <div class="form-grid cols-4">
+            <label class="field"><span>Código FIPE</span><input maxlength="12" placeholder="ex.: 004517-9" @bind="_fCodigoFipe"></label>
+            <label class="field"><span>Valor FIPE (R$)@(_fRefFipe != "" ? $" · {_fRefFipe}" : "")</span>
+                <input inputmode="decimal" placeholder="ex.: 56.043,00" @bind="_fValorFipe"></label>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn primary" type="submit">@(_modo == Modo.Novo ? "Adicionar veículo" : "Salvar alterações")</button>
+            @if (!Obrigatorio)
+            {
+                <button class="btn" type="button" @onclick="Cancelar">Cancelar</button>
+            }
+        </div>
+    </form>
+}
+
+@code {
+    [Parameter, EditorRequired] public Veiculo Veiculo { get; set; } = default!;
+
+    /// <summary>Abrir já no formulário: "novo" (veículo novo) ou "editar" (o ativo). Null = mostra a ficha.</summary>
+    [Parameter] public string? Inicio { get; set; }
+
+    /// <summary>Um veículo novo foi criado (a página o ativa).</summary>
+    [Parameter] public EventCallback<Veiculo> Criado { get; set; }
+
+    [Parameter] public EventCallback Alterado { get; set; }
+
+    /// <summary>Primeiro cadastro: não há para onde voltar, então não mostra "Cancelar".</summary>
+    [Parameter] public bool Obrigatorio { get; set; }
+
+    private enum Modo { Ver, Editar, Novo }
+    private Modo _modo = Modo.Ver;
+
+    private string _fNome = "", _fMarca = "", _fAno = "", _fAnoFab = "", _fVersao = "", _fPlaca = "", _fCor = "";
+    private string _fCilindrada = "", _fValvulas = "", _fCv = "", _fTorque = "", _fTurbo = "", _fCombustivel = "";
+    private string _fCambio = "", _fMarchas = "", _fTracao = "", _fPortas = "", _fCarroceria = "";
+    private string _fTanque = "", _fPortaMalas = "", _fPeso = "", _fConsCidade = "", _fConsEstrada = "";
+    private string _fCodigoFipe = "", _fValorFipe = "", _fRefFipe = "";
+
+    // FIPE
+    private bool _fipeAberto, _carregando;
+    private List<FipeItem> _marcas = [], _modelos = [], _anos = [];
+    private string _marcaSel = "", _termo = "", _anoSel = "";
+    private FipeItem? _modeloSel;
+    private string? _erroFipe;
+
+    private DadosCarro Dados => Store.Dados.Carro;
+
+    protected override void OnInitialized()
+    {
+        if (Inicio == "novo") AbrirFormulario(novo: true);
+        else if (Inicio == "editar") AbrirFormulario(novo: false);
+    }
+
+    // ---- Formulário ----
+
+    private void AbrirFormulario(bool novo)
+    {
+        _modo = novo ? Modo.Novo : Modo.Editar;
+        var v = novo ? new Veiculo() : Veiculo;
+        var f = v.Ficha ?? new FichaVeiculo();
+        _fNome = v.Nome; _fMarca = v.Marca ?? ""; _fAno = v.Ano?.ToString() ?? "";
+        _fAnoFab = f.AnoFabricacao?.ToString() ?? ""; _fVersao = f.Versao ?? ""; _fPlaca = f.Placa ?? ""; _fCor = f.Cor ?? "";
+        _fCilindrada = InVal(f.Cilindrada, 1); _fValvulas = f.Valvulas?.ToString() ?? ""; _fCv = InVal(f.PotenciaCv, 1); _fTorque = InVal(f.TorqueKgfm, 1);
+        _fTurbo = f.Turbo switch { true => "sim", false => "nao", null => "" }; _fCombustivel = f.Combustivel ?? "";
+        _fCambio = f.Cambio ?? ""; _fMarchas = f.Marchas?.ToString() ?? ""; _fTracao = f.Tracao ?? ""; _fPortas = f.Portas?.ToString() ?? ""; _fCarroceria = f.Carroceria ?? "";
+        _fTanque = InVal(f.TanqueLitros, 1); _fPortaMalas = InVal(f.PortaMalasLitros, 0); _fPeso = InVal(f.PesoKg, 0);
+        _fConsCidade = InVal(f.ConsumoCidade, 1); _fConsEstrada = InVal(f.ConsumoEstrada, 1);
+        _fCodigoFipe = f.CodigoFipe ?? ""; _fValorFipe = InVal(f.ValorFipe, 2); _fRefFipe = f.ReferenciaFipe ?? "";
+        _fipeAberto = false; _erroFipe = null; _modeloSel = null; _termo = ""; _anoSel = "";
+    }
+
+    private void Cancelar() => _modo = Modo.Ver;
+
+    private async Task Salvar()
+    {
+        var nome = _fNome.Trim();
+        var marca = _fMarca.Trim();
+        if (nome.Length == 0) { Toast.Erro("Informe o nome do veículo."); return; }
+        if (marca.Length == 0) { Toast.Erro("Informe a marca."); return; }
+        var ano = Inteiro(_fAno);
+        if (ano is not int a || a < 1900 || a > Hoje.Year + 1) { Toast.Erro("Ano-modelo inválido."); return; }
+
+        var erros = new List<string>();
+        int? Int(string texto, string campo)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return null;
+            if (Inteiro(texto) is int n && n > 0) return n;
+            erros.Add(campo); return null;
+        }
+        double? Dec(string texto, string campo)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return null;
+            if (Pf(texto) is double d && d > 0) return d;
+            erros.Add(campo); return null;
+        }
+        string? Txt(string texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+        var ficha = new FichaVeiculo
+        {
+            Versao = Txt(_fVersao), Placa = Txt(_fPlaca)?.ToUpperInvariant(), Cor = Txt(_fCor), AnoFabricacao = Int(_fAnoFab, "ano de fabricação"),
+            Cilindrada = Dec(_fCilindrada, "motor"), Valvulas = Int(_fValvulas, "válvulas"), PotenciaCv = Dec(_fCv, "potência"), TorqueKgfm = Dec(_fTorque, "torque"),
+            Turbo = _fTurbo switch { "sim" => true, "nao" => false, _ => null }, Combustivel = Txt(_fCombustivel),
+            Cambio = Txt(_fCambio), Marchas = Int(_fMarchas, "marchas"), Tracao = Txt(_fTracao), Portas = Int(_fPortas, "portas"), Carroceria = Txt(_fCarroceria),
+            TanqueLitros = Dec(_fTanque, "tanque"), PortaMalasLitros = Dec(_fPortaMalas, "porta-malas"), PesoKg = Dec(_fPeso, "peso"),
+            ConsumoCidade = Dec(_fConsCidade, "consumo cidade"), ConsumoEstrada = Dec(_fConsEstrada, "consumo estrada"),
+            CodigoFipe = Txt(_fCodigoFipe), ValorFipe = Dec(_fValorFipe, "valor FIPE"), ReferenciaFipe = Txt(_fRefFipe),
+        };
+        if (erros.Count > 0) { Toast.Erro($"Valor inválido em: {string.Join(", ", erros)}."); return; }
+
+        var v = _modo == Modo.Novo ? new Veiculo { Id = ArmazenamentoService.NovoId() } : Veiculo;
+        v.Nome = nome[..Math.Min(nome.Length, 40)];
+        v.Marca = marca;
+        v.Ano = a;
+        v.Ficha = Vazia(ficha) ? null : ficha;
+
+        if (_modo == Modo.Novo)
+        {
+            Dados.Veiculos.Add(v);
+            _modo = Modo.Ver;
+            Toast.Ok($"Veículo \"{v.Nome}\" criado.");
+            await Criado.InvokeAsync(v); // a página ativa e salva
+            return;
+        }
+        Store.Salvar();
+        _modo = Modo.Ver;
+        Toast.Ok("Veículo atualizado.");
+        await Alterado.InvokeAsync();
+    }
+
+    private static int? Inteiro(string texto) => Pf(texto) is double d && d % 1 == 0 && d <= int.MaxValue ? (int)d : null;
+
+    private static bool Vazia(FichaVeiculo f) => typeof(FichaVeiculo).GetProperties().All(p => p.GetValue(f) is null);
+
+    // ---- FIPE ----
+
+    private async Task AbrirFipe()
+    {
+        _fipeAberto = true;
+        _erroFipe = null;
+        try
+        {
+            _marcas = await Fipe.Marcas();
+            // Já seleciona a marca digitada, se bater com a da FIPE
+            var digitada = _fMarca.Trim();
+            var achada = digitada.Length == 0 ? null
+                : _marcas.FirstOrDefault(m => NomeMarca(m.Nome).Equals(digitada, StringComparison.OrdinalIgnoreCase))
+                  ?? _marcas.FirstOrDefault(m => m.Nome.Contains(digitada, StringComparison.OrdinalIgnoreCase));
+            if (achada is not null) await CarregarModelos(achada.Codigo);
+        }
+        catch (BuscaException e) { _erroFipe = e.Message; }
+    }
+
+    private Task TrocarMarca(ChangeEventArgs e) => CarregarModelos(e.Value?.ToString() ?? "");
+
+    private async Task CarregarModelos(string marca)
+    {
+        _marcaSel = marca;
+        _modelos = [];
+        _modeloSel = null;
+        _erroFipe = null;
+        if (marca == "") return;
+        try { _modelos = await Fipe.Modelos(marca); }
+        catch (BuscaException e) { _erroFipe = e.Message; }
+    }
+
+    private async Task EscolherModelo(FipeItem m)
+    {
+        _modeloSel = m;
+        _anos = [];
+        _anoSel = "";
+        _erroFipe = null;
+        try
+        {
+            _anos = await Fipe.Anos(_marcaSel, m.Codigo);
+            // Prefere o ano já digitado; senão o mais novo
+            _anoSel = _anos.FirstOrDefault(a => _fAno.Trim().Length > 0 && a.Codigo.StartsWith(_fAno.Trim() + "-"))?.Codigo
+                      ?? _anos.FirstOrDefault()?.Codigo ?? "";
+        }
+        catch (BuscaException e) { _erroFipe = e.Message; }
+    }
+
+    /// <summary>
+    /// Preenche com a versão escolhida: marca, ano e o que sai da versão/FIPE são substituídos;
+    /// o nome e o cv (raro na versão) só se estiverem vazios; o que a FIPE não traz (torque, placa, medidas...) fica como está.
+    /// </summary>
+    private async Task PreencherDaFipe()
+    {
+        if (_modeloSel is null || _anoSel == "") return;
+        _carregando = true;
+        _erroFipe = null;
+        try
+        {
+            var d = await Fipe.Detalhe(_marcaSel, _modeloSel.Codigo, _anoSel);
+            var lida = FipeService.LerVersao(d.Modelo);
+            var marca = _marcas.FirstOrDefault(m => m.Codigo == _marcaSel)?.Nome ?? d.Marca;
+            _fMarca = NomeMarca(marca);
+            _fAno = d.Ano.ToString();
+            if (_fNome.Trim().Length == 0) _fNome = FipeService.NomeSugerido(d.Modelo, d.Ano);
+            _fVersao = d.Modelo;
+            if (lida.Cilindrada is not null) _fCilindrada = InVal(lida.Cilindrada, 1);
+            if (lida.Valvulas is not null) _fValvulas = lida.Valvulas.ToString()!;
+            if (lida.Turbo == true) _fTurbo = "sim";
+            if (lida.Portas is not null) _fPortas = lida.Portas.ToString()!;
+            if (lida.Cambio is not null) _fCambio = lida.Cambio;
+            if (lida.Carroceria is not null) _fCarroceria = lida.Carroceria;
+            if (lida.Tracao is not null) _fTracao = lida.Tracao;
+            if (lida.PotenciaCv is not null && _fCv.Trim().Length == 0) _fCv = InVal(lida.PotenciaCv, 0);
+            if (!string.IsNullOrEmpty(d.Combustivel)) _fCombustivel = d.Combustivel;
+            _fCodigoFipe = d.CodigoFipe ?? "";
+            _fValorFipe = InVal(d.Valor, 2);
+            _fRefFipe = d.Referencia ?? "";
+            Toast.Ok("Dados preenchidos pela FIPE. Confira e complete potência e torque.");
+        }
+        catch (BuscaException e) { _erroFipe = e.Message; }
+        finally { _carregando = false; }
+    }
+
+    /// <summary>"GM - Chevrolet" → "Chevrolet"; "VW - VolksWagen" → "Volkswagen".</summary>
+    private static string NomeMarca(string fipe)
+    {
+        var nome = fipe.Contains(" - ") ? fipe[(fipe.LastIndexOf(" - ") + 3)..] : fipe;
+        return nome.Equals("VolksWagen", StringComparison.OrdinalIgnoreCase) ? "Volkswagen" : nome.Trim();
+    }
+
+    private string LinkCarrosNaWeb()
+    {
+        var modelo = _modeloSel?.Nome.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? _fNome;
+        var termo = string.Join(" ", new[] { "site:carrosnaweb.com.br", _fMarca, modelo, _fAno, "ficha técnica" }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        return "https://www.google.com/search?q=" + Uri.EscapeDataString(termo);
+    }
+
+    // ---- Ficha (leitura) ----
+
+    private static List<(string Titulo, List<(string Rotulo, string Valor)> Itens)> Grupos(Veiculo v)
+    {
+        var f = v.Ficha ?? new FichaVeiculo();
+        var r = new List<(string, List<(string, string)>)>();
+        void Grupo(string titulo, params (string Rotulo, string? Valor)[] itens)
+        {
+            var com = itens.Where(i => !string.IsNullOrEmpty(i.Valor)).Select(i => (i.Rotulo, i.Valor!)).ToList();
+            if (com.Count > 0) r.Add((titulo, com));
+        }
+        string? N(double? x, int casas, string sufixo = "") => x is null ? null : Num(x, casas) + sufixo;
+
+        Grupo("Identificação",
+            ("Marca", v.Marca), ("Ano-modelo", v.Ano?.ToString()), ("Fabricação", f.AnoFabricacao?.ToString()),
+            ("Versão", f.Versao), ("Placa", f.Placa), ("Cor", f.Cor));
+        Grupo("Motor",
+            ("Motor", f.MotorResumo()), ("Potência", N(f.PotenciaCv, 0, " cv")), ("Torque", N(f.TorqueKgfm, 1, " kgfm")),
+            ("Combustível", f.Combustivel), ("Turbo", f.Turbo switch { true => "Sim", false => "Não", null => null }));
+        Grupo("Transmissão e carroceria",
+            ("Câmbio", f.Cambio is null ? null : f.Cambio + (f.Marchas is int m ? $" de {m} marchas" : "")),
+            ("Marchas", f.Cambio is null ? f.Marchas?.ToString() : null),
+            ("Tração", f.Tracao), ("Portas", f.Portas?.ToString()), ("Carroceria", f.Carroceria));
+        Grupo("Medidas e consumo",
+            ("Tanque", N(f.TanqueLitros, 0, " L")), ("Porta-malas", N(f.PortaMalasLitros, 0, " L")), ("Peso", N(f.PesoKg, 0, " kg")),
+            ("Consumo cidade", N(f.ConsumoCidade, 1, " km/l")), ("Consumo estrada", N(f.ConsumoEstrada, 1, " km/l")));
+        Grupo("Tabela FIPE",
+            ("Valor", f.ValorFipe is null ? null : Money(f.ValorFipe) + (f.ReferenciaFipe is not null ? $" ({f.ReferenciaFipe})" : "")),
+            ("Código", f.CodigoFipe));
+        return r;
+    }
+}

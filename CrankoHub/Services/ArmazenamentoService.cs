@@ -133,11 +133,10 @@ public class ArmazenamentoService
 
     private static EstadoApp Novo()
     {
-        var veiculo = new Veiculo { Id = NovoId(), Nome = "Meu carro" };
-        // Tarefas começa sem quadros: o usuário cria os seus
+        // Carro começa sem veículos (o usuário é levado a cadastrar o seu) e Tarefas sem quadros
         return new EstadoApp
         {
-            Carro = new DadosCarro { Veiculos = [veiculo], Ativo = veiculo.Id },
+            Carro = new DadosCarro { Veiculos = [], Ativo = "" },
             Tarefas = new DadosTarefas { Quadros = [], Ativo = Quadro.Hoje },
         };
     }
@@ -158,10 +157,8 @@ public class ArmazenamentoService
         s.Carro.Documentos.RemoveAll(x => x is null);
         s.Carro.Veiculos ??= [];
         s.Carro.Veiculos.RemoveAll(v => v is null);
-        if (s.Carro.Veiculos.Count == 0)
-            s.Carro.Veiculos = Novo().Carro.Veiculos;
         if (!s.Carro.Veiculos.Any(v => v.Id == s.Carro.Ativo))
-            s.Carro.Ativo = s.Carro.Veiculos[0].Id;
+            s.Carro.Ativo = s.Carro.Veiculos.FirstOrDefault()?.Id ?? "";
         s.Config ??= new Configuracoes();
         s.Config.AvisosEnviados ??= [];
         s.Config.ModulosOcultos ??= [];

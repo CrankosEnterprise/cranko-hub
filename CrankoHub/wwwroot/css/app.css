@@ -1402,3 +1402,23 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
   .ag-mes-dia { padding: 2px 1px 4px; }
   .ag-chip { padding: 1px 4px; font-size: 10.5px; }
 }
+
+/* ---- Carro: aba Veículo (ficha técnica e busca na FIPE) ---- */
+.ficha { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px 24px; margin-top: 4px; }
+.ficha-grupo h3, .form-secao { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 8px; }
+.form-secao { margin: 20px 0 10px; }
+.ficha-grupo dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 13.5px; }
+.ficha-grupo dt { color: var(--text-2); }
+.ficha-grupo dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ficha-vazia { margin-top: 10px; }
+.fipe { padding: 14px; border: 1px dashed var(--border); border-radius: 12px; background: var(--surface-2); }
+.fipe-escolha { margin-top: 12px; }
+.fipe-escolha .field > b { font-size: 13.5px; overflow-wrap: anywhere; }
+.fipe-lista { list-style: none; margin: 10px 0 0; padding: 4px; max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.fipe-lista li { font-size: 13px; }
+.fipe-lista li.muted { padding: 8px 10px; }
+.fipe-lista button { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--text); font: inherit; cursor: pointer; }
+.fipe-lista button:hover, .fipe-lista button:focus-visible { background: var(--accent-soft); outline: none; }
+.fipe-erro { margin: 10px 0 0; font-size: 13px; color: var(--bad); }
+.fipe-nota { margin: 10px 0 0; font-size: 12.5px; }
+.fipe-nota a { color: var(--accent); }

@@ -17,8 +17,9 @@ public static class CarroCalculos
             .OrderBy(a => a.Data).ThenBy(a => a.Odometro ?? 0)
             .ToList();
 
-    public static Veiculo VeiculoAtivo(DadosCarro carro) =>
-        carro.Veiculos.FirstOrDefault(v => v.Id == carro.Ativo) ?? carro.Veiculos[0];
+    /// <summary>Veículo escolhido; null enquanto nenhum foi cadastrado.</summary>
+    public static Veiculo? VeiculoAtivo(DadosCarro carro) =>
+        carro.Veiculos.FirstOrDefault(v => v.Id == carro.Ativo) ?? carro.Veiculos.FirstOrDefault();
 
     public static EstatisticasCarro Estatisticas(IReadOnlyCollection<Abastecimento> lista)
     {

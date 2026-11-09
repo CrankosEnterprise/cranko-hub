@@ -42,6 +42,7 @@ http.DefaultRequestHeaders.UserAgent.ParseAdd(EntretenimentoBusca.UserAgent);
 servicos.AddSingleton(http);
 servicos.AddSingleton<CapasService>();
 servicos.AddSingleton<EntretenimentoBusca>();
+servicos.AddSingleton<FipeService>();
 servicos.AddSingleton<SupabaseCliente>();
 servicos.AddSingleton<ContaService>();
 servicos.AddSingleton<SincronizacaoService>();

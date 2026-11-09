@@ -9,7 +9,7 @@
     var rs = DietaCalculos.Ordenados(d.Dieta.Registros);
     var last = rs.LastOrDefault();
     var veic = CarroCalculos.VeiculoAtivo(d.Carro);
-    var abs = CarroCalculos.DoVeiculo(d.Carro, veic.Id);
+    var abs = veic is null ? [] : CarroCalculos.DoVeiculo(d.Carro, veic.Id);
     var st = CarroCalculos.Estatisticas(abs);
     var gastoMes = CarroCalculos.GastoNoMes(abs, Hoje);
 
@@ -32,7 +32,7 @@
         .Select(r => (r.Data, Icone: Icones.Balanca, Texto: $"{Num(r.Peso)} kg registrados", Sub: string.IsNullOrEmpty(r.Obs) ? "Dieta" : r.Obs))
         .Concat((Modulo.Visivel(d.Config, Modulo.Carro) ? abs : []).TakeLast(6).Select(a => (a.Data, Icone: Icones.Bomba,
             Texto: $"{Num(a.Litros, 1)} L de {Combustivel.NomeDe(a.Combustivel)}{(a.Valor > 0 ? " · " + Money(a.Valor) : "")}",
-            Sub: $"{veic.Nome} · {Num(a.Kml, 2)} km/l")))
+            Sub: $"{veic?.Nome} · {Num(a.Kml, 2)} km/l")))
         .OrderByDescending(x => x.Data)
         .Take(6)
         .ToList();
@@ -157,7 +157,7 @@
             <a class="card link-card" href="carro" style="--c:@Modulo.CorDe(Modulo.Carro)">
                 <div class="link-head">
                     <span class="link-icon">@Icones.Carro</span>
-                    <div><h2>Carro</h2><p>@veic.Nome · consumo e custos</p></div>
+                    <div><h2>Carro</h2><p>@(veic is null ? "Cadastre seu veículo para começar" : $"{veic.Nome} · consumo e custos")</p></div>
                     <span class="go">@Icones.Seta</span>
                 </div>
                 <div class="mini-stats">
