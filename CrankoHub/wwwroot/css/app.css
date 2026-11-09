@@ -283,6 +283,11 @@ html.vidro, html.vidro body { background: transparent; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .page-head p { color: var(--text-2); margin-top: 4px; }
 .page-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.kpi-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chips.chips-mini { padding: 2px; }
+.chips.chips-mini .chip { padding: 2px 8px; font-size: 11.5px; }
+.filtros-linha { display: flex; gap: 8px; flex-wrap: wrap; }
+.modal.modal-medio { max-width: 560px; max-height: calc(100vh - 32px); overflow: auto; }
 @media (max-width: 600px) { .page-acoes { width: 100%; } .page-acoes .btn { flex: 1; justify-content: center; } }
 
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
