@@ -762,7 +762,24 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 .quadros-barra { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .quadros-barra .tabs { flex: 1 1 auto; min-width: 0; }
 .tarefas-filtros { margin-bottom: 16px; align-items: center; }
-.kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; align-items: flex-start; }
+/* Rola para os lados com o dedo (nativo), com o mouse arrastando o fundo (tarefas.js) e pela barra de cima.
+   A barra própria do .kanban fica escondida: lá embaixo ela descia junto com a coluna mais comprida */
+.kanban { display: flex; gap: 14px; overflow-x: auto; align-items: flex-start; scrollbar-width: none; overscroll-behavior-x: contain; }
+.kanban::-webkit-scrollbar { display: none; }
+.kanban.pode-rolar { cursor: grab; }
+.kanban.pode-rolar .card-arrastavel { cursor: grab; }
+/* Arrastar a coluna pelo título muda ela de lugar */
+.coluna-head { cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.coluna-head button { cursor: pointer; }
+html.rolando-quadro, html.rolando-quadro * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+/* Fica grudada embaixo da barra do topo enquanto a página desce por uma coluna comprida */
+.kanban-barra { position: sticky; top: 64px; z-index: 5; overflow-x: auto; overflow-y: hidden; height: 14px; margin: -4px 0 8px;
+  background: var(--surface); border-radius: 7px; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) var(--surface-2); }
+.kanban-barra > div { height: 1px; }
+.kanban-barra:not(.visivel) { visibility: hidden; height: 0; margin: 0; }
+.kanban-barra::-webkit-scrollbar { height: 10px; }
+.kanban-barra::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 6px; }
+.kanban-barra::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 55%, transparent); border-radius: 6px; }
 .coluna { flex: 0 0 280px; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); transition: border-color .12s, background .12s; }
 .coluna.alvo { border-color: var(--accent); background: var(--accent-soft); }
 .coluna-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px; font-size: 13px; }
@@ -777,6 +794,7 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 .card-arrastavel { cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .card-arrastavel.arrastando-origem { opacity: .3; }
 .tab.arrastando-origem { opacity: .35; }
+.coluna.arrastando-origem { opacity: .35; }
 /* Arrasto (wwwroot/js/tarefas.js): clone que segue o ponteiro e linha onde vai cair */
 .tarefa-fantasma { position: fixed; left: 0; top: 0; z-index: 1000; margin: 0; pointer-events: none; opacity: .95; box-shadow: 0 14px 32px -10px rgba(0,0,0,.45); border-radius: 10px; }
 .card-arrastavel.tarefa-fantasma > .tarefa { transform: rotate(1.5deg); }
@@ -932,7 +950,7 @@ html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; 
 }
 
 /* Barra de rolagem fininha, como no macOS */
-.palco, .table-wrap, .kanban, .modal-largo, .resultados { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
+.palco, .table-wrap, .modal-largo, .resultados { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
 
 /* Reserva o espaço da barra de rolagem: a página não "pula" de lado ao trocar entre telas curtas e longas */
 .palco { scrollbar-gutter: stable; }

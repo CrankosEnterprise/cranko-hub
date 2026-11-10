@@ -44,6 +44,26 @@ public static class TarefasCalculos
         else card.Concluido = null;
     }
 
+    /// <summary>
+    /// Leva a coluna para a posição <paramref name="indice"/> do quadro. A última coluna é a de concluídas: se ela mudar,
+    /// os cards da nova última ficam concluídos (hoje, se ainda não tinham data) e os da antiga voltam a ficar abertos.
+    /// </summary>
+    public static void MoverColuna(DadosTarefas t, Quadro q, string colunaId, int indice, DateOnly hoje)
+    {
+        var col = q.Colunas.FirstOrDefault(c => c.Id == colunaId);
+        if (col is null) return;
+        var ultimaAntes = q.Colunas[^1].Id;
+        q.Colunas.Remove(col);
+        q.Colunas.Insert(Math.Clamp(indice, 0, q.Colunas.Count), col);
+        var ultima = q.Colunas[^1].Id;
+        if (ultima == ultimaAntes) return;
+        foreach (var c in t.Cards)
+        {
+            if (c.ColunaId == ultima) c.Concluido ??= hoje;
+            else if (c.ColunaId == ultimaAntes) c.Concluido = null;
+        }
+    }
+
     /// <summary>Marca como feito (última coluna) ou devolve para a primeira.</summary>
     public static void AlternarConcluida(DadosTarefas t, CardTarefa card, DateOnly hoje)
     {

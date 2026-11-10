@@ -131,6 +131,8 @@
     }
     else if (quadro is not null)
     {
+        @* Barra de rolagem lateral em cima das colunas (a do .kanban fica escondida): o tarefas.js mantém as duas juntas *@
+        <div class="kanban-barra" aria-hidden="true"><div></div></div>
         <div class="kanban">
             @foreach (var col in quadro.Colunas)
             {
@@ -451,6 +453,19 @@
         Dados.Quadros.Insert(Math.Clamp(indice, 0, Dados.Quadros.Count), q);
         Store.Salvar();
         StateHasChanged();
+    });
+
+    /// <summary>Coluna solta na posição <paramref name="indice"/> entre as do quadro.</summary>
+    [JSInvokable]
+    public Task MoveuColuna(string id, int indice) => InvokeAsync(() =>
+    {
+        if (Dados.Quadros.FirstOrDefault(q => q.Colunas.Any(c => c.Id == id)) is not { } q) return;
+        var ultimaAntes = q.Colunas[^1];
+        TarefasCalculos.MoverColuna(Dados, q, id, indice, Hoje);
+        Store.Salvar();
+        StateHasChanged();
+        // A última coluna é a de concluídas: avisa quando ela muda
+        if (q.Colunas[^1] != ultimaAntes) Toast.Ok($"\"{q.Colunas[^1].Nome}\" agora é a coluna de concluídas.");
     });
 
     private void AlternarConcluida(CardTarefa c)
