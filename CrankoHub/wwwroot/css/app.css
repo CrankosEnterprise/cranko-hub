@@ -440,6 +440,14 @@ td.obs { white-space: normal; min-width: 160px; color: var(--text-2); }
 .link-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
 .link-head p { color: var(--muted); font-size: 12.5px; }
 .link-head .go { margin-left: auto; color: var(--muted); }
+/* Card do Início com botões dentro (ex.: Agenda Hoje/Semana/Mês): só o cabeçalho é link */
+.cartao-ini { display: flex; flex-direction: column; gap: 14px; }
+.cartao-ini-link { color: inherit; text-decoration: none; border-radius: 12px; margin: -6px; padding: 6px; transition: background .15s; }
+.cartao-ini-link:hover, .cartao-ini-link:focus-visible { background: var(--surface-2); outline: none; }
+.cartao-ini-link:hover .go { color: var(--c, var(--accent)); }
+.cartao-ini-chips { align-self: flex-start; }
+.cartao-ini-mais { align-self: flex-start; font-size: 12.5px; font-weight: 600; color: var(--c, var(--accent)); text-decoration: none; }
+.cartao-ini-mais:hover { text-decoration: underline; }
 .mini-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .mini-stats div { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; min-width: 0; }
 .mini-stats span { display: block; font-size: 11.5px; color: var(--muted); font-weight: 600; }

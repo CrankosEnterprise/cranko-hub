@@ -177,35 +177,69 @@
 <div class="grid-2 @(verAgenda && verTarefas ? "" : "um")">
 @if (verAgenda)
 {
-    <a class="card link-card" href="agenda?dia=@Iso(Hoje)&visao=dia" style="--c:@Modulo.CorDe(Modulo.Agenda)">
-        <div class="link-head">
+    // Hoje: o que ainda falta hoje. Semana/Mês: de agora até 7/30 dias à frente (não a semana/mês do calendário)
+    var periodoDias = _periodoAgenda switch { VisaoAgenda.Semana => 7, VisaoAgenda.Mes => 30, _ => 1 };
+    var doPeriodo = _periodoAgenda == VisaoAgenda.Dia ? agenda.Proximos
+        : AgendaCalculos.Ocorrencias(d.Agenda, agora, Hoje.AddDays(periodoDias).ToDateTime(TimeOnly.MinValue))
+            .Where(o => o.Fim > agora || (o.NoTopo && o.Data >= Hoje) || (o.Fim == o.Inicio && o.Inicio >= agora))
+            .OrderBy(o => o.Data).ThenBy(o => !o.NoTopo).ThenBy(o => o.Inicio).ToList();
+    var maxItens = _periodoAgenda == VisaoAgenda.Dia ? 4 : 6;
+    <section class="card cartao-ini" style="--c:@Modulo.CorDe(Modulo.Agenda)">
+        <a class="link-head cartao-ini-link" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda">
             <span class="link-icon">@Icones.Agenda</span>
-            <div><h2>Agenda de hoje</h2><p>O que ainda vem pela frente</p></div>
+            <div><h2>Agenda</h2><p>@(_periodoAgenda switch { VisaoAgenda.Semana => "O que vem nos próximos 7 dias", VisaoAgenda.Mes => "O que vem nos próximos 30 dias", _ => "O que ainda vem hoje" })</p></div>
             <span class="go">@Icones.Seta</span>
+        </a>
+        <div class="chips cartao-ini-chips" role="group" aria-label="Período da agenda">
+            @foreach (var (visao, rotulo) in PeriodosAgenda)
+            {
+                <button type="button" class="chip @(_periodoAgenda == visao ? "active" : "")" aria-pressed="@(_periodoAgenda == visao)"
+                        @onclick="() => _periodoAgenda = visao">@rotulo</button>
+            }
         </div>
         <div class="mini-stats">
             <div><span>Hoje</span><b>@agenda.Hoje</b></div>
             <div><span>Amanhã</span><b>@agenda.Amanha</b></div>
-            <div><span>Próx. 7 dias</span><b>@agenda.Semana</b></div>
+            @if (_periodoAgenda == VisaoAgenda.Mes)
+            {
+                <div><span>Próx. 30 dias</span><b>@doPeriodo.Count</b></div>
+            }
+            else
+            {
+                <div><span>Próx. 7 dias</span><b>@agenda.Semana</b></div>
+            }
         </div>
-        @if (agenda.Proximos.Count > 0)
+        @if (doPeriodo.Count > 0)
         {
             <ul class="activity">
-                @foreach (var o in agenda.Proximos.Take(4))
+                @foreach (var o in doPeriodo.Take(maxItens))
                 {
+                    var acontecendo = !o.NoTopo && o.Inicio <= agora && o.Fim > agora;
+                    var quando = o.Data <= Hoje
+                        ? (o.NoTopo ? "dia inteiro" : o.Inicio <= agora ? "agora" : AgendaCalculos.Hora(o.Inicio))
+                        : $"{(o.Data == Hoje.AddDays(1) ? "amanhã" : $"{AgendaCalculos.DiaSemanaCurto(o.Data)} {o.Data.Day}")}{(o.NoTopo ? "" : " · " + AgendaCalculos.Hora(o.Inicio))}";
                     <li>
                         <span class="ag-bolinha" style="--c:@AgendaCalculos.CorDe(d.Agenda, o.Evento)"></span>
                         <div class="a-text">@(string.IsNullOrWhiteSpace(o.Evento.Titulo) ? "(sem título)" : o.Evento.Titulo)<small>@(o.Evento.Local ?? AgendaCalculos.AgendaDe(d.Agenda, o.Evento)?.Nome)</small></div>
-                        <span class="badge @(!o.NoTopo && o.Inicio <= agora && o.Fim > agora ? "good" : "")">@(o.NoTopo ? "dia inteiro" : o.Inicio <= agora ? "agora" : AgendaCalculos.Hora(o.Inicio))</span>
+                        <span class="badge @(acontecendo ? "good" : "")">@quando</span>
                     </li>
                 }
             </ul>
+            @if (doPeriodo.Count > maxItens)
+            {
+                <a class="cartao-ini-mais" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda">+ @(doPeriodo.Count - maxItens) @Plural(doPeriodo.Count - maxItens, "compromisso", "compromissos") · ver na Agenda</a>
+            }
         }
         else
         {
-            <div class="chart-empty"><span>@(agenda.Hoje > 0 ? "Os compromissos de hoje já passaram. ✓" : "Nenhum compromisso hoje.")</span></div>
+            <div class="chart-empty"><span>@(_periodoAgenda switch
+            {
+                VisaoAgenda.Semana => "Nada marcado nos próximos 7 dias.",
+                VisaoAgenda.Mes => "Nada marcado nos próximos 30 dias.",
+                _ => agenda.Hoje > 0 ? "Os compromissos de hoje já passaram. ✓" : "Nenhum compromisso hoje.",
+            })</span></div>
         }
-    </a>
+    </section>
 }
 @if (verTarefas)
 {
@@ -309,6 +343,11 @@
 @code {
     // O Início pode ficar aberto por horas (o app fica na bandeja): redesenha a cada minuto para a saudação e a data acompanharem
     private System.Threading.Timer? _relogio;
+
+    // Período do card da Agenda (fica escolhido enquanto o app estiver aberto)
+    private static string _periodoAgenda = VisaoAgenda.Dia;
+    private static readonly (string Visao, string Rotulo)[] PeriodosAgenda =
+        [(VisaoAgenda.Dia, "Hoje"), (VisaoAgenda.Semana, "Semana"), (VisaoAgenda.Mes, "Mês")];
 
     protected override void OnInitialized()
     {
