@@ -5,9 +5,6 @@ namespace CrankoHub.Services;
 /// <summary>Regras dos quadros de tarefas: colunas, conclusão, visão do dia e resumo.</summary>
 public static class TarefasCalculos
 {
-    /// <summary>Cards concluídos há mais tempo que isso ficam escondidos (se o usuário quiser).</summary>
-    public const int DiasConcluidosVisiveis = 14;
-
     public record Resumo(List<CardTarefa> ConcluidosHoje, List<CardTarefa> ParaHoje, List<CardTarefa> Atrasados);
 
     public static Quadro NovoQuadro(string nome, string? emoji = null) => new()

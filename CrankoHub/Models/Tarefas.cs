@@ -9,6 +9,14 @@ public class DadosTarefas
     public string Ativo { get; set; } = "";
 
     public List<CardTarefa> Cards { get; set; } = [];
+
+    /// <summary>
+    /// Na coluna de concluídas, esconder as feitas há mais de tantos dias (0 = mostrar todas).
+    /// Fica na engrenagem das Tarefas.
+    /// </summary>
+    public int DiasOcultarConcluidas { get; set; } = PadraoDiasOcultarConcluidas;
+
+    public const int PadraoDiasOcultarConcluidas = 14;
 }
 
 /// <summary>Um quadro (Trabalho, Faculdade, Pessoal...) com suas colunas.</summary>

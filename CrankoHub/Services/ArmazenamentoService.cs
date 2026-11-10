@@ -147,6 +147,7 @@ public class ArmazenamentoService
         s.Dieta ??= new DadosDieta();
         s.Dieta.Perfil ??= new PerfilDieta();
         if (s.Dieta.Perfil.DiasLembretePeso < 0) s.Dieta.Perfil.DiasLembretePeso = PerfilDieta.PadraoDiasLembretePeso;
+        if (s.Tarefas is { DiasOcultarConcluidas: < 0 }) s.Tarefas.DiasOcultarConcluidas = DadosTarefas.PadraoDiasOcultarConcluidas;
         s.Dieta.Registros ??= [];
         s.Dieta.Registros.RemoveAll(r => r is null);
         s.Carro ??= new DadosCarro();

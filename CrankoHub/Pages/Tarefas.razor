@@ -19,10 +19,14 @@
         <h1>Tarefas</h1>
         <p>Seus quadros de trabalho, faculdade, casa e projetos — arraste os cards entre as colunas.</p>
     </div>
-    @if (quadro is not null)
-    {
-        <button class="btn primary" type="button" @onclick="() => AbrirNovo(quadro, quadro.Colunas[0])">+ Nova tarefa</button>
-    }
+    <div class="page-acoes">
+        @if (quadro is not null)
+        {
+            <button class="btn primary" type="button" @onclick="() => AbrirNovo(quadro, quadro.Colunas[0])">+ Nova tarefa</button>
+        }
+        @* Configurações só das Tarefas (as gerais do app ficam em Configurações, no menu) *@
+        <button class="btn so-icone" type="button" title="Configurações das Tarefas" aria-label="Configurações das Tarefas" @onclick="AbrirConfig">@Icones.Engrenagem</button>
+    </div>
 </div>
 
 <section class="kpis">
@@ -132,11 +136,11 @@
             {
                 var ultima = TarefasCalculos.EhConcluida(quadro, col.Id);
                 var daColuna = TarefasCalculos.DaColuna(t, col.Id).Where(Passa).ToList();
-                // Na coluna de concluídas, as feitas há muito tempo podem ficar escondidas
-                var antigas = ultima ? daColuna.Count(c => c.Concluido is DateOnly f && hoje.DayNumber - f.DayNumber > TarefasCalculos.DiasConcluidosVisiveis) : 0;
-                var cards = ultima && _ocultarAntigos
-                    ? daColuna.Where(c => !(c.Concluido is DateOnly f && hoje.DayNumber - f.DayNumber > TarefasCalculos.DiasConcluidosVisiveis)).ToList()
-                    : daColuna;
+                // Na coluna de concluídas, as feitas há mais dias que o da engrenagem ficam escondidas (0 = mostra todas)
+                var diasOcultar = t.DiasOcultarConcluidas;
+                bool Antiga(CardTarefa c) => diasOcultar > 0 && c.Concluido is DateOnly f && hoje.DayNumber - f.DayNumber > diasOcultar;
+                var antigas = ultima ? daColuna.Count(Antiga) : 0;
+                var cards = ultima && _ocultarAntigos ? daColuna.Where(c => !Antiga(c)).ToList() : daColuna;
                 <div class="coluna" @key="col.Id" data-coluna="@col.Id">
                     <div class="coluna-head">
                         <b>@col.Nome</b>
@@ -163,7 +167,7 @@
                         <button type="button" class="coluna-rodape" @onclick="() => _ocultarAntigos = !_ocultarAntigos">
                             @(_ocultarAntigos
                                 ? $"Mostrar {antigas} {Plural(antigas, "concluída antiga", "concluídas antigas")}"
-                                : $"Ocultar concluídas há mais de {TarefasCalculos.DiasConcluidosVisiveis} dias")
+                                : $"Ocultar concluídas há mais de {diasOcultar} {Plural(diasOcultar, "dia", "dias")}")
                         </button>
                     }
                 </div>
@@ -244,6 +248,34 @@
 
 <DialogoTexto @ref="_dialogoNome" />
 
+@* ---- Configurações das Tarefas (engrenagem no topo) ---- *@
+@if (_configAberta)
+{
+    <div class="modal-backdrop" @onclick="() => _configAberta = false">
+        <form class="card modal" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="SalvarConfig">
+            <div><h2>@Icones.Engrenagem Configurações das Tarefas</h2><p class="muted">Valem só para esta seção. As do app ficam em Configurações, no menu.</p></div>
+            <label class="check full"><input type="checkbox" @bind="_fOcultar"> Ocultar tarefas concluídas antigas na coluna de concluídas</label>
+            @if (_fOcultar)
+            {
+                <label class="field"><span>Ocultar as concluídas há mais de quantos dias</span>
+                    <input type="number" inputmode="numeric" min="1" max="365" required @bind="_fDiasOcultar"></label>
+                @if (_fDiasOcultar is >= 1 and <= 365)
+                {
+                    <p class="muted">Ex.: uma tarefa concluída hoje some da coluna em @DataBR(Hoje.AddDays(_fDiasOcultar + 1)). Ela não é apagada: o rodapé da coluna tem "Mostrar concluídas antigas".</p>
+                }
+            }
+            else
+            {
+                <p class="muted">Todas as concluídas ficam visíveis na coluna.</p>
+            }
+            <div class="form-actions">
+                <button class="btn" type="button" @onclick="() => _configAberta = false">Cancelar</button>
+                <button class="btn primary" type="submit">Salvar</button>
+            </div>
+        </form>
+    </div>
+}
+
 @code {
     [SupplyParameterFromQuery(Name = "quadro")] public string? QuadroDoLink { get; set; }
 
@@ -256,6 +288,28 @@
     private static string _filtroPrioridade = "", _filtroEtiqueta = "";
     private static bool _ocultarAntigos = true;
     private string _filtroTexto = "";
+
+    // Engrenagem: configurações das Tarefas
+    private bool _configAberta, _fOcultar;
+    private int _fDiasOcultar;
+
+    private void AbrirConfig()
+    {
+        var dias = Dados.DiasOcultarConcluidas;
+        _fOcultar = dias > 0;
+        _fDiasOcultar = dias > 0 ? dias : DadosTarefas.PadraoDiasOcultarConcluidas;
+        _configAberta = true;
+    }
+
+    private void SalvarConfig()
+    {
+        if (_fOcultar && _fDiasOcultar is not (>= 1 and <= 365)) { Toast.Erro("Informe de 1 a 365 dias."); return; }
+        Dados.DiasOcultarConcluidas = _fOcultar ? _fDiasOcultar : 0;
+        _ocultarAntigos = _fOcultar; // aplica já, mesmo se tinha clicado em "Mostrar concluídas antigas"
+        Store.Salvar();
+        _configAberta = false;
+        Toast.Ok(_fOcultar ? $"Concluídas há mais de {_fDiasOcultar} {Plural(_fDiasOcultar, "dia", "dias")} ficam ocultas." : "Todas as concluídas ficam visíveis.");
+    }
 
     private DialogoTexto _dialogoNome = default!;
 
