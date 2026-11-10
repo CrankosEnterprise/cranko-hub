@@ -1446,6 +1446,15 @@ html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; 
 .ficha-grupo dt { color: var(--text-2); }
 .ficha-grupo dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .ficha-vazia { margin-top: 10px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Link da ficha completa no Carros na Web, no pé da ficha */
+.cnw-link { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text); text-decoration: none; transition: border-color .15s, background .15s; }
+.cnw-link:hover, .cnw-link:focus-visible { border-color: var(--accent); background: var(--accent-soft); outline: none; }
+.cnw-icone { flex: 0 0 auto; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); }
+.cnw-icone svg { width: 18px; height: 18px; }
+.cnw-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cnw-texto small { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.cnw-ir { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.cnw-ir svg { width: 14px; height: 14px; }
 /* Aba Veículos: veículo em uso, os outros e o cartão para cadastrar mais um */
 .veh-nome { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
 .veh-nome:hover { background: var(--surface-2); }

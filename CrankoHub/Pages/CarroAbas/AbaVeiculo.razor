@@ -51,6 +51,20 @@
                 }
             </div>
         }
+        @if (_linkVer is { } cnw)
+        {
+            @* Ficha completa (potência, medidas, equipamentos, fotos) da versão cadastrada *@
+            <a class="cnw-link" href="@cnw.Url" target="_blank" rel="noopener">
+                <span class="cnw-icone" aria-hidden="true">@Icones.Info</span>
+                <span class="cnw-texto">
+                    <b>@(cnw.Versao is not null ? "Ficha completa no Carros na Web" : cnw.Catalogo ? "Versões no Carros na Web" : "Buscar no Carros na Web")</b>
+                    <small>@(cnw.Versao is not null ? $"{cnw.Versao} {Veiculo.Ano}: potência, medidas, equipamentos e fotos"
+                             : cnw.Catalogo ? $"Escolha a sua versão do {ModeloDe(Veiculo)} {Veiculo.Ano} para ver a ficha completa"
+                             : _procurandoVer ? "Procurando a ficha desta versão..." : "Ficha técnica, equipamentos e fotos deste modelo")</small>
+                </span>
+                <span class="cnw-ir" aria-hidden="true">Abrir @Icones.Seta</span>
+            </a>
+        }
     </section>
 
     @if (outros.Count > 0)
@@ -342,11 +356,18 @@ else
 
     private DadosCarro Dados => Store.Dados.Carro;
 
+    // Link do Carros na Web na ficha (leitura), refeito quando muda marca, versão ou ano
+    private LinkCarrosNaWeb? _linkVer;
+    private string? _chaveLinkVer;
+    private bool _procurandoVer;
+
     protected override void OnInitialized()
     {
         if (Inicio == "novo") AbrirFormulario(novo: true);
         else if (Inicio == "editar") AbrirFormulario(novo: false);
     }
+
+    protected override Task OnParametersSetAsync() => AtualizarLinkVer();
 
     // ---- Formulário ----
 
@@ -422,6 +443,7 @@ else
         _modo = Modo.Ver;
         Toast.Ok("Veículo atualizado.");
         await Alterado.InvokeAsync();
+        await AtualizarLinkVer();
     }
 
     private async Task Excluir()
@@ -600,6 +622,39 @@ else
     private string ModeloCurto()
     {
         var w = _modeloSel?.Nome.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+        return w.Length > 1 && w.All(c => !char.IsLower(c)) ? w[0] + w[1..].ToLowerInvariant() : w;
+    }
+
+    /// <summary>
+    /// Link da ficha do veículo cadastrado: a ficha exata da versão, a lista de versões do modelo no ano ou a busca.
+    /// Mostra a busca na hora e troca pelo link do site quando a procura termina (o serviço guarda o resultado).
+    /// </summary>
+    private async Task AtualizarLinkVer()
+    {
+        var v = Veiculo;
+        var versao = v.Ficha?.Versao;
+        var chave = $"{v.Id}|{v.Marca}|{versao}|{v.Ano}|{v.Nome}";
+        if (chave == _chaveLinkVer) return;
+        _chaveLinkVer = chave;
+        _procurandoVer = false;
+        if (string.IsNullOrWhiteSpace(v.Marca) || v.Ano is not int ano) { _linkVer = null; return; }
+
+        // Sem versão: busca pelo modelo (primeira palavra do nome, "Onix 2020" → "Onix")
+        _linkVer = new LinkCarrosNaWeb(CrankoHub.Services.CarrosNaWeb.LinkBusca(v.Marca, versao ?? ModeloDe(v), ano), null, false);
+        if (string.IsNullOrWhiteSpace(versao)) return;
+
+        _procurandoVer = true;
+        StateHasChanged();
+        var link = await CarrosNaWeb.Link(v.Marca, versao, ano);
+        if (chave != _chaveLinkVer) return; // trocou de veículo ou editou enquanto procurava
+        _linkVer = link;
+        _procurandoVer = false;
+    }
+
+    /// <summary>Modelo para buscas: primeira palavra da versão (FIPE começa pelo modelo) ou do nome. "ONIX" → "Onix".</summary>
+    private static string ModeloDe(Veiculo v)
+    {
+        var w = (v.Ficha?.Versao ?? v.Nome).Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
         return w.Length > 1 && w.All(c => !char.IsLower(c)) ? w[0] + w[1..].ToLowerInvariant() : w;
     }
 
