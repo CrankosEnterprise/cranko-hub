@@ -16,9 +16,6 @@ public static class Alertas
     /// <summary>Avisar das cobranças de assinatura com esta antecedência (dias).</summary>
     public const int DiasAssinatura = 3;
 
-    /// <summary>Lembrar de pesar depois de tantos dias sem registro.</summary>
-    public const int DiasSemPeso = 7;
-
     private static readonly string[] Urgencia = ["critical", "serious", "warning", ""];
 
     public static List<Alerta> Gerar(EstadoApp d, DateOnly hoje)
@@ -74,9 +71,10 @@ public static class Alertas
                 texto, classe, $"tarefas?quadro={c.QuadroId}", Icones.Tarefas));
         }
 
-        // Peso sem registro há muito tempo (só para quem já usa a Dieta)
+        // Peso sem registro há muito tempo (só para quem já usa a Dieta; o prazo fica na engrenagem da Dieta)
         var ultimoPeso = d.Dieta.Registros.Count > 0 ? d.Dieta.Registros.Max(r => r.Data) : (DateOnly?)null;
-        if (Ver(Modulo.Dieta) && ultimoPeso is DateOnly up && hoje.DayNumber - up.DayNumber >= DiasSemPeso)
+        var diasPeso = d.Dieta.Perfil.DiasLembretePeso;
+        if (Ver(Modulo.Dieta) && diasPeso > 0 && ultimoPeso is DateOnly up && hoje.DayNumber - up.DayNumber >= diasPeso)
         {
             var dias = hoje.DayNumber - up.DayNumber;
             lista.Add(new("peso", "Hora de se pesar", $"Último registro há {dias} dias ({Formatacao.DataBR(up)})",

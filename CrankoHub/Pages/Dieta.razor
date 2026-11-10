@@ -57,6 +57,8 @@
     <div class="page-acoes">
         <button class="btn primary" type="button" @onclick="AbrirNovoRegistro">@Icones.Mais Registrar peso</button>
         <button class="btn" type="button" @onclick="AbrirMeta">@Icones.Alvo @(meta is not null ? $"Meta: {Num(meta)} kg" : "Definir meta")</button>
+        @* Configurações só da Dieta (as gerais do app ficam em Configurações, no menu) *@
+        <button class="btn so-icone" type="button" title="Configurações da Dieta" aria-label="Configurações da Dieta" @onclick="AbrirConfig">@Icones.Engrenagem</button>
     </div>
 </div>
 
@@ -190,6 +192,30 @@
     </div>
 }
 
+@* ---- Configurações da Dieta (engrenagem no topo) ---- *@
+@if (_configAberta)
+{
+    <div class="modal-backdrop" @onclick="() => _configAberta = false">
+        <form class="card modal" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="SalvarConfig">
+            <div><h2>@Icones.Engrenagem Configurações da Dieta</h2><p class="muted">Valem só para esta seção. As do app ficam em Configurações, no menu.</p></div>
+            <label class="check full"><input type="checkbox" @bind="_fLembrar"> Lembrar de me pesar no Início ("Precisa de atenção")</label>
+            @if (_fLembrar)
+            {
+                <label class="field"><span>Avisar depois de quantos dias sem registro</span>
+                    <input type="number" inputmode="numeric" min="1" max="365" required @bind="_fDiasLembrete"></label>
+                @if (_fDiasLembrete is >= 1 and <= 365)
+                {
+                    <p class="muted">Ex.: com @_fDiasLembrete @Plural(_fDiasLembrete, "dia", "dias"), um peso registrado hoje volta a ser lembrado em @DataBR(Hoje.AddDays(_fDiasLembrete)).</p>
+                }
+            }
+            <div class="form-actions">
+                <button class="btn" type="button" @onclick="() => _configAberta = false">Cancelar</button>
+                <button class="btn primary" type="submit">Salvar</button>
+            </div>
+        </form>
+    </div>
+}
+
 @code {
     private static readonly (int Dias, string Rotulo)[] Periodos = [(30, "30 dias"), (90, "90 dias"), (365, "1 ano"), (0, "Tudo")];
 
@@ -203,6 +229,9 @@
     private DateOnly? _fData = Hoje;
     private string _fPeso = "", _fGordura = "", _fCintura = "", _fObs = "";
     private string _fMeta = "";
+
+    private bool _configAberta, _fLembrar;
+    private int _fDiasLembrete;
 
     private List<RegistroPeso> Registros => Store.Dados.Dieta.Registros;
 
@@ -224,6 +253,23 @@
     {
         _fMeta = InVal(Store.Dados.Dieta.Perfil.Meta, 1);
         _metaAberta = true;
+    }
+
+    private void AbrirConfig()
+    {
+        var dias = Store.Dados.Dieta.Perfil.DiasLembretePeso;
+        _fLembrar = dias > 0;
+        _fDiasLembrete = dias > 0 ? dias : PerfilDieta.PadraoDiasLembretePeso;
+        _configAberta = true;
+    }
+
+    private void SalvarConfig()
+    {
+        if (_fLembrar && _fDiasLembrete is not (>= 1 and <= 365)) { Toast.Erro("Informe de 1 a 365 dias."); return; }
+        Store.Dados.Dieta.Perfil.DiasLembretePeso = _fLembrar ? _fDiasLembrete : 0;
+        Store.Salvar();
+        _configAberta = false;
+        Toast.Ok(_fLembrar ? $"Lembrete depois de {_fDiasLembrete} {Plural(_fDiasLembrete, "dia", "dias")} sem registro." : "Lembrete de pesar desligado.");
     }
 
     private void LimparFormulario()

@@ -40,6 +40,11 @@ public class PerfilDieta
 
     /// <summary>Peso meta em kg.</summary>
     public double? Meta { get; set; }
+
+    /// <summary>Lembrar de pesar no Início depois de tantos dias sem registro (0 = não lembrar). Fica na engrenagem da Dieta.</summary>
+    public int DiasLembretePeso { get; set; } = PadraoDiasLembretePeso;
+
+    public const int PadraoDiasLembretePeso = 7;
 }
 
 public class DadosCarro

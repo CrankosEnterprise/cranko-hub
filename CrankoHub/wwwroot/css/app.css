@@ -290,6 +290,10 @@ html.vidro, html.vidro body { background: transparent; }
 .filtros-linha { display: flex; gap: 8px; flex-wrap: wrap; }
 .modal.modal-medio { max-width: 560px; max-height: calc(100vh - 32px); overflow: auto; }
 @media (max-width: 600px) { .page-acoes { width: 100%; } .page-acoes .btn { flex: 1; justify-content: center; } }
+/* Botão só com ícone (ex.: engrenagem das configurações de uma seção): quadrado, não estica no celular */
+.btn.so-icone { width: 38px; padding: 0; flex: 0 0 auto !important; }
+.btn.so-icone svg { width: 18px; height: 18px; }
+.modal h2 svg { width: 18px; height: 18px; vertical-align: -3px; margin-right: 4px; color: var(--text-2); }
 
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .grid-2.um { grid-template-columns: minmax(0, 1fr); }

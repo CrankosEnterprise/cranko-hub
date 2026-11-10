@@ -42,7 +42,8 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     private record QuadroLinha(string Id, string Nome, string? Emoji, int Ordem);
     private record ColunaLinha(string Id, string QuadroId, string Nome, int Ordem);
     private record AgendaLinha(string Id, string Nome, string Cor, int Ordem);
-    private record PerfilLinha(double? Altura, double? Meta, string? Tema, string? CorDestaque, List<string>? ModulosOcultos);
+    private record PerfilLinha(double? Altura, double? Meta, string? Tema, string? CorDestaque, List<string>? ModulosOcultos,
+        int? DiasLembretePeso);
 
     /// <summary>
     /// Uma tabela do servidor: como tirar as linhas dos dados do app e como aplicar uma linha recebida.
@@ -62,12 +63,14 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     private static readonly Tabela[] Tabelas =
     [
         new("perfis", typeof(PerfilLinha),
-            d => [(IdPerfil, new PerfilLinha(d.Dieta.Perfil.Altura, d.Dieta.Perfil.Meta, d.Tema, d.Config.CorDestaque, d.Config.ModulosOcultos))],
+            d => [(IdPerfil, new PerfilLinha(d.Dieta.Perfil.Altura, d.Dieta.Perfil.Meta, d.Tema, d.Config.CorDestaque, d.Config.ModulosOcultos,
+                d.Dieta.Perfil.DiasLembretePeso))],
             (d, o, _) =>
             {
                 if (o is not PerfilLinha p) return;
                 d.Dieta.Perfil.Altura = p.Altura;
                 d.Dieta.Perfil.Meta = p.Meta;
+                if (p.DiasLembretePeso is int dias and >= 0) d.Dieta.Perfil.DiasLembretePeso = dias; // null: coluna ainda não existe
                 d.Tema = p.Tema;
                 if (p.CorDestaque is not null) d.Config.CorDestaque = p.CorDestaque;
                 d.Config.ModulosOcultos = p.ModulosOcultos ?? [];
@@ -289,6 +292,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         ("veiculos", "marca", "0006_veiculo_ficha.sql"),
         ("veiculos", "ano", "0006_veiculo_ficha.sql"),
         ("veiculos", "ficha", "0006_veiculo_ficha.sql"),
+        ("perfis", "dias_lembrete_peso", "0007_dieta_lembrete_peso.sql"),
     ];
 
     private readonly HashSet<string> _semTabela = [];
