@@ -259,6 +259,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
             if (_base is null) await Primeira();
             else
             {
+                await CompletarColunasDaBase(_base);
                 await Enviar(_base);
                 await Receber(_base);
             }
@@ -344,6 +345,58 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         Problema = problema;
         if (problema is null) Ultima = DateTime.Now;
         Mudou?.Invoke();
+    }
+
+    /// <summary>
+    /// Colunas que o app ganhou numa atualização (ou que a migration acabou de criar) não estão nas linhas da base.
+    /// Sem isto, o envio tratava o campo vazio daqui (a versão antiga nem guardava esse campo) como mudança e apagava no
+    /// servidor o que outro aparelho tinha gravado; e o recebimento não trazia de volta, porque o cursor já tinha passado.
+    /// Então, uma vez por tabela: busca tudo do servidor e, só nessas colunas, o que o servidor tem preenchido vale aqui
+    /// também; o que lá está vazio entra na base como vazio (assim o que só este aparelho tem ainda sobe no envio).
+    /// </summary>
+    private async Task CompletarColunasDaBase(Base b)
+    {
+        var locais = await NaTelaRetornar(() => Linhas(store.Dados));
+        foreach (var t in Tabelas)
+        {
+            if (_semTabela.Contains(t.Nome) || !b.Linhas.TryGetValue(t.Nome, out var anterior) || anterior.Count == 0) continue;
+            var local = locais[t.Nome];
+            var colunas = local.Values.SelectMany(l => l.Select(kv => kv.Key)).ToHashSet();
+            if (!anterior.Values.Any(a => colunas.Any(c => !a.ContainsKey(c)))) continue;
+
+            var (doServidor, _) = await Buscar(t, null); // o cursor não muda: o recebimento normal segue de onde estava
+            var servidor = doServidor.Where(x => x.Linha is not null).ToDictionary(x => x.Id, x => x.Linha!);
+            var aplicar = new List<(string Id, JsonObject Linha)>();
+            foreach (var (id, a) in anterior)
+            {
+                var faltam = colunas.Where(c => !a.ContainsKey(c)).ToList();
+                if (faltam.Count == 0) continue;
+                var s = servidor.GetValueOrDefault(id);
+                JsonObject? mesclada = null;
+                foreach (var c in faltam)
+                {
+                    var valor = s?[c]?.DeepClone();
+                    a[c] = valor?.DeepClone();
+                    if (valor is null || !local.TryGetValue(id, out var l)) continue;
+                    mesclada ??= l.DeepClone().AsObject();
+                    mesclada[c] = valor;
+                }
+                if (mesclada is not null) aplicar.Add((id, mesclada));
+            }
+
+            if (aplicar.Count > 0)
+            {
+                await NaTela!(() =>
+                {
+                    foreach (var (id, linha) in aplicar)
+                        t.Aplicar(store.Dados, linha.Deserialize(t.Tipo, Json), id);
+                    store.NormalizarESalvar();
+                    Recebeu?.Invoke();
+                    return Task.CompletedTask;
+                });
+            }
+            GravarBase(b);
+        }
     }
 
     // ----- Envio -----
