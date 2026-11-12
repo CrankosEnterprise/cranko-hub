@@ -297,3 +297,20 @@ Calendário estilo Google Agenda, só do CrankoHub (dados no Supabase e sincroni
 2. ✅ Compactação (script fora do projeto): um texto de 2,4 MB vira 68 KB e volta igual; dados aleatórios (como um zip) ficam "original" em 8 ms; um PNG 4000×3000 vira WebP 1920×1440; um JPG de 590 KB vira 76 KB; as 7 orientações do EXIF saem certas.
 3. ⏳ Rodar a `0009_tarefas_anexos.sql` e a `0010_manutencao_anexos.sql` no Supabase.
 4. ⏳ No app: na manutenção, anexar o PDF do orçamento e a foto da nota fiscal, marcar cada um e abrir pelo histórico; nas tarefas, anexar foto do celular, PDF e zip; abrir cada um; cancelar o formulário (os arquivos somem de `anexos/`); depois de sincronizar, ver no bucket; abrir pelo celular (baixa na primeira vez e depois abre sem internet).
+
+## 16. Marcador de combustível no abastecimento ✅ (feito em 12/11/2026; falta rodar a migration e testar no aparelho)
+
+Para carro sem computador de bordo e abastecimento sem encher o tanque, o consumo sai do **ponteiro do painel**.
+
+- **Formulário do abastecimento:** "Litros" virou **Litros colocados** (o que a bomba marcou, base do R$/L). Novo campo **Litros gastos desde o anterior** (opcional: vazio = igual aos colocados, como antes). Ao lado ficam o botão **⛽ Marcador** e o interruptor **Enchi o tanque**.
+- **Marcador** (`Components/MarcadorCombustivel.razor`): janela com um mostrador igual ao do painel (arco com 1/1, 1/2 e reserva). O ponteiro é marcado **antes de abastecer**, em **oitavos**: tocar/arrastar, −/+ ou setas do teclado. Feito todo em Razor/SVG, sem JS.
+- **Conta** (`CarroCalculos.NivelDepois`/`GastoPeloMarcador`): nível depois do anterior = tanque cheio se marcou "Enchi o tanque", senão ponteiro do anterior + litros colocados (no máximo o tanque); **gasto = nível depois do anterior − ponteiro de agora**. Ex.: tanque 44 L, anterior em 1/4 + 30 L → 41 L; hoje em 1/2 (22 L) → gasto ≈ 19 L.
+- **Tamanho do tanque** (`FichaVeiculo.TanqueLitros`): se o veículo não tem, o marcador pede na hora e salva na ficha.
+- Sem base (primeiro abastecimento, ou o anterior sem ponteiro e sem tanque cheio), ou com o ponteiro acima do esperado ou mais de 60 km/l: avisa e guarda **só o ponteiro**, que vira a base do próximo.
+- **Estimados:** selo **"≈ estimado"** no formulário e "≈" no km/l do histórico (o tooltip mostra os litros gastos). Contam normalmente na média, no melhor e no pior. A média passou a usar os litros gastos (`Abastecimento.Consumidos`); preço médio e R$/L continuam com os colocados.
+- **Modelo/sync:** `Abastecimento` ganhou `LitrosGastos`, `NivelAntes`, `TanqueCheio` e `GastoEstimado`. A migration é `supabase/migrations/0011_abastecimento_marcador.sql`. Enquanto não rodar, esses campos ficam só no aparelho e o card da Conta avisa.
+
+**Como testar**
+1. ✅ `dotnet build`.
+2. ⏳ Rodar a `0011_abastecimento_marcador.sql` no Supabase.
+3. ⏳ No app: veículo sem tanque → o marcador pede e salva na ficha; abastecimento A com ponteiro 1/4 + 30 L (só guarda o ponteiro); B com 250 km e ponteiro 1/2 → ≈ 19 L e 13,2 km/l com selo; anterior com "Enchi o tanque" → base cheia; ponteiro acima do esperado → aviso; editar mantém os campos; marcar no celular arrastando o ponteiro.

@@ -25,6 +25,7 @@ public static class CarroCalculos
     {
         var km = lista.Sum(a => a.Km);
         var litros = lista.Sum(a => a.Litros);
+        var consumidos = lista.Sum(a => a.Consumidos);
         // Custos só consideram os abastecimentos com valor informado
         var comValor = lista.Where(a => a.Valor is not null).ToList();
         var valor = comValor.Sum(a => a.Valor!.Value);
@@ -32,7 +33,7 @@ public static class CarroCalculos
         var litrosComValor = comValor.Sum(a => a.Litros);
         return new EstatisticasCarro(
             lista.Count, km, litros, valor,
-            Media: litros > 0 ? km / litros : null,
+            Media: consumidos > 0 ? km / consumidos : null,
             CustoKm: kmComValor > 0 ? valor / kmComValor : null,
             PrecoMedio: litrosComValor > 0 ? valor / litrosComValor : null,
             Melhor: lista.Count > 0 ? lista.Max(a => a.Kml) : null,
@@ -49,6 +50,28 @@ public static class CarroCalculos
 
     public static double GastoNoMes(IEnumerable<Abastecimento> lista, DateOnly referencia) =>
         lista.Where(a => a.Data.Year == referencia.Year && a.Data.Month == referencia.Month).Sum(a => a.Valor ?? 0);
+
+    /// <summary>Divisões do marcador de combustível (oitavos).</summary>
+    public const int PartesMarcador = 8;
+
+    /// <summary>
+    /// Litros no tanque logo depois de um abastecimento: cheio se completou; senão o ponteiro de antes mais
+    /// o que foi colocado (no máximo o tanque). Null quando não há como saber.
+    /// </summary>
+    public static double? NivelDepois(Abastecimento a, double tanque)
+    {
+        if (a.TanqueCheio) return tanque;
+        if (a.NivelAntes is not int n) return null;
+        return Math.Min(tanque, LitrosNoNivel(n, tanque) + a.Litros);
+    }
+
+    public static double LitrosNoNivel(int nivel, double tanque) => (double)nivel / PartesMarcador * tanque;
+
+    /// <summary>Litros gastos desde o abastecimento anterior pelo ponteiro de agora. Null sem base para calcular.</summary>
+    public static double? GastoPeloMarcador(Abastecimento? anterior, int nivelAgora, double tanque) =>
+        anterior is not null && NivelDepois(anterior, tanque) is double depois
+            ? depois - LitrosNoNivel(nivelAgora, tanque)
+            : null;
 
     /// <summary>Último preço por litro pago num combustível.</summary>
     public static double? UltimoPreco(IReadOnlyList<Abastecimento> lista, string combustivel)

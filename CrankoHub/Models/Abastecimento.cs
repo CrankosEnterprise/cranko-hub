@@ -18,7 +18,23 @@ public class Abastecimento
     /// <summary>Km rodados desde o abastecimento anterior.</summary>
     public double Km { get; set; }
 
+    /// <summary>Litros colocados na bomba (base do preço por litro).</summary>
     public double Litros { get; set; }
+
+    /// <summary>
+    /// Litros gastos desde o abastecimento anterior, quando diferem dos colocados (computador de bordo ou
+    /// estimados pelo marcador de combustível). Null: gasto = colocados (tanque cheio nos dois).
+    /// </summary>
+    public double? LitrosGastos { get; set; }
+
+    /// <summary>Ponteiro do marcador antes de abastecer, em oitavos (0 = vazio, 8 = cheio).</summary>
+    public int? NivelAntes { get; set; }
+
+    /// <summary>Completou o tanque neste abastecimento (depois dele o nível é 8/8).</summary>
+    public bool TanqueCheio { get; set; }
+
+    /// <summary><see cref="LitrosGastos"/> veio do marcador (aproximado).</summary>
+    public bool GastoEstimado { get; set; }
 
     /// <summary>Valor total pago (R$).</summary>
     public double? Valor { get; set; }
@@ -27,6 +43,10 @@ public class Abastecimento
 
     public string? Obs { get; set; }
 
+    /// <summary>Litros usados no consumo (km/l).</summary>
     [JsonIgnore]
-    public double Kml => Km / Litros;
+    public double Consumidos => LitrosGastos is > 0 ? LitrosGastos.Value : Litros;
+
+    [JsonIgnore]
+    public double Kml => Km / Consumidos;
 }

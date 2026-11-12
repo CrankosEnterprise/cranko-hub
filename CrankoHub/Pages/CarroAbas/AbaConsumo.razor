@@ -13,7 +13,7 @@
     var corte = _periodo > 0 && last is not null ? last.Data.AddDays(-_periodo) : DateOnly.MinValue;
     var seriesConsumo = Combustivel.Todos.Select(f => new SerieLinha(f.Nome, f.Cor,
             list.Where(a => a.Combustivel == f.Chave && a.Data >= corte)
-                .Select(a => new PontoLinha(a.Data, a.Kml, string.Join(" · ", new[] { Num(a.Km, 0) + " km", Num(a.Litros, 1) + " L", a.Posto }.Where(s => !string.IsNullOrEmpty(s)))))
+                .Select(a => new PontoLinha(a.Data, a.Kml, string.Join(" · ", new[] { Num(a.Km, 0) + " km", (a.GastoEstimado && a.LitrosGastos > 0 ? "≈ " : "") + Num(a.Consumidos, 1) + " L", a.Posto }.Where(s => !string.IsNullOrEmpty(s)))))
                 .ToList()))
         .Where(s => s.Points.Count > 0).ToList();
     var seriesPreco = Combustivel.Todos.Select(f => new SerieLinha(f.Nome, f.Cor,

@@ -305,6 +305,10 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         ("perfis", "dias_ocultar_concluidas", "0008_tarefas_ocultar_concluidas.sql"),
         ("cards", "anexos", "0009_tarefas_anexos.sql"),
         ("manutencoes", "anexos", "0010_manutencao_anexos.sql"),
+        ("abastecimentos", "litros_gastos", "0011_abastecimento_marcador.sql"),
+        ("abastecimentos", "nivel_antes", "0011_abastecimento_marcador.sql"),
+        ("abastecimentos", "tanque_cheio", "0011_abastecimento_marcador.sql"),
+        ("abastecimentos", "gasto_estimado", "0011_abastecimento_marcador.sql"),
     ];
 
     private readonly HashSet<string> _semTabela = [];
