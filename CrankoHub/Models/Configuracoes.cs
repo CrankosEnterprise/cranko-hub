@@ -26,6 +26,12 @@ public class Configuracoes
     /// <summary>Chave da API do TMDB (filmes, séries e animações).</summary>
     public string? ChaveTmdb { get; set; }
 
+    /// <summary>
+    /// Entretenimento: trazer e mostrar o nome de cada episódio (sem isso, só os números). Nos animes, os nomes vêm do
+    /// MyAnimeList (Jikan), que demora mais. Fica na engrenagem do Entretenimento e vai para a conta (tabela perfis).
+    /// </summary>
+    public bool NomesEpisodios { get; set; } = true;
+
     /// <summary>Chave da API do RAWG (jogos).</summary>
     public string? ChaveRawg { get; set; }
 

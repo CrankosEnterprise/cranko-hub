@@ -43,7 +43,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     private record ColunaLinha(string Id, string QuadroId, string Nome, int Ordem);
     private record AgendaLinha(string Id, string Nome, string Cor, int Ordem);
     private record PerfilLinha(double? Altura, double? Meta, string? Tema, string? CorDestaque, List<string>? ModulosOcultos,
-        int? DiasLembretePeso, int? DiasOcultarConcluidas);
+        int? DiasLembretePeso, int? DiasOcultarConcluidas, bool? NomesEpisodios);
 
     /// <summary>
     /// Uma tabela do servidor: como tirar as linhas dos dados do app e como aplicar uma linha recebida.
@@ -64,7 +64,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     [
         new("perfis", typeof(PerfilLinha),
             d => [(IdPerfil, new PerfilLinha(d.Dieta.Perfil.Altura, d.Dieta.Perfil.Meta, d.Tema, d.Config.CorDestaque, d.Config.ModulosOcultos,
-                d.Dieta.Perfil.DiasLembretePeso, d.Tarefas.DiasOcultarConcluidas))],
+                d.Dieta.Perfil.DiasLembretePeso, d.Tarefas.DiasOcultarConcluidas, d.Config.NomesEpisodios))],
             (d, o, _) =>
             {
                 if (o is not PerfilLinha p) return;
@@ -72,6 +72,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
                 d.Dieta.Perfil.Meta = p.Meta;
                 if (p.DiasLembretePeso is int dias and >= 0) d.Dieta.Perfil.DiasLembretePeso = dias; // null: coluna ainda não existe
                 if (p.DiasOcultarConcluidas is int ocultar and >= 0) d.Tarefas.DiasOcultarConcluidas = ocultar;
+                if (p.NomesEpisodios is bool nomes) d.Config.NomesEpisodios = nomes;
                 d.Tema = p.Tema;
                 if (p.CorDestaque is not null) d.Config.CorDestaque = p.CorDestaque;
                 d.Config.ModulosOcultos = p.ModulosOcultos ?? [];
@@ -309,6 +310,9 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         ("abastecimentos", "nivel_antes", "0011_abastecimento_marcador.sql"),
         ("abastecimentos", "tanque_cheio", "0011_abastecimento_marcador.sql"),
         ("abastecimentos", "gasto_estimado", "0011_abastecimento_marcador.sql"),
+        ("entretenimento", "temporadas", "0012_entretenimento_episodios.sql"),
+        ("entretenimento", "episodios_vistos", "0012_entretenimento_episodios.sql"),
+        ("perfis", "nomes_episodios", "0012_entretenimento_episodios.sql"),
     ];
 
     private readonly HashSet<string> _semTabela = [];

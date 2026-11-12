@@ -35,7 +35,7 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
     /// <summary>Identificação nas requisições (a Wikimedia limita quem não diz quem é).</summary>
     public const string UserAgent = "CrankoHub/1.0 (https://github.com/CrankosEnterprise/cranko-hub)";
 
-    /// <summary>Categorias da busca geral. "Animações" fica de fora: usa a mesma fonte dos filmes e só repetiria resultados.</summary>
+    /// <summary>Categorias da busca geral. "Animações" fica de fora: usa as mesmas fontes de filmes e séries e só repetiria resultados.</summary>
     public static readonly IReadOnlyList<CategoriaEntretenimento> CategoriasGeral =
         CategoriaEntretenimento.Todas.Where(c => c.Chave != "animacao").ToList();
 
@@ -51,6 +51,9 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
                 "tmdb-filme" when ChaveTmdb() is null => await Wikipedia("Info/Filme", termo, pagina, ct),
                 "tmdb-serie" when ChaveTmdb() is null => await Wikipedia("Info/Televisão", termo, pagina, ct),
                 "rawg" when ChaveRawg() is null => await Wikipedia("Info/Jogo eletrônico", termo, pagina, ct),
+                "tmdb-animacao" when ChaveTmdb() is null => await WikipediaAnimacao(termo, pagina, ct),
+                "tmdb-animacao" => Intercalar(await Task.WhenAll(
+                    Tmdb("movie", termo, pagina, ct, GeneroAnimacao), Tmdb("tv", termo, pagina, ct, GeneroAnimacao))),
                 "tmdb-filme" => await Tmdb("movie", termo, pagina, ct),
                 "tmdb-serie" => await Tmdb("tv", termo, pagina, ct),
                 "rawg" => await Rawg(termo, pagina, ct),
@@ -142,12 +145,17 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
 
     // ---- APIs ----
 
-    // O TMDB devolve 20 por página (não dá para mudar)
-    private async Task<PaginaBusca> Tmdb(string tipo, string termo, int pagina, CancellationToken ct)
+    /// <summary>Gênero "Animação" no TMDB (o mesmo id para filmes e séries).</summary>
+    private const int GeneroAnimacao = 16;
+
+    // O TMDB devolve 20 por página (não dá para mudar). Com "genero", só ficam os resultados daquele gênero.
+    private async Task<PaginaBusca> Tmdb(string tipo, string termo, int pagina, CancellationToken ct, int? genero = null)
     {
         var filme = tipo == "movie";
         var j = await Get(UrlTmdb($"search/{tipo}", $"page={pagina}&query=" + Uri.EscapeDataString(termo)), Bearer(), ct);
-        var itens = (j["results"]?.AsArray() ?? []).Select(x => new ResultadoBusca(
+        var itens = (j["results"]?.AsArray() ?? [])
+            .Where(x => genero is null || (x?["genre_ids"]?.AsArray().Any(g => (int?)g == genero) ?? false))
+            .Select(x => new ResultadoBusca(
             Texto(x?[filme ? "title" : "name"]) ?? "",
             Ano(Texto(x?[filme ? "release_date" : "first_air_date"])),
             Texto(x?["poster_path"]) is string p ? "https://image.tmdb.org/t/p/w500" + p : null,
@@ -214,6 +222,20 @@ public partial class EntretenimentoBusca(HttpClient http, ArmazenamentoService s
         // A Wikipedia manda "continue" quando há mais páginas
         return new(itens, j["continue"]?["gsroffset"] is not null);
     }
+
+    // Animações sem chave: filmes e séries da Wikipedia que falam em animação (sem nenhum, tenta sem essa palavra)
+    private async Task<PaginaBusca> WikipediaAnimacao(string termo, int pagina, CancellationToken ct)
+    {
+        async Task<PaginaBusca> Ambos(string t) => Intercalar(await Task.WhenAll(
+            Wikipedia("Info/Filme", t, pagina, ct), Wikipedia("Info/Televisão", t, pagina, ct)));
+        var p = await Ambos(termo + " animação");
+        return p.Itens.Count == 0 && pagina == 1 ? await Ambos(termo) : p;
+    }
+
+    /// <summary>Junta duas buscas alternando os resultados (1º de cada, 2º de cada...).</summary>
+    private static PaginaBusca Intercalar(PaginaBusca[] paginas) => new(
+        paginas.SelectMany(p => p.Itens.Select((item, i) => (item, i))).OrderBy(x => x.i).Select(x => x.item).ToList(),
+        paginas.Any(p => p.TemMais));
 
     // Resumo da Wikipedia + direção/criação, gêneros e data da Wikidata (e pôster do TVmaze para séries)
     private async Task<ResultadoBusca> DetalharWikipedia(ResultadoBusca r)

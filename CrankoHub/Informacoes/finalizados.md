@@ -314,3 +314,26 @@ Para carro sem computador de bordo e abastecimento sem encher o tanque, o consum
 1. ✅ `dotnet build`.
 2. ⏳ Rodar a `0011_abastecimento_marcador.sql` no Supabase.
 3. ⏳ No app: veículo sem tanque → o marcador pede e salva na ficha; abastecimento A com ponteiro 1/4 + 30 L (só guarda o ponteiro); B com 250 km e ponteiro 1/2 → ≈ 19 L e 13,2 km/l com selo; anterior com "Enchi o tanque" → base cheia; ponteiro acima do esperado → aviso; editar mantém os campos; marcar no celular arrastando o ponteiro.
+
+## 17. Temporadas e episódios no Entretenimento ✅ (feito em 12/11/2026; falta rodar a migration e testar no aparelho)
+
+Séries, animes e animações em série trazem as temporadas e os episódios, e cada episódio é marcado como assistido.
+
+- **Detalhe do item:** seção **Temporadas e episódios** com progresso ("12 de 24 episódios"), o **próximo episódio** com "Marcar como visto", e uma lista por temporada (abre e fecha) com caixinha em cada episódio e "Marcar todos"/"Desmarcar". Abre na temporada do próximo episódio.
+- **Status automático:** o primeiro episódio visto passa de "Quero ver" para "Em andamento"; o último passa para "Concluído" (com a data de hoje); desmarcar um episódio de uma série concluída volta para "Em andamento" (a nota fica guardada).
+- **Estante:** itens em andamento mostram uma barrinha de progresso na capa e o próximo episódio ("T2E15").
+- **Fontes** (`Services/EntretenimentoEpisodios.cs`, parte do `EntretenimentoBusca`):
+  - Com chave do TMDB: `tv/{id}` + temporadas em lote (`append_to_response`), nomes em português. A temporada 0 (especiais) fica de fora.
+  - Sem chave: TVmaze (nomes em inglês), pelo ID da Wikidata (P8600) ou pelo título + ano.
+  - Animes: AniList, seguindo as "sequências" em formato de série (cada uma vira uma temporada). Nomes pelo Jikan (MyAnimeList); se ele falhar, ficam só os números.
+  - Itens cadastrados à mão: procura pelo título (e ano). Episódios que ainda não foram ao ar ficam de fora; o botão **Atualizar** traz os novos.
+- **Carregamento:** automático ao adicionar uma série/anime/animação; nos que já estavam na estante, botão **Carregar episódios**. A lista fica guardada no item (abre sem internet).
+- **Animações:** a busca passou a procurar **filmes e séries** animados (TMDB filtrando o gênero Animação; sem chave, Wikipedia de filmes e de TV com "animação"). Animação que é filme não mostra episódios.
+- **Engrenagem do Entretenimento:** opção **Mostrar os nomes dos episódios** (ligada por padrão). Desligada, os episódios aparecem só com o número e os animes não consultam o Jikan. Os nomes já guardados só ficam escondidos.
+- **Modelo/sync:** `ItemEntretenimento` ganhou `Temporadas` e `EpisodiosVistos` ("1x3"); `Configuracoes.NomesEpisodios` vai para a conta (perfis). A migration é `supabase/migrations/0012_entretenimento_episodios.sql`. Enquanto não rodar, isso fica só no aparelho e o card da Conta avisa.
+
+**Como testar**
+1. ✅ `dotnet build`.
+2. ✅ Respostas reais do TVmaze, do AniList (sequências de Attack on Titan) e da Wikipedia (Animações) conferidas. O Jikan não respondeu da rede usada no desenvolvimento; testar no aparelho.
+3. ⏳ Rodar a `0012_entretenimento_episodios.sql` no Supabase.
+4. ⏳ No app: adicionar uma série (com e sem chave do TMDB), um anime com várias temporadas e uma animação em série; marcar episódios e temporadas e ver o status mudar; desligar os nomes na engrenagem; "Atualizar" numa série em exibição; abrir no outro aparelho depois de sincronizar.

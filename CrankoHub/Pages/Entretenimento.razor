@@ -36,7 +36,11 @@
         <h1>Entretenimento</h1>
         <p>Sua estante de filmes, séries, animes, jogos e livros — o que você viu, quando e que nota deu.</p>
     </div>
-    <button class="btn primary" type="button" @onclick="AbrirBusca">+ Adicionar</button>
+    <div class="page-acoes">
+        <button class="btn primary" type="button" @onclick="AbrirBusca">+ Adicionar</button>
+        @* Configurações só do Entretenimento (as gerais do app ficam em Configurações, no menu) *@
+        <button class="btn so-icone" type="button" title="Configurações do Entretenimento" aria-label="Configurações do Entretenimento" @onclick="AbrirConfig">@Icones.Engrenagem</button>
+    </div>
 </div>
 
 <section class="kpis">
@@ -93,11 +97,20 @@
             {
                 <button type="button" class="capa-item" @key="e.Id" @onclick="() => AbrirDetalhe(e)">
                     <Capa Item="e" />
+                    @if (e.Status == "andamento" && e.TotalEpisodios() is > 0 and var totalEp)
+                    {
+                        var vistosEp = e.EpisodiosAssistidos();
+                        <span class="capa-progresso" title="@vistosEp de @totalEp episódios"><span style="width:@(Pct(vistosEp, totalEp))%"></span></span>
+                    }
                     <span class="capa-titulo">@e.Titulo</span>
                     <span class="capa-sub">
                         @if (e.Status == "concluido" && e.Nota is not null)
                         {
                             <Estrelas Valor="e.Nota" />
+                        }
+                        else if (e.Status == "andamento" && e.ProximoEpisodio() is (var pt, var pe))
+                        {
+                            <span class="badge good" title="Próximo episódio">@CodigoEp(pt, pe)</span>
                         }
                         else if (e.Status != "concluido")
                         {
@@ -278,6 +291,83 @@
                     }
                 </div>
             </div>
+            @if (cat.TemEpisodios && d.Fonte != "tmdb-movie")
+            {
+                var total = d.TotalEpisodios();
+                var vistos = d.EpisodiosVistos.ToHashSet();
+                var assistidos = d.EpisodiosAssistidos();
+                var proximo = d.ProximoEpisodio();
+                var carregando = _carregandoEpisodios == d.Id;
+                <section class="episodios">
+                    <div class="episodios-topo">
+                        <div>
+                            <h3>Temporadas e episódios</h3>
+                            @if (total > 0)
+                            {
+                                <span class="muted">@assistidos de @total @Plural(total, "episódio", "episódios") · @d.Temporadas.Count @Plural(d.Temporadas.Count, "temporada", "temporadas")</span>
+                            }
+                        </div>
+                        <button class="btn sm" type="button" disabled="@carregando" @onclick="() => CarregarEpisodios(d, avisar: true)"
+                                title="@(total > 0 ? "Buscar episódios novos e atualizar os nomes" : null)">
+                            @(carregando ? "Carregando..." : total > 0 ? "Atualizar" : "Carregar episódios")</button>
+                    </div>
+                    @if (total == 0)
+                    {
+                        <p class="muted">@(carregando ? "Buscando as temporadas..." : $"Carregue a lista para marcar o que já assistiu. Se for um filme, não há episódios.")</p>
+                    }
+                    else
+                    {
+                        <div class="progress"><div style="width:@(Pct(assistidos, total))%"></div></div>
+                        @if (proximo is (var pt, var pe))
+                        {
+                            <div class="episodio-proximo">
+                                <span><small class="muted">Próximo</small> <b>@CodigoEp(pt, pe)</b>@(NomeEp(pe) is string np ? $" · {np}" : "")</span>
+                                <button class="btn sm primary" type="button" @onclick="() => MarcarEpisodio(d, pt, pe, true)">Marcar como visto</button>
+                            </div>
+                        }
+                        @foreach (var t in d.Temporadas)
+                        {
+                            var vistosT = t.Episodios.Count(e => vistos.Contains(EpisodioEntretenimento.ChaveDe(t.Numero, e.Numero)));
+                            var completa = vistosT == t.Episodios.Count;
+                            var aberta = _temporadasAbertas.Contains(t.Numero);
+                            <div class="temporada @(completa ? "completa" : "")" @key="t.Numero">
+                                <div class="temporada-topo">
+                                    <button type="button" class="temporada-abrir" aria-expanded="@(aberta ? "true" : "false")" @onclick="() => AlternarTemporada(t.Numero)">
+                                        <span class="seta">@(aberta ? "▾" : "▸")</span>
+                                        <b>Temporada @t.Numero</b>
+                                        @if (MostrarNomes && t.Nome is not null)
+                                        {
+                                            <small class="muted">@t.Nome</small>
+                                        }
+                                        <span class="temporada-conta">@vistosT/@t.Episodios.Count</span>
+                                    </button>
+                                    <button type="button" class="btn sm" @onclick="() => MarcarTemporada(d, t, !completa)">@(completa ? "Desmarcar" : "Marcar todos")</button>
+                                </div>
+                                @if (aberta)
+                                {
+                                    <ul class="lista-episodios">
+                                        @foreach (var e in t.Episodios)
+                                        {
+                                            var visto = vistos.Contains(EpisodioEntretenimento.ChaveDe(t.Numero, e.Numero));
+                                            <li class="@(visto ? "visto" : "")" @key="e.Numero">
+                                                <label>
+                                                    <input type="checkbox" checked="@visto" @onchange="ev => MarcarEpisodio(d, t, e, ev.Value is true)">
+                                                    <span class="ep-num">E@(e.Numero)</span>
+                                                    <span class="ep-nome">@(NomeEp(e) ?? $"Episódio {e.Numero}")</span>
+                                                    @if (e.Data is DateOnly de)
+                                                    {
+                                                        <small class="muted">@DataBR(de)</small>
+                                                    }
+                                                </label>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </div>
+                        }
+                    }
+                </section>
+            }
             <div class="form-actions">
                 <button class="btn" type="button" @onclick="() => Excluir(d)">Excluir</button>
                 <button class="btn" type="button" @onclick="() => AbrirFormulario(d, null)">Editar</button>
@@ -287,8 +377,157 @@
     </div>
 }
 
+@* ---- Configurações do Entretenimento (engrenagem no topo) ---- *@
+@if (_configAberta)
+{
+    <div class="modal-backdrop" @onclick="() => _configAberta = false">
+        <form class="card modal" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="SalvarConfig">
+            <div><h2>@Icones.Engrenagem Configurações do Entretenimento</h2><p class="muted">Valem só para esta seção. As do app ficam em Configurações, no menu.</p></div>
+            <label class="check full"><input type="checkbox" @bind="_fNomesEpisodios"> Mostrar os nomes dos episódios</label>
+            <p class="muted">
+                @if (_fNomesEpisodios)
+                {
+                    @("Cada episódio aparece com o título (\"E3 · O Retorno\"). Nos animes os nomes vêm do MyAnimeList, em inglês, e a lista demora um pouco mais para carregar.")
+                }
+                else
+                {
+                    @("Os episódios aparecem só com o número (\"E3 · Episódio 3\"), e a lista dos animes carrega mais rápido.")
+                }
+            </p>
+            <div class="form-actions">
+                <button class="btn" type="button" @onclick="() => _configAberta = false">Cancelar</button>
+                <button class="btn primary" type="submit">Salvar</button>
+            </div>
+        </form>
+    </div>
+}
+
 @code {
     private enum Modo { Nenhum, Buscar, Form, Detalhe }
+
+    // Engrenagem: configurações do Entretenimento
+    private bool _configAberta, _fNomesEpisodios;
+
+    private bool MostrarNomes => Store.Dados.Config.NomesEpisodios;
+
+    private void AbrirConfig()
+    {
+        _fNomesEpisodios = MostrarNomes;
+        _configAberta = true;
+    }
+
+    private void SalvarConfig()
+    {
+        var ligou = _fNomesEpisodios && !MostrarNomes;
+        Store.Dados.Config.NomesEpisodios = _fNomesEpisodios;
+        Store.Salvar();
+        _configAberta = false;
+        // Os nomes que já vieram ficam guardados (só são escondidos); os dos animes só vêm num novo carregamento
+        var semNome = ligou ? Lista.Count(e => e.Temporadas.Count > 0 && e.Temporadas.All(t => t.Episodios.All(x => x.Nome is null))) : 0;
+        Toast.Ok(!_fNomesEpisodios ? "Episódios só com o número."
+            : semNome > 0 ? $"Nomes dos episódios ligados. Em {semNome} {Plural(semNome, "item", "itens")} sem nomes ainda, use \"Atualizar\" nos episódios."
+            : "Nomes dos episódios ligados.");
+    }
+
+    // Episódios: item carregando agora e temporadas abertas no detalhe
+    private string? _carregandoEpisodios;
+    private readonly HashSet<int> _temporadasAbertas = [];
+
+    private static string CodigoEp(TemporadaEntretenimento t, EpisodioEntretenimento e) => $"T{t.Numero}E{e.Numero}";
+
+    private string? NomeEp(EpisodioEntretenimento e) => MostrarNomes ? e.Nome : null;
+
+    private static int Pct(int parte, int total) => total > 0 ? (int)Math.Round(100.0 * parte / total) : 0;
+
+    private void AlternarTemporada(int numero)
+    {
+        if (!_temporadasAbertas.Remove(numero)) _temporadasAbertas.Add(numero);
+    }
+
+    /// <summary>Abre a temporada do próximo episódio (ou a primeira).</summary>
+    private void AbrirTemporadaAtual(ItemEntretenimento e)
+    {
+        _temporadasAbertas.Clear();
+        if ((e.ProximoEpisodio()?.Temporada ?? e.Temporadas.FirstOrDefault()) is { } t) _temporadasAbertas.Add(t.Numero);
+    }
+
+    /// <summary>Busca (ou atualiza) as temporadas na fonte. Sem <paramref name="avisar"/>, só reclama se der erro.</summary>
+    private async Task CarregarEpisodios(ItemEntretenimento e, bool avisar)
+    {
+        if (_carregandoEpisodios is not null) return;
+        _carregandoEpisodios = e.Id;
+        StateHasChanged();
+        try
+        {
+            var antes = e.TotalEpisodios();
+            var temporadas = await Busca.Episodios(e);
+            if (temporadas is null)
+            {
+                if (avisar) Toast.Erro("Não foram encontrados episódios para este título.");
+                return;
+            }
+            // O item pode ter sido excluído enquanto carregava
+            if (!Lista.Contains(e)) return;
+            e.Temporadas = temporadas;
+            Store.Salvar();
+            if (_detalheId == e.Id && (antes == 0 || _temporadasAbertas.Count == 0)) AbrirTemporadaAtual(e);
+            var novos = e.TotalEpisodios() - antes;
+            if (avisar) Toast.Ok(antes == 0 ? $"{e.TotalEpisodios()} episódios carregados."
+                : novos > 0 ? $"{novos} {Plural(novos, "episódio novo", "episódios novos")}." : "Episódios atualizados.");
+        }
+        catch (BuscaException ex) { Toast.Erro(ex.Message); }
+        finally
+        {
+            _carregandoEpisodios = null;
+            StateHasChanged();
+        }
+    }
+
+    private void MarcarEpisodio(ItemEntretenimento d, TemporadaEntretenimento t, EpisodioEntretenimento e, bool visto) =>
+        Marcar(d, [EpisodioEntretenimento.ChaveDe(t.Numero, e.Numero)], visto);
+
+    private void MarcarTemporada(ItemEntretenimento d, TemporadaEntretenimento t, bool visto) =>
+        Marcar(d, t.Episodios.Select(e => EpisodioEntretenimento.ChaveDe(t.Numero, e.Numero)), visto);
+
+    /// <summary>
+    /// Marca/desmarca e acerta o status: o primeiro visto põe "Em andamento", o último põe "Concluído"
+    /// e desmarcar algum de uma série concluída volta para "Em andamento".
+    /// </summary>
+    private void Marcar(ItemEntretenimento d, IEnumerable<string> chaves, bool visto)
+    {
+        var total = d.TotalEpisodios();
+        var estavaCompleto = total > 0 && d.EpisodiosAssistidos() == total;
+        var vistos = d.EpisodiosVistos.ToHashSet();
+        foreach (var c in chaves)
+            if (visto) vistos.Add(c); else vistos.Remove(c);
+        d.EpisodiosVistos = vistos.OrderBy(c => c, Comparer<string>.Create(CompararChaves)).ToList();
+
+        var assistidos = d.EpisodiosAssistidos();
+        if (assistidos == total && total > 0 && d.Status != "concluido")
+        {
+            d.Status = "concluido";
+            d.Data = Hoje;
+            Toast.Ok($"Todos os episódios vistos: \"{d.Titulo}\" está em Concluídos.{(d.Nota is null ? " Que tal dar uma nota?" : "")}");
+        }
+        else if (assistidos > 0 && d.Status == "quero")
+        {
+            d.Status = "andamento";
+            d.Data = Hoje;
+        }
+        // A nota fica guardada: volta a aparecer quando terminar de novo
+        else if (assistidos < total && estavaCompleto && d.Status == "concluido")
+            d.Status = "andamento";
+        // A temporada do próximo fica aberta
+        if (visto && d.ProximoEpisodio() is (var t, _)) _temporadasAbertas.Add(t.Numero);
+        Store.Salvar();
+    }
+
+    // "2x10" depois de "2x9": ordena pelos números, não pelo texto
+    private static int CompararChaves(string a, string b)
+    {
+        static (int, int) Partes(string c) => c.Split('x') is [var t, var e] && int.TryParse(t, out var nt) && int.TryParse(e, out var ne) ? (nt, ne) : (int.MaxValue, 0);
+        return Partes(a).CompareTo(Partes(b));
+    }
 
     // Filtros mantidos enquanto o app estiver aberto
     private static string _filtroCategoria = "todas", _filtroStatus = "todos", _ordem = "recentes";
@@ -343,6 +582,7 @@
 
     private void AbrirDetalhe(ItemEntretenimento e)
     {
+        AbrirTemporadaAtual(e);
         _detalheId = e.Id;
         _modo = Modo.Detalhe;
     }
@@ -523,6 +763,8 @@
         Toast.Ok(ed is null ? $"\"{titulo}\" adicionado à estante." : "Item atualizado.");
         Fechar();
         AbrirDetalhe(item);
+        // Série, anime ou animação nova: já traz as temporadas (filme fica sem, sem avisar)
+        if (ed is null && CategoriaEntretenimento.Buscar(item.Categoria).TemEpisodios) await CarregarEpisodios(item, avisar: false);
     }
 
     private void MudarNota(ItemEntretenimento e, double? nota)
