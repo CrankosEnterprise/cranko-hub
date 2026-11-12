@@ -20,6 +20,7 @@
     <Version>1.0.0</Version>
     <Product>CrankoHub</Product>
     <Authors>Diego Ottani</Authors>
+    <Company>CrankosEnterprise</Company>
     <Description>Painel pessoal de parâmetros: dieta, carro e mais.</Description>
 
     <ApplicationTitle>CrankoHub</ApplicationTitle>
