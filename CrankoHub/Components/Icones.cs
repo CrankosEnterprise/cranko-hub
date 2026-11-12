@@ -37,6 +37,7 @@ public static class Icones
     public static readonly MarkupString Navegacao =new("""<svg viewBox="0 0 24 24"><path d="M12 2.5 19.5 21 12 17l-7.5 4z"/></svg>""");
     public static readonly MarkupString Busca = new("""<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>""");
     public static readonly MarkupString Fechar = new("""<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>""");
+    public static readonly MarkupString Anexo = new("""<svg viewBox="0 0 24 24"><path d="m20.5 11.5-8.3 8.3a5 5 0 0 1-7-7l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>""");
 
     /// <summary>Seta da manobra da rota (chaves do <c>RotaService</c>).</summary>
     public static MarkupString Manobra(string chave) => chave switch

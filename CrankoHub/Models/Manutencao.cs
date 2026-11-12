@@ -34,4 +34,7 @@ public class Manutencao
 
     /// <summary>Fazer de novo depois de quantos meses (lembrete).</summary>
     public int? IntervaloMeses { get; set; }
+
+    /// <summary>Orçamentos e notas fiscais do serviço (PDF ou foto), guardados compactados.</summary>
+    public List<Anexo> Anexos { get; set; } = [];
 }

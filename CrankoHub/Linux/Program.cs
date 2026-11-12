@@ -41,6 +41,7 @@ var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
 http.DefaultRequestHeaders.UserAgent.ParseAdd(EntretenimentoBusca.UserAgent);
 servicos.AddSingleton(http);
 servicos.AddSingleton<CapasService>();
+servicos.AddSingleton<AnexosService>();
 servicos.AddSingleton<EntretenimentoBusca>();
 servicos.AddSingleton<FipeService>();
 servicos.AddSingleton<CarrosNaWeb>();

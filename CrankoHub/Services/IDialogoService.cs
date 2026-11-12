@@ -1,7 +1,7 @@
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Expõe para o Blazor as janelas nativas (confirmação e escolha da imagem de capa).
+/// Expõe para o Blazor as janelas nativas (confirmação, escolha de imagem e de arquivos) e a abertura de arquivos.
 /// Os métodos são assíncronos porque no Android os seletores de arquivo não bloqueiam a tela.
 /// </summary>
 public interface IDialogoService
@@ -17,4 +17,10 @@ public interface IDialogoService
 
     /// <summary>Escolhe uma imagem (capa). Retorna null se cancelar.</summary>
     Task<string?> AbrirImagem();
+
+    /// <summary>Escolhe um ou mais arquivos para anexar (só destas extensões, ex.: ".pdf"; null = qualquer tipo). Vazio se cancelar.</summary>
+    Task<string[]> AbrirArquivos(string[]? extensoes = null);
+
+    /// <summary>Abre o arquivo no programa padrão do sistema.</summary>
+    Task AbrirNoSistema(string caminho);
 }

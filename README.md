@@ -53,7 +53,7 @@ Baixe a versão oficial do **CrankoHub**:
 ### 3. Carro
 - **Vários veículos**, organizados em abas: abastecimentos, consumo, manutenção, documentos e calculadoras.
 - **Consumo:** km/l e custo por km por período, com gráficos.
-- **Manutenção:** histórico, mais lembretes por km ou por data.
+- **Manutenção:** histórico, mais lembretes por km ou por data, com o **orçamento e a nota fiscal** (PDF ou foto) anexados a cada serviço.
 - **Documentos:** IPVA, licenciamento, seguro e CNH, com vencimento e opção de marcar como pago.
 - **Calculadoras:** *Custo de viagem*.
 
@@ -65,7 +65,7 @@ Baixe a versão oficial do **CrankoHub**:
 - **Busca automática** de título, capa, sinopse e gêneros em TMDB, AniList, RAWG e Open Library.
 
 ### 6. Tarefas
-- Quadros estilo **Kanban** (Trabalho, Faculdade, Pessoal...) com colunas e cards arrastáveis, prazo (com horário de entrega opcional), prioridade, etiquetas e checklist.
+- Quadros estilo **Kanban** (Trabalho, Faculdade, Pessoal...) com colunas e cards arrastáveis, prazo (com horário de entrega opcional), prioridade, etiquetas, checklist e **anexos** (qualquer arquivo até 20 MB, compactado antes de ir para o servidor: imagem em WebP, o resto em Brotli).
 - **Visão "Hoje"** com o que vence hoje, o que está atrasado e o que foi marcado como foco. À noite chega um resumo do que foi concluído.
 
 ### 7. Agenda
@@ -80,7 +80,7 @@ Baixe a versão oficial do **CrankoHub**:
 
 ### 9. Conta e Sincronização
 - **Login obrigatório (Supabase):** o app abre numa tela de login. Os usuários são criados à mão no painel do Supabase (o cadastro pelo app é fechado).
-- Os dados ficam centralizados por usuário e sincronizam item a item entre os aparelhos, inclusive as capas. As tabelas são protegidas por RLS, e a sessão fica guardada criptografada (DPAPI no Windows, Android Keystore no celular).
+- Os dados ficam centralizados por usuário e sincronizam item a item entre os aparelhos, inclusive as capas e os anexos das tarefas. As tabelas são protegidas por RLS, e a sessão fica guardada criptografada (DPAPI no Windows, Android Keystore no celular).
 - **Funciona offline:** cada aparelho guarda uma cópia da conta. Sem internet, o app abre com ela e envia as mudanças quando a conexão volta.
 
 ### 10. Aplicativo
@@ -116,7 +116,7 @@ cranko-hub/
 │   ├── Android/                     # Projeto Android (.NET MAUI Blazor Hybrid), que também reaproveita os arquivos acima
 │   │   ├── Plataforma/              # Partes exclusivas do Android (seletor de arquivos, notificações, atualização por APK...)
 │   │   └── Platforms/Android/       # MainActivity, MainApplication e AndroidManifest.xml
-│   ├── supabase/migrations/         # SQL do banco (tabelas, RLS e bucket de capas)
+│   ├── supabase/migrations/         # SQL do banco (tabelas, RLS e buckets de capas e anexos)
 │   ├── wwwroot/                     # index.html, CSS, JavaScript e fontes
 │   ├── App.xaml / MainWindow.xaml   # Janela WPF com BlazorWebView
 │   ├── CrankoHub.csproj             # Projeto Windows (publica um único .exe)
@@ -141,7 +141,7 @@ cranko-hub/
   - Linux: `Photino.Blazor` (janela nativa com WebKitGTK)
   - Android: .NET MAUI + `Microsoft.AspNetCore.Components.WebView.Maui` (`net10.0-android`)
 - **Gráficos:** componentes próprios (`GraficoLinha`, `GraficoBarras`)
-- **Imagens:** `SkiaSharp`, para reduzir as capas do Entretenimento
+- **Imagens:** `SkiaSharp`, para reduzir as capas do Entretenimento e converter as imagens anexadas às tarefas em WebP
 - **Nuvem (opcional):** Supabase (Auth, Data API com RLS, Postgres e Storage) via `HttpClient`, sem SDK extra
 - **Segurança local:** Windows DPAPI para a sessão da conta
 - **Empacotamento:** `dotnet publish` em arquivo único (*single-file*, *self-contained*) e GitHub Actions

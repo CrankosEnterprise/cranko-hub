@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using Microsoft.Win32;
 
@@ -20,7 +21,26 @@ public class DialogoService : IDialogoService
         return Exibir(() => dialogo.ShowDialog(Application.Current.MainWindow) == true ? dialogo.FileName : null);
     }
 
+    public Task<string[]> AbrirArquivos(string[]? extensoes = null)
+    {
+        var padrao = extensoes is null ? "*.*" : string.Join(";", extensoes.Select(e => "*" + e));
+        var dialogo = new OpenFileDialog
+        {
+            Title = "Escolha os arquivos para anexar",
+            Filter = extensoes is null ? "Todos os arquivos (*.*)|*.*" : $"Arquivos aceitos ({padrao})|{padrao}",
+            CheckFileExists = true,
+            Multiselect = true,
+        };
+        return Exibir(() => dialogo.ShowDialog(Application.Current.MainWindow) == true ? dialogo.FileNames : []);
+    }
+
+    public Task AbrirNoSistema(string caminho)
+    {
+        Process.Start(new ProcessStartInfo(caminho) { UseShellExecute = true });
+        return Task.CompletedTask;
+    }
+
     // Os diálogos do WPF precisam rodar na thread da interface.
-    private static Task<string?> Exibir(Func<string?> abrir) =>
+    private static Task<T> Exibir<T>(Func<T> abrir) =>
         Task.FromResult(Application.Current.Dispatcher.Invoke(abrir));
 }

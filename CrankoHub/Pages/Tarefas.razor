@@ -234,6 +234,7 @@
                         <button class="btn sm" type="button" @onclick="AdicionarItem">Adicionar</button>
                     </div>
                 </div>
+                <CampoAnexos Rascunho="_anexos" />
                 <label class="check full"><input type="checkbox" @bind="_fFoco"> Mostrar em "Hoje" mesmo sem prazo (foco do dia)</label>
             </div>
             <div class="form-actions">
@@ -332,6 +333,9 @@
     private bool _fFoco;
     private List<ItemChecklist> _fChecklist = [];
 
+    // Anexos do formulário até salvar (cancelar apaga os arquivos novos)
+    private readonly RascunhoAnexos _anexos = new();
+
     private DadosTarefas Dados => Store.Dados.Tarefas;
 
     protected override void OnParametersSet()
@@ -399,6 +403,10 @@
                 {
                     <span class="badge">☑ @feitos/@c.Checklist.Count</span>
                 }
+                @if (c.Anexos.Count > 0)
+                {
+                    <span class="badge" title="@c.Anexos.Count @Plural(c.Anexos.Count, "anexo", "anexos")">📎 @c.Anexos.Count</span>
+                }
                 @foreach (var e in c.Etiquetas)
                 {
                     <span class="etiqueta">#@e</span>
@@ -424,6 +432,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_editando is not null) Fechar(); // saiu da página com o formulário aberto: descarta os anexos não salvos
         if (_interop is not null) await _interop.DisposeAsync();
         _ref?.Dispose();
     }
@@ -528,6 +537,7 @@
     {
         var n = Dados.Cards.Count(c => c.QuadroId == q.Id);
         if (!await Dialogo.Confirmar($"Excluir o quadro \"{TarefasCalculos.NomeQuadro(q)}\"?\n{(n > 0 ? $"As {n} tarefas dele também serão apagadas." : "Ele está vazio.")}")) return;
+        RascunhoAnexos.ExcluirTodos(Dados.Cards.Where(c => c.QuadroId == q.Id).SelectMany(c => c.Anexos));
         Dados.Cards.RemoveAll(c => c.QuadroId == q.Id);
         Dados.Quadros.Remove(q);
         Abrir(Dados.Quadros.Count > 0 ? Dados.Quadros[0].Id : Quadro.Hoje);
@@ -602,6 +612,7 @@
         _fFoco = c.Foco;
         _fChecklist = c.Checklist.Select(i => new ItemChecklist { Texto = i.Texto, Feito = i.Feito }).ToList();
         _fNovoItem = "";
+        _anexos.Iniciar(c.Anexos);
     }
 
     // Sem dia não há horário de entrega
@@ -629,7 +640,12 @@
         _fNovoItem = "";
     }
 
-    private void Fechar() => _editando = null;
+    /// <summary>Fecha o formulário. Sem salvar, os anexos compactados nele são apagados.</summary>
+    private void Fechar()
+    {
+        _anexos.Descartar();
+        _editando = null;
+    }
 
     private void Salvar()
     {
@@ -647,6 +663,7 @@
         c.Etiquetas = _fEtiquetas.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(e => e.TrimStart('#').ToLowerInvariant()).Where(e => e.Length > 0).Distinct().ToList();
         c.Checklist = _fChecklist.Where(i => !string.IsNullOrWhiteSpace(i.Texto)).ToList();
+        c.Anexos = _anexos.Confirmar(); // agora são do card: Fechar() não os apaga
 
         if (_novo)
         {
@@ -668,6 +685,7 @@
     {
         if (_editando is not { } c || !await Dialogo.Confirmar($"Excluir a tarefa \"{c.Titulo}\"?")) return;
         Dados.Cards.Remove(c);
+        RascunhoAnexos.ExcluirTodos(c.Anexos);
         Store.Salvar();
         Fechar();
         Toast.Ok("Tarefa excluída.");

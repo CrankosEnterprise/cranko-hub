@@ -66,6 +66,9 @@ public class CardTarefa
 
     public List<ItemChecklist> Checklist { get; set; } = [];
 
+    /// <summary>Arquivos anexados, guardados compactados (ver <see cref="Services.AnexosService"/>).</summary>
+    public List<Anexo> Anexos { get; set; } = [];
+
     /// <summary>Marcado para aparecer em "Hoje" mesmo sem prazo.</summary>
     public bool Foco { get; set; }
 

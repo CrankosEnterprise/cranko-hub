@@ -155,6 +155,11 @@ public class ArmazenamentoService
         s.Carro.Abastecimentos.RemoveAll(a => a is null);
         s.Carro.Manutencoes ??= []; // backups antigos (e do app web) não têm manutenções
         s.Carro.Manutencoes.RemoveAll(m => m is null);
+        foreach (var m in s.Carro.Manutencoes)
+        {
+            m.Anexos ??= [];
+            m.Anexos.RemoveAll(a => a is null || string.IsNullOrEmpty(a.Arquivo));
+        }
         s.Carro.Documentos ??= [];
         s.Carro.Documentos.RemoveAll(x => x is null);
         s.Carro.Veiculos ??= [];
@@ -200,6 +205,8 @@ public class ArmazenamentoService
             c.Etiquetas ??= [];
             c.Checklist ??= [];
             c.Checklist.RemoveAll(i => i is null);
+            c.Anexos ??= [];
+            c.Anexos.RemoveAll(a => a is null || string.IsNullOrEmpty(a.Arquivo));
             var q = t.Quadros.First(q => q.Id == c.QuadroId);
             if (q.Colunas.All(col => col.Id != c.ColunaId)) c.ColunaId = q.Colunas[0].Id;
             if (c.Prazo is null) c.PrazoHora = null;

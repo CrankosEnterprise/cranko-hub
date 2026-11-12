@@ -176,6 +176,12 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
 
         /// <summary>Capas (nomes de arquivo) que já estão no Storage. Só estas podem ser apagadas de lá por este computador.</summary>
         public HashSet<string> Capas { get; set; } = [];
+
+        /// <summary>Anexos das tarefas que este aparelho já enviou ao Storage.</summary>
+        public HashSet<string> AnexosEnviados { get; set; } = [];
+
+        /// <summary>Anexos que algum card sincronizado já usou (estão ou vão estar no Storage). Ao sair de todos os cards, são apagados de lá.</summary>
+        public HashSet<string> AnexosConhecidos { get; set; } = [];
     }
 
     private Base? _base;
@@ -264,6 +270,7 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
                 await Receber(_base);
             }
             await Capas(_base!);
+            await Anexos(_base!);
             Avisar(problema: _faltam.Count == 0 ? null
                 : $"Falta rodar no Supabase: {string.Join(", ", _faltam.Order().Select(m => "supabase/migrations/" + m))}. O resto está sincronizado.");
         }
@@ -296,6 +303,8 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         ("veiculos", "ficha", "0006_veiculo_ficha.sql"),
         ("perfis", "dias_lembrete_peso", "0007_dieta_lembrete_peso.sql"),
         ("perfis", "dias_ocultar_concluidas", "0008_tarefas_ocultar_concluidas.sql"),
+        ("cards", "anexos", "0009_tarefas_anexos.sql"),
+        ("manutencoes", "anexos", "0010_manutencao_anexos.sql"),
     ];
 
     private readonly HashSet<string> _semTabela = [];
@@ -596,6 +605,61 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
 
         // As capas aparecem sem reiniciar (a página aberta é recriada)
         if (baixou) await NaTela!(() => { Recebeu?.Invoke(); return Task.CompletedTask; });
+    }
+
+    // ----- Anexos (tarefas e manutenção) -----
+
+    /// <summary>
+    /// Como as capas, os anexos vão à parte para o Storage ("anexos/&lt;user_id&gt;/&lt;arquivo&gt;"), já compactados
+    /// (ver <see cref="AnexosService"/>). Sobe o que este aparelho tem e ainda não enviou e apaga do servidor o que
+    /// nenhum card ou serviço usa mais. Não baixa nada: os outros aparelhos baixam o anexo quando ele é aberto.
+    /// Também limpa da pasta local os anexos de itens que sumiram (excluídos aqui ou em outro aparelho).
+    /// </summary>
+    private async Task Anexos(Base b)
+    {
+        // Sem a 0009 não há bucket: os anexos ficam só aqui por enquanto. Sem a 0010, os da manutenção também.
+        if (_semColuna.Contains(("cards", "anexos"))) return;
+        var comManutencao = !_semColuna.Contains(("manutencoes", "anexos"));
+        // anexos: os que sobem. usados: tudo o que o app usa, mesmo o que ainda não sincroniza (nada some de um item vivo)
+        var (anexos, usados) = await NaTelaRetornar(() =>
+        {
+            var d = store.Dados;
+            var sinc = AnexosService.DasTarefas(d).Concat(comManutencao ? AnexosService.DasManutencoes(d) : []).ToList();
+            return (sinc, AnexosService.EmUso(d));
+        });
+        string Remoto(string arquivo) => AnexosService.Remoto(conta.UserId!, arquivo);
+
+        b.AnexosConhecidos.UnionWith(anexos.Select(a => Path.GetFileName(a.Arquivo)));
+        GravarBase(b);
+
+        foreach (var a in anexos)
+        {
+            var arquivo = Path.GetFileName(a.Arquivo);
+            var local = Path.Combine(AnexosService.Pasta, arquivo);
+            if (b.AnexosEnviados.Contains(arquivo) || !File.Exists(local)) continue;
+            try
+            {
+                await supabase.EnviarArquivo(AnexosService.Bucket, Remoto(arquivo), File.ReadAllBytes(local), AnexosService.TipoGuardado(a));
+                b.AnexosEnviados.Add(arquivo);
+                GravarBase(b);
+            }
+            catch (SupabaseErro) { } // um anexo recusado não segura os outros nem os dados
+        }
+
+        foreach (var arquivo in b.AnexosConhecidos.Union(b.AnexosEnviados).Where(f => !usados.Contains(f)).ToList())
+        {
+            try
+            {
+                await supabase.ExcluirArquivo(AnexosService.Bucket, Remoto(arquivo));
+                b.AnexosConhecidos.Remove(arquivo);
+                b.AnexosEnviados.Remove(arquivo);
+                GravarBase(b);
+            }
+            catch (SupabaseErro) { }
+        }
+
+        // Lido de novo agora: algo anexado durante os envios não pode ser apagado
+        await NaTela!(() => { AnexosService.LimparOrfaos(AnexosService.EmUso(store.Dados)); return Task.CompletedTask; });
     }
 
     // ----- Primeira sincronização (fase 4) -----

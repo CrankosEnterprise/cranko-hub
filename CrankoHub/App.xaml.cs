@@ -83,6 +83,7 @@ public partial class App : Application
         http.DefaultRequestHeaders.UserAgent.ParseAdd(EntretenimentoBusca.UserAgent);
         servicos.AddSingleton(http);
         servicos.AddSingleton<CapasService>();
+        servicos.AddSingleton<AnexosService>();
         servicos.AddSingleton<EntretenimentoBusca>();
         servicos.AddSingleton<FipeService>();
         servicos.AddSingleton<CarrosNaWeb>();

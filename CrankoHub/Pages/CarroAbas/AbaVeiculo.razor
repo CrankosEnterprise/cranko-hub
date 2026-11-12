@@ -455,6 +455,7 @@ else
         if (!await Dialogo.Confirmar($"Excluir \"{v.Nome}\" com seus {qtdAbast} abastecimentos, {qtdManut} manutenções e {qtdDocs} documentos?")) return;
         Dados.Documentos.RemoveAll(x => x.VeiculoId == v.Id);
         Dados.Abastecimentos.RemoveAll(a => a.VeiculoId == v.Id);
+        RascunhoAnexos.ExcluirTodos(Dados.Manutencoes.Where(m => m.VeiculoId == v.Id).SelectMany(m => m.Anexos));
         Dados.Manutencoes.RemoveAll(m => m.VeiculoId == v.Id);
         Dados.Veiculos.Remove(v);
         Toast.Ok("Veículo excluído.");

@@ -278,3 +278,22 @@ Calendário estilo Google Agenda, só do CrankoHub (dados no Supabase e sincroni
 2. ✅ Regras (script fora do projeto): semanal seg/qua/sex até uma data, exceção, "só este" + arrasto, mensal no dia 31, anual em 29/02, diária a cada 2 dias desde 2020, sobreposição em colunas, janela do lembrete, tarefa com horário na grade e badge "hoje às"/"venceu às".
 3. ✅ `0003_agenda.sql` rodado no Supabase. ⏳ Rodar o `0004_tarefas_hora.sql` e conferir que um evento e uma tarefa com horário criados no PC aparecem no celular.
 4. ⏳ No app: criar clicando na grade, arrastar e redimensionar, repetição com "só este"/"todos", agendas e cores, tarefa no dia do prazo, lembrete de 5 min, visão Mês, tema escuro e celular.
+
+## 15. Anexos nas tarefas e na manutenção ✅ (feito em 11/11/2026; falta rodar as migrations e testar entre aparelhos)
+
+- No editor da tarefa, seção **Anexos**: **Adicionar arquivo** (qualquer tipo, vários de uma vez, até **20 MB** cada), **Abrir** (no programa padrão do sistema) e remover. No card do quadro aparece o badge **📎 N**.
+- **Compactação ao anexar** (`Services/AnexosService.cs`), para ocupar o mínimo no aparelho e no servidor:
+  - **Imagem** (jpg, png, webp, bmp, gif estático): lado maior de até **1920 px**, em **WebP qualidade 80**, com a rotação do EXIF aplicada. Só troca se ficar menor. Ao abrir, sai como `nome.webp`.
+  - **Outros arquivos**: **Brotli nível 11** (janela 24), sem perda. Antes, uma amostra de 1 MB em nível 5 mostra se vale a pena: arquivos que já vêm compactados (zip, mp4, docx...) ficam como estão, sem esperar o nível 11 à toa. Só usa o Brotli se economizar pelo menos 3%.
+  - O tamanho aparece como "original → guardado" (ex.: "3,2 MB → 240 KB").
+- **Onde fica:** o arquivo compactado fica na pasta `anexos/` da conta e no bucket privado **`anexos`** do Storage (`<user_id>/<arquivo>`). A linha do card guarda só os dados (coluna `anexos jsonb`: nome, tipo, tamanhos, arquivo, formato).
+- **Sincronização** (`SincronizacaoService.Anexos`): quem anexou envia o arquivo; os outros aparelhos **só baixam ao abrir** e depois guardam. Um anexo que nenhum card usa mais sai do bucket e da pasta local. Arquivos de um formulário cancelado são apagados na hora.
+- **Manutenção do Carro:** no formulário do serviço, **Orçamento e nota fiscal**: anexar **PDF ou foto** (jpg, png, webp), com um seletor por arquivo (**Orçamento**, **Nota fiscal** ou Outro; os novos já vêm como Nota fiscal). No histórico, cada anexo vira um botãozinho na coluna "O que foi feito" que abre o arquivo direto. Excluir o serviço (ou o veículo) apaga os arquivos.
+- **Código compartilhado:** `Components/CampoAnexos.razor` (lista, adicionar, abrir, remover, categoria) e `Services/RascunhoAnexos.cs` (anexos do formulário até salvar ou cancelar), usados pelas Tarefas e pela Manutenção. O modelo é `Models/Anexo.cs` (`Anexo`, com `Categoria` opcional).
+- **Migrations:** `supabase/migrations/0009_tarefas_anexos.sql` (coluna nos cards + bucket de 20 MB + políticas só do dono) e `0010_manutencao_anexos.sql` (coluna `anexos` em `manutencoes`, mesmo bucket). Enquanto não rodarem, os anexos ficam só no aparelho e o card da Conta avisa.
+
+**Como testar**
+1. ✅ `dotnet build` no Windows, no Linux e no Android, sem erros nem avisos.
+2. ✅ Compactação (script fora do projeto): um texto de 2,4 MB vira 68 KB e volta igual; dados aleatórios (como um zip) ficam "original" em 8 ms; um PNG 4000×3000 vira WebP 1920×1440; um JPG de 590 KB vira 76 KB; as 7 orientações do EXIF saem certas.
+3. ⏳ Rodar a `0009_tarefas_anexos.sql` e a `0010_manutencao_anexos.sql` no Supabase.
+4. ⏳ No app: na manutenção, anexar o PDF do orçamento e a foto da nota fiscal, marcar cada um e abrir pelo histórico; nas tarefas, anexar foto do celular, PDF e zip; abrir cada um; cancelar o formulário (os arquivos somem de `anexos/`); depois de sincronizar, ver no bucket; abrir pelo celular (baixa na primeira vez e depois abre sem internet).

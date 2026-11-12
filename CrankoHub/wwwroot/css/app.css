@@ -846,6 +846,24 @@ html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; 
 .checklist li button { border: 0; background: transparent; color: var(--muted); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; display: grid; place-items: center; }
 .checklist li button:hover { color: var(--bad); background: var(--bad-bg); }
 .checklist li button svg { width: 14px; height: 14px; }
+.anexos { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.anexos:empty { display: none; }
+.anexos li { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 10px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+.anexos li > svg { width: 16px; height: 16px; color: var(--muted); }
+.anexos-acoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.anexos-acoes .muted { font-size: 11.5px; }
+.anexo-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.anexo-nome { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anexo-tam { font-size: 11.5px; color: var(--muted); }
+.anexos li button.remover { border: 0; background: transparent; color: var(--muted); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; display: grid; place-items: center; flex: 0 0 auto; }
+.anexos li button.remover:hover { color: var(--bad); background: var(--bad-bg); }
+.anexos li button.remover svg { width: 14px; height: 14px; }
+.anexos li .anexo-cat { width: auto; flex: 0 0 auto; height: 30px; padding: 0 26px 0 8px; font-size: 12.5px; }
+.anexo-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.anexo-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border); background: transparent; color: var(--accent); border-radius: 99px; padding: 1px 8px 1px 6px; font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anexo-chip:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.anexo-chip svg { width: 12px; height: 12px; }
+@media (max-width: 640px) { .anexos li { flex-wrap: wrap; } .anexos li .anexo-info { flex-basis: calc(100% - 30px); } }
 .check.full { grid-column: 1 / -1; height: auto; }
 @media (max-width: 640px) { .coluna { flex-basis: 85%; } }
 

@@ -2,6 +2,8 @@
 @inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject IDialogoService Dialogo
+@inject AnexosService Anexos
+@implements IDisposable
 
 @{
     var hoje = Hoje;
@@ -108,7 +110,17 @@
                     <tr @key="m.Id">
                         <td>@DataBR(m.Data)</td>
                         <td><b>@TipoManutencao.NomeDe(m)</b></td>
-                        <td class="obs">@m.Descricao</td>
+                        <td class="obs">@m.Descricao
+                            @if (m.Anexos.Count > 0)
+                            {
+                                <span class="anexo-chips">
+                                    @foreach (var a in m.Anexos)
+                                    {
+                                        <button type="button" class="anexo-chip" title="Abrir @a.Nome" disabled="@(_abrindo == a.Id)" @onclick="() => AbrirAnexo(a)">@Icones.Anexo @NomeAnexo(a)</button>
+                                    }
+                                </span>
+                            }
+                        </td>
                         <td class="num">@(m.Odometro is not null ? Num(m.Odometro, 0) : Vazio)</td>
                         <td class="num">@Money(m.Valor)</td>
                         <td>@(prox.Count > 0 ? string.Join(" ou ", prox) : Vazio)</td>
@@ -158,6 +170,9 @@
             <label class="field"><span>ou em (meses)</span><input inputmode="numeric" placeholder="ex.: 12" @bind="_fIntervaloMeses" @bind:event="oninput"></label>
             <label class="field"><span>Oficina / loja</span><input maxlength="60" placeholder="opcional" @bind="_fLocal"></label>
             <label class="field"><span>Observação</span><input maxlength="140" placeholder="opcional" @bind="_fObs"></label>
+            <CampoAnexos Rascunho="_anexos" Titulo="Orçamento e nota fiscal" TextoBotao="Anexar PDF ou foto" Extensoes="ExtensoesAceitas"
+                         Categorias="CategoriaAnexo.Manutencao" CategoriaInicial="nota_fiscal"
+                         Dica="PDF ou foto, até 20 MB cada. Fotos viram WebP; PDFs são compactados sem perda." />
         </div>
         @{
             var pOdo = Pf(_fOdometro);
@@ -202,7 +217,29 @@
     private string _fServico = "";
     private string _fOdometro = "", _fValor = "", _fDescricao = "", _fLocal = "", _fObs = "", _fIntervaloKm = "", _fIntervaloMeses = "";
 
+    // Orçamentos e notas fiscais do formulário até salvar (cancelar apaga os arquivos novos)
+    private readonly RascunhoAnexos _anexos = new();
+    private static readonly string[] ExtensoesAceitas = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+    private string? _abrindo;
+
     private DadosCarro Dados => Store.Dados.Carro;
+
+    public void Dispose()
+    {
+        if (_aberto) _anexos.Descartar(); // saiu da aba com o formulário aberto
+    }
+
+    private static string NomeAnexo(Anexo a) =>
+        CategoriaAnexo.Manutencao.FirstOrDefault(c => c.Chave == a.Categoria)?.Nome ?? Path.GetFileNameWithoutExtension(a.Nome);
+
+    private async Task AbrirAnexo(Anexo a)
+    {
+        _abrindo = a.Id;
+        try { await Dialogo.AbrirNoSistema(await Anexos.PrepararParaAbrir(a)); }
+        catch (AnexoErro ex) { Toast.Erro(ex.Message); }
+        catch (Exception) { Toast.Erro("Não foi possível abrir o arquivo."); }
+        finally { _abrindo = null; }
+    }
 
     private Manutencao? Editando() => _editId is null ? null : Dados.Manutencoes.FirstOrDefault(m => m.Id == _editId);
 
@@ -219,6 +256,7 @@
 
     private void Fechar()
     {
+        _anexos.Descartar();
         _aberto = false;
         LimparFormulario();
     }
@@ -244,6 +282,7 @@
         _fObs = "";
         _fIntervaloKm = InVal(anterior is not null ? anterior.IntervaloKm : t.Km, 0);
         _fIntervaloMeses = InVal(anterior is not null ? anterior.IntervaloMeses : t.Meses, 0);
+        if (abrir) _anexos.Iniciar([]);
         _aberto = abrir;
     }
 
@@ -274,6 +313,7 @@
         _fObs = m.Obs ?? "";
         _fIntervaloKm = InVal(m.IntervaloKm, 0);
         _fIntervaloMeses = InVal(m.IntervaloMeses, 0);
+        _anexos.Iniciar(m.Anexos);
         _aberto = true;
     }
 
@@ -281,6 +321,7 @@
     {
         if (!await Dialogo.Confirmar($"Excluir \"{TipoManutencao.NomeDe(m)}\" de {DataBR(m.Data)}?")) return;
         Dados.Manutencoes.Remove(m);
+        RascunhoAnexos.ExcluirTodos(m.Anexos);
         Store.Salvar();
         Toast.Ok("Serviço excluído.");
         await Alterado.InvokeAsync();
@@ -299,8 +340,11 @@
         if (intervaloKm is not null && intervaloKm is not > 0) { Toast.Erro("Intervalo em km inválido."); return; }
         if (intervaloMeses is not null && (intervaloMeses is not > 0 || intervaloMeses % 1 != 0)) { Toast.Erro("Intervalo em meses deve ser um número inteiro."); return; }
 
+        var anexos = _anexos.Confirmar(); // agora são do serviço: Fechar() não os apaga
+
         void Preencher(Manutencao m)
         {
+            m.Anexos = anexos;
             m.Tipo = _fTipo;
             m.Servico = _fTipo == "outro" ? _fServico.Trim() : null;
             m.Data = data;
