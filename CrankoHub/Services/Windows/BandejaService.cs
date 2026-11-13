@@ -65,7 +65,8 @@ public sealed class BandejaService : IDisposable
                 _icone.Icon.Handle, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
     }
 
-    /// <summary>Troca o matiz das partes coloridas do ícone pelo da cor escolhida, mantendo luz e sombra.</summary>
+    /// <summary>Troca o matiz do H do ícone (roxo, ~241°) pelo da cor escolhida, mantendo luz e sombra.
+    /// O fundo azul-noite (~223°) e o C branco ficam como estão.</summary>
     private static System.Drawing.Icon Colorir(System.Drawing.Icon original, System.Drawing.Color cor)
     {
         using var bmp = new System.Drawing.Icon(original, 256, 256).ToBitmap();
@@ -74,7 +75,7 @@ public sealed class BandejaService : IDisposable
             for (int x = 0; x < bmp.Width; x++)
             {
                 var p = bmp.GetPixel(x, y);
-                if (p.A == 0 || p.GetSaturation() < 0.2f) continue;
+                if (p.A == 0 || p.GetSaturation() < 0.2f || p.GetHue() is < 233f or > 250f) continue;
                 var nova = DeHsl(matiz, Math.Min(1f, saturacao * p.GetSaturation() / 0.8f + 0.1f), p.GetBrightness());
                 bmp.SetPixel(x, y, System.Drawing.Color.FromArgb(p.A, nova));
             }

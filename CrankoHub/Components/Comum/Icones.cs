@@ -5,8 +5,11 @@ namespace CrankoHub.Components;
 /// <summary>Ícones SVG (traço) usados na interface.</summary>
 public static class Icones
 {
-    // Mesmo desenho do ícone do app (Assets/icone.ico, Linux/icone.png): quatro quadrados arredondados
-    public static readonly MarkupString Logo = new("""<svg viewBox="0 0 24 24" class="logo-grade"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="2.2"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="2.2" opacity=".85"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="2.2" opacity=".85"/><rect x="13" y="13" width="7.5" height="7.5" rx="2.2" opacity=".65"/></svg>""");
+    // Mesmo desenho do ícone do app (Assets/icone.ico, Linux/icone.png): C de módulos brancos em 3D com o H no meio.
+    // Aqui o H segue a cor de destaque (classes lm-h / lm-h-lado no app.css).
+    private const string LogoSegmentos = """<path d="M362.1 149.9A150 150 0 0 0 215.3 111.6"/><path d="M193.2 119.8A150 150 0 0 0 106.5 244.2"/><path d="M106.5 267.8A150 150 0 0 0 193.2 392.2"/><path d="M215.3 400.4A150 150 0 0 0 362.1 362.1"/>""";
+    private const string LogoH = "M214 200V304M298 200V304M214 252H298";
+    public static readonly MarkupString Logo = new($$"""<svg viewBox="0 0 512 512" class="logo-marca"><defs><radialGradient id="logo-fundo" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="#1b2f63"/><stop offset="1" stop-color="#060b1d"/></radialGradient></defs><rect width="512" height="512" rx="115" fill="url(#logo-fundo)" stroke="none"/><g fill="none" stroke-width="56" stroke-linecap="butt" transform="translate(-3 -10)"><g stroke="#7d89b0" transform="translate(5 16)">{{LogoSegmentos}}</g><g stroke="#a9b6dc" transform="translate(2.5 8)">{{LogoSegmentos}}</g><g stroke="#f1f4ff">{{LogoSegmentos}}</g><path class="lm-h-lado" d="{{LogoH}}" stroke-width="42" stroke-linecap="round" transform="translate(4 13)"/><path class="lm-h" d="{{LogoH}}" stroke-width="42" stroke-linecap="round"/></g></svg>""");
     public static readonly MarkupString Inicio = new("""<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>""");
     public static readonly MarkupString Dieta = new("""<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.3-9.6C1.4 7.6 4 4 7.6 4c2 0 3.4 1.1 4.4 2.6C13 5.1 14.4 4 16.4 4 20 4 22.6 7.6 21.3 11.4 19.5 16.4 12 21 12 21z"/><polyline points="6 12 9.5 12 11 9.5 13 14.5 14.5 12 18 12"/></svg>""");
     public static readonly MarkupString Carro = new("""<svg viewBox="0 0 24 24"><path d="M4.5 15.5H3.3a.8.8 0 0 1-.8-.8v-2c0-.6.4-1.1 1-1.3l3.5-.9 2.6-3.2c.4-.5 1-.8 1.6-.8H15c.6 0 1.2.3 1.6.8l2.6 3.2 1.6.4c.6.2 1.1.7 1.1 1.4v2.4a.8.8 0 0 1-.8.8H19M8.5 15.5H15M7 10.5h12.2M12.5 6.5v4"/><circle cx="6.5" cy="15.5" r="2"/><circle cx="17" cy="15.5" r="2"/></svg>""");
