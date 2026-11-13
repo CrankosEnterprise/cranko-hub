@@ -14,13 +14,9 @@
     var hoje = Hoje;
 }
 
-<div class="page-head">
-    <div>
-        <h1>Agenda</h1>
-        <p>Seus compromissos hora a hora: clique num horário para marcar e arraste para mudar.</p>
-    </div>
-    <button class="btn primary" type="button" @onclick="NovoPeloBotao">+ Evento</button>
-</div>
+<AcoesTopo>
+    <button class="btn primary" type="button" title="Novo evento" aria-label="Novo evento" @onclick="NovoPeloBotao">@Icones.Mais<span class="rotulo">Evento</span></button>
+</AcoesTopo>
 
 <section class="card ag">
     <div class="ag-barra">

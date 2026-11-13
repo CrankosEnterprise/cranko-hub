@@ -14,20 +14,14 @@
     var etiquetas = t.Cards.Where(c => emHoje || c.QuadroId == t.Ativo).SelectMany(c => c.Etiquetas).Distinct().Order().ToList();
 }
 
-<div class="page-head">
-    <div>
-        <h1>Tarefas</h1>
-        <p>Seus quadros de trabalho, faculdade, casa e projetos — arraste os cards entre as colunas.</p>
-    </div>
-    <div class="page-acoes">
-        @if (quadro is not null)
-        {
-            <button class="btn primary" type="button" @onclick="() => AbrirNovo(quadro, quadro.Colunas[0])">+ Nova tarefa</button>
-        }
-        @* Configurações só das Tarefas (as gerais do app ficam em Configurações, no menu) *@
-        <button class="btn so-icone" type="button" title="Configurações das Tarefas" aria-label="Configurações das Tarefas" @onclick="AbrirConfig">@Icones.Engrenagem</button>
-    </div>
-</div>
+<AcoesTopo>
+    @if (quadro is not null)
+    {
+        <button class="btn primary" type="button" title="Nova tarefa" aria-label="Nova tarefa" @onclick="() => AbrirNovo(quadro, quadro.Colunas[0])">@Icones.Mais<span class="rotulo">Nova tarefa</span></button>
+    }
+    @* Configurações só das Tarefas (as gerais do app ficam em Configurações, no menu) *@
+    <button class="icon-btn" type="button" title="Configurações das Tarefas" aria-label="Configurações das Tarefas" @onclick="AbrirConfig">@Icones.Engrenagem</button>
+</AcoesTopo>
 
 <section class="kpis">
     <div class="kpi"><span class="kpi-label">Concluídas hoje</span>

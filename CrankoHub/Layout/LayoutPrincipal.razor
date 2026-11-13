@@ -8,6 +8,7 @@
 @inject ToastService Toast
 @inject SincronizacaoService Sincronizacao
 @inject BandejaService Bandeja
+@using Microsoft.AspNetCore.Components.Sections
 
 <div class="app @(_menuAberto ? "menu-open" : "") @(Store.Dados.Config.MenuOculto ? "menu-oculto" : "")">
     <aside class="sidebar">
@@ -40,7 +41,14 @@
         <div class="palco" id="palco">
             <header class="topbar">
                 <button class="icon-btn menu-btn" aria-label="Mostrar ou ocultar o menu" title="Mostrar ou ocultar o menu" @onclick="AlternarMenu">@Icones.Menu</button>
-                <div class="crumb"><span class="crumb-root">CrankoHub</span><span class="crumb-sep">/</span><span>@TituloDaPagina</span></div>
+                @* O título da página fica aqui (as páginas não repetem nome e descrição) *@
+                <div class="crumb">
+                    @if (ModuloAtual is { } mod)
+                    {
+                        <span class="tile crumb-tile" style="--c:@mod.Cor">@mod.Icone</span>
+                    }
+                    <span class="crumb-root">CrankoHub</span><span class="crumb-sep">/</span><h1 class="crumb-titulo">@TituloDaPagina</h1>
+                </div>
                 <nav class="atalhos" aria-label="Atalhos">
                     <NavLink href="" Match="NavLinkMatch.All" title="Início">@Icones.Inicio</NavLink>
                     @foreach (var m in Modulo.Visiveis(Store.Dados.Config))
@@ -49,6 +57,8 @@
                     }
                     <NavLink href="configuracoes" title="Configurações">@Icones.Engrenagem</NavLink>
                 </nav>
+                @* Botões da página aberta: adicionar, configurações da seção... (Components/AcoesTopo.razor) *@
+                <div class="topo-acoes"><SectionOutlet SectionName="@AcoesTopo.Nome" /></div>
                 <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
             </header>
             @* A chave recria o container a cada navegação, reiniciando a animação de entrada *@
@@ -78,6 +88,9 @@
         "conta" or "dados" => "Conta",
         _ => "Início",
     };
+
+    // Módulo da página aberta, para o ícone colorido ao lado do título
+    private Modulo? ModuloAtual => Modulo.Buscar(_caminho.Split('/')[0]);
 
     protected override void OnInitialized()
     {

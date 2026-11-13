@@ -49,18 +49,13 @@
         .Select(r => new PontoLinha(r.Data, (gordura ? r.Gordura : r.Cintura)!.Value)).ToList();
 }
 
-<div class="page-head">
-    <div>
-        <h1>Dieta</h1>
-        <p>Registre seu peso e medidas, defina uma meta e acompanhe a evolução.</p>
-    </div>
-    <div class="page-acoes">
-        <button class="btn primary" type="button" @onclick="AbrirNovoRegistro">@Icones.Mais Registrar peso</button>
-        <button class="btn" type="button" @onclick="AbrirMeta">@Icones.Alvo @(meta is not null ? $"Meta: {Num(meta)} kg" : "Definir meta")</button>
-        @* Configurações só da Dieta (as gerais do app ficam em Configurações, no menu) *@
-        <button class="btn so-icone" type="button" title="Configurações da Dieta" aria-label="Configurações da Dieta" @onclick="AbrirConfig">@Icones.Engrenagem</button>
-    </div>
-</div>
+@{ var rotuloMeta = meta is not null ? $"Meta: {Num(meta)} kg" : "Definir meta"; }
+<AcoesTopo>
+    <button class="btn" type="button" title="@rotuloMeta" aria-label="@rotuloMeta" @onclick="AbrirMeta">@Icones.Alvo<span class="rotulo">@rotuloMeta</span></button>
+    <button class="btn primary" type="button" title="Registrar peso" aria-label="Registrar peso" @onclick="AbrirNovoRegistro">@Icones.Mais<span class="rotulo">Registrar peso</span></button>
+    @* Configurações só da Dieta (as gerais do app ficam em Configurações, no menu) *@
+    <button class="icon-btn" type="button" title="Configurações da Dieta" aria-label="Configurações da Dieta" @onclick="AbrirConfig">@Icones.Engrenagem</button>
+</AcoesTopo>
 
 <section class="kpis">
     <div class="kpi"><span class="kpi-label">Peso atual</span>

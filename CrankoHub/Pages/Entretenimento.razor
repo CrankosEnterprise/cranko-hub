@@ -31,17 +31,11 @@
     var lista = estante.ToList();
 }
 
-<div class="page-head">
-    <div>
-        <h1>Entretenimento</h1>
-        <p>Sua estante de filmes, séries, animes, jogos e livros — o que você viu, quando e que nota deu.</p>
-    </div>
-    <div class="page-acoes">
-        <button class="btn primary" type="button" @onclick="AbrirBusca">+ Adicionar</button>
-        @* Configurações só do Entretenimento (as gerais do app ficam em Configurações, no menu) *@
-        <button class="btn so-icone" type="button" title="Configurações do Entretenimento" aria-label="Configurações do Entretenimento" @onclick="AbrirConfig">@Icones.Engrenagem</button>
-    </div>
-</div>
+<AcoesTopo>
+    <button class="btn primary" type="button" title="Adicionar" aria-label="Adicionar" @onclick="AbrirBusca">@Icones.Mais<span class="rotulo">Adicionar</span></button>
+    @* Configurações só do Entretenimento (as gerais do app ficam em Configurações, no menu) *@
+    <button class="icon-btn" type="button" title="Configurações do Entretenimento" aria-label="Configurações do Entretenimento" @onclick="AbrirConfig">@Icones.Engrenagem</button>
+</AcoesTopo>
 
 <section class="kpis">
     <div class="kpi"><span class="kpi-label">Na estante</span>

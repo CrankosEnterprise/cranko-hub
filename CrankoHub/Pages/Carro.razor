@@ -6,12 +6,6 @@
 @if (CarroCalculos.VeiculoAtivo(Store.Dados.Carro) is null)
 {
     // Sem veículo: o cadastro é obrigatório antes de usar o resto do Carro
-    <div class="page-head">
-        <div>
-            <h1>Carro</h1>
-            <p>Cadastre seu veículo para registrar abastecimentos, consumo, manutenção e documentos.</p>
-        </div>
-    </div>
     <AbaVeiculo Veiculo="_semVeiculo" Inicio="novo" Obrigatorio="true" Criado="VeiculoCriado" />
     return;
 }
@@ -30,32 +24,26 @@
     var docsAtencao = DocumentosCalculos.DoVeiculo(c, v.Id).Where(x => DocumentosCalculos.PrecisaAtencao(x, hoje)).ToList();
 }
 
-<div class="page-head">
-    <div>
-        <h1>Carro</h1>
-        <p>Abastecimentos, consumo e manutenção de cada veículo.</p>
-    </div>
-    <div class="veh">
-        @if (ModoCarro.Disponivel)
-        {
-            <a class="btn sm primary" href="carro/modo">@Icones.Navegacao Modo carro</a>
-        }
-        @* Só o veículo em uso; cadastrar, editar e excluir ficam na aba Veículos *@
-        @if (c.Veiculos.Count > 1)
-        {
-            <select class="select" aria-label="Veículo em uso" title="Veículo em uso" value="@v.Id" @onchange="TrocarVeiculo">
-                @foreach (var x in c.Veiculos)
-                {
-                    <option value="@x.Id">@x.Nome</option>
-                }
-            </select>
-        }
-        else
-        {
-            <button type="button" class="veh-nome" title="Ver a ficha do veículo" @onclick="@(() => Abrir("veiculo"))">@Icones.Carro @v.Nome</button>
-        }
-    </div>
-</div>
+<AcoesTopo>
+    @* Só o veículo em uso; cadastrar, editar e excluir ficam na aba Veículos *@
+    @if (c.Veiculos.Count > 1)
+    {
+        <select class="select veh-topo" aria-label="Veículo em uso" title="Veículo em uso" value="@v.Id" @onchange="TrocarVeiculo">
+            @foreach (var x in c.Veiculos)
+            {
+                <option value="@x.Id">@x.Nome</option>
+            }
+        </select>
+    }
+    else
+    {
+        <button type="button" class="veh-nome veh-topo" title="Ver a ficha do veículo" @onclick="@(() => Abrir("veiculo"))">@Icones.Carro<span>@v.Nome</span></button>
+    }
+    @if (ModoCarro.Disponivel)
+    {
+        <a class="btn primary" href="carro/modo" title="Modo carro" aria-label="Modo carro">@Icones.Navegacao<span class="rotulo">Modo carro</span></a>
+    }
+</AcoesTopo>
 
 <nav class="tabs" role="tablist" aria-label="Seções do carro">
     @foreach (var (chave, rotulo) in Abas)

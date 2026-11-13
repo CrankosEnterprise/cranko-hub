@@ -49,15 +49,9 @@
     .ToList();
 }
 
-<div class="page-head">
-    <div>
-        <h1>Assinaturas</h1>
-        <p>Guarde seus serviços recorrentes, veja quanto eles custam por mês e quando cada um vence.</p>
-    </div>
-    <div class="page-acoes">
-        <button class="btn primary" type="button" @onclick="AbrirNova">@Icones.Mais Nova assinatura</button>
-    </div>
-</div>
+<AcoesTopo>
+    <button class="btn primary" type="button" title="Nova assinatura" aria-label="Nova assinatura" @onclick="AbrirNova">@Icones.Mais<span class="rotulo">Nova assinatura</span></button>
+</AcoesTopo>
 
 <section class="kpis">
     <div class="kpi">
