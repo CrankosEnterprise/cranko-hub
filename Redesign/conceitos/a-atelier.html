@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conceito A — Atelier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=block" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="dados.js"></script>
+<style>
+/* Conceito A — Atelier: a linhagem do CrankoForge levada para o Hub.
+   Porcelana fria, linhas finas no lugar de cartões, números grandes e leves, um único azul-marinho (o do logo). */
+:root {
+  --moldura: #E9EBEF; --palco: #F6F7F9; --sup: #FFFFFF;
+  --tinta: #14161B; --suave: #5F6470; --fraco: #9EA3AD;
+  --linha: #E3E5EA; --linha-forte: #D3D6DD;
+  --destaque: #24346F; --destaque-suave: #24346F12;
+  --atencao: #B25E00; --atencao-bg: #FFB2401F; --serio: #C0362C; --bom: #1F7A47;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { font: 14px/1.5 Manrope, system-ui, sans-serif; color: var(--tinta); -webkit-font-smoothing: antialiased;
+  background: radial-gradient(1200px 700px at 20% 0%, #DCE1EC, transparent), linear-gradient(160deg, #C9CFDB, #AEB6C6);
+  display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+svg.lucide { width: 17px; height: 17px; flex: none; }
+
+.janela { width: 1480px; height: 920px; border-radius: 14px; overflow: hidden; display: grid; grid-template-columns: 236px 1fr;
+  background: var(--moldura); box-shadow: 0 0 0 .5px #0000002a, 0 40px 90px -30px #1a2440aa, 0 12px 30px -12px #0003; }
+
+/* Barra lateral */
+.lateral { display: flex; flex-direction: column; padding: 16px 14px 18px; }
+.semaforo { display: flex; gap: 8px; padding: 2px 4px 26px; }
+.semaforo i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px #0002; }
+.semaforo i:nth-child(1) { background: #FF5F57 } .semaforo i:nth-child(2) { background: #FEBC2E } .semaforo i:nth-child(3) { background: #28C840 }
+.marca { display: flex; align-items: center; gap: 10px; padding: 0 8px 26px; }
+.marca-simbolo { width: 26px; height: 26px; border-radius: 7px; background: radial-gradient(circle at 50% 30%, #2A3F7E, #0B1330); display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; }
+.marca-palavra { font-size: 13px; letter-spacing: .26em; font-weight: 300; }
+.marca-palavra b { font-weight: 800; }
+.nav { display: grid; gap: 1px; }
+.nav-grupo { font-size: 11.5px; color: var(--fraco); padding: 18px 10px 6px; }
+.nav a { display: flex; align-items: center; gap: 11px; padding: 7px 10px; border-radius: 7px; color: var(--suave); text-decoration: none; font-weight: 500; }
+.nav a .ponto { width: 7px; height: 7px; border-radius: 50%; background: var(--c); margin: 0 5px; }
+.nav a.ativo { background: var(--sup); color: var(--tinta); box-shadow: 0 1px 2px #0000000f, 0 0 0 .5px #0000000d; font-weight: 650; }
+.nav a .qtd { margin-left: auto; font-size: 11.5px; color: var(--fraco); font-weight: 500; }
+.conta { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px; border-top: 1px solid var(--linha-forte); }
+.avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #3B4F95, #1A2550); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 12px; }
+.conta small { display: block; color: var(--fraco); font-size: 11.5px; }
+.conta small::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34C759; margin-right: 6px; vertical-align: 1px; }
+
+/* Palco */
+.palco { background: var(--palco); margin: 8px 8px 8px 0; border-radius: 10px; box-shadow: 0 0 0 .5px #00000012, 0 1px 3px #0000000a; overflow: hidden; display: flex; flex-direction: column; }
+.topo { display: flex; align-items: center; gap: 12px; padding: 14px 36px; border-bottom: 1px solid var(--linha); }
+.trilha { color: var(--fraco); font-size: 13px; }
+.trilha b { color: var(--tinta); font-weight: 600; }
+.busca { margin-left: auto; display: flex; align-items: center; gap: 9px; width: 320px; padding: 7px 12px; border-radius: 8px; background: var(--sup); box-shadow: 0 0 0 1px var(--linha); color: var(--fraco); font-size: 13px; }
+.busca kbd { margin-left: auto; font: 600 11px Manrope; color: var(--suave); background: var(--palco); border-radius: 4px; padding: 1px 6px; box-shadow: 0 0 0 1px var(--linha); }
+.botao { display: inline-flex; align-items: center; gap: 8px; font: 650 13px Manrope; padding: 8px 15px; border-radius: 8px; border: 0; background: var(--sup); color: var(--tinta); box-shadow: 0 0 0 1px var(--linha-forte), 0 1px 2px #0000000d; }
+.botao.primario { background: var(--tinta); color: #fff; box-shadow: 0 1px 2px #0003, inset 0 1px 0 #ffffff1f; }
+.icone-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; color: var(--suave); }
+#conteudo { padding: 34px 36px 36px; flex: 1; overflow: hidden; }
+
+/* Tipografia */
+.data { color: var(--suave); font-size: 13px; }
+h1 { font-size: 40px; font-weight: 250; letter-spacing: -.03em; line-height: 1.1; margin-top: 4px; }
+h2 { font-size: 13px; font-weight: 700; letter-spacing: -.005em; }
+.sec-cab { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.sec-cab a { color: var(--suave); font-size: 12.5px; text-decoration: none; }
+.grande { font-size: 52px; font-weight: 200; letter-spacing: -.04em; line-height: 1; }
+.grande small { font-size: 16px; font-weight: 500; letter-spacing: 0; color: var(--suave); margin-left: 4px; }
+.rot { color: var(--suave); font-size: 12.5px; }
+.delta { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 650; color: var(--bom); }
+.cab-pagina { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 30px; }
+.acoes { display: flex; gap: 8px; }
+
+/* Faixa de atenção */
+.atencao { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--sup); border-radius: 10px; box-shadow: 0 0 0 1px var(--linha); margin-bottom: 30px; }
+.atencao > div { padding: 15px 18px; display: flex; gap: 12px; }
+.atencao > div + div { border-left: 1px solid var(--linha); }
+.atencao .marcador { width: 3px; border-radius: 2px; background: var(--c); flex: none; }
+.atencao b { display: block; font-weight: 650; font-size: 13px; }
+.atencao span { color: var(--suave); font-size: 12px; }
+
+/* Grade com linhas */
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--linha); border-bottom: 1px solid var(--linha); margin-bottom: 30px; }
+.trio > section { padding: 22px 26px 20px; }
+.trio > section:first-child { padding-left: 0; }
+.trio > section + section { border-left: 1px solid var(--linha); }
+.mod-cab { display: flex; align-items: center; gap: 8px; color: var(--suave); font-size: 12.5px; font-weight: 600; margin-bottom: 16px; }
+.mod-cab .ponto { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.mod-cab .ir { margin-left: auto; color: var(--fraco); }
+.linha-dados { display: flex; gap: 26px; margin-top: 16px; }
+.linha-dados div b { display: block; font-size: 15px; font-weight: 650; }
+.dupla { display: grid; grid-template-columns: 1.15fr 1fr; gap: 44px; }
+.lista > div { display: flex; align-items: center; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--linha); }
+.lista > div:last-child { border-bottom: 0; }
+.lista .hora { width: 46px; font-weight: 700; font-size: 13px; }
+.lista .sub { color: var(--suave); font-size: 12px; }
+.lista .fim { margin-left: auto; color: var(--fraco); font-size: 12px; }
+.check { width: 17px; height: 17px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--linha-forte); flex: none; }
+.check.feito { background: var(--tinta); box-shadow: none; display: grid; place-items: center; color: #fff; }
+.check.feito svg { width: 12px; height: 12px; stroke-width: 3; }
+.ic-mod { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); flex: none; }
+.ic-mod svg { width: 15px; height: 15px; }
+
+/* Carro */
+.abas { display: flex; gap: 26px; border-bottom: 1px solid var(--linha); margin-bottom: 28px; }
+.abas a { padding: 0 0 12px; color: var(--suave); text-decoration: none; font-weight: 600; font-size: 13.5px; }
+.abas a.ativo { color: var(--tinta); box-shadow: inset 0 -2px 0 var(--tinta); }
+.placa { display: inline-block; font-weight: 700; font-size: 11.5px; letter-spacing: .08em; padding: 3px 8px; border-radius: 5px; box-shadow: 0 0 0 1px var(--linha-forte); background: var(--sup); color: var(--suave); vertical-align: 10px; margin-left: 10px; }
+.carro-grade { display: grid; grid-template-columns: 1fr 340px; gap: 40px; }
+.quatro { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 26px; }
+.quatro > div { padding-right: 20px; }
+.quatro > div + div { padding-left: 22px; border-left: 1px solid var(--linha); }
+.quatro .v { font-size: 28px; font-weight: 250; letter-spacing: -.03em; line-height: 1.15; }
+.quatro .v small { font-size: 13px; color: var(--suave); font-weight: 500; letter-spacing: 0; margin-left: 3px; }
+.barras { display: flex; align-items: flex-end; gap: 10px; height: 150px; padding-top: 10px; }
+.barras div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; }
+.barras span { width: 100%; border-radius: 3px 3px 1px 1px; background: #D9DDE6; }
+.barras div:last-child span { background: var(--destaque); }
+.barras em { font-style: normal; font-size: 11px; color: var(--fraco); }
+.tabela { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tabela th { text-align: left; font-weight: 600; color: var(--fraco); font-size: 12px; padding: 0 0 9px; border-bottom: 1px solid var(--linha); }
+.tabela td { padding: 11px 0; border-bottom: 1px solid var(--linha); }
+.tabela tr:last-child td { border-bottom: 0; }
+.tabela .num { text-align: right; }
+.tag { font-size: 11.5px; font-weight: 650; padding: 2px 8px; border-radius: 20px; background: #EEF0F4; color: var(--suave); }
+.tag.etanol { background: #E3F4E8; color: var(--bom); }
+.painel { background: var(--sup); border-radius: 12px; box-shadow: 0 0 0 1px var(--linha); padding: 20px 22px; }
+.painel + .painel { margin-top: 16px; }
+.tanque { height: 8px; border-radius: 4px; background: #EDEFF3; overflow: hidden; margin: 14px 0 8px; }
+.tanque span { display: block; height: 100%; width: 64%; background: linear-gradient(90deg, var(--destaque), #4A5FA8); border-radius: 4px; }
+.lemb { padding: 12px 0; border-bottom: 1px solid var(--linha); }
+.lemb:last-child { border-bottom: 0; padding-bottom: 0; }
+.lemb .l1 { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; }
+.lemb .l1 span { font-weight: 500; color: var(--suave); font-size: 12.5px; }
+.progresso { height: 3px; background: #EDEFF3; border-radius: 2px; margin-top: 9px; }
+.progresso span { display: block; height: 100%; border-radius: 2px; background: var(--tinta); }
+.progresso.atencao-p span { background: var(--atencao); }
+.doc { display: flex; justify-content: space-between; padding: 9px 0; font-size: 13px; font-weight: 600; }
+.doc span { font-weight: 500; color: var(--suave); }
+.doc span.at { color: var(--atencao); font-weight: 650; }
+
+/* Assinaturas */
+.composicao { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; margin: 22px 0 12px; }
+.composicao span { background: var(--c); }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--suave); font-size: 12px; }
+.legenda span::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 2px; background: var(--c); margin-right: 6px; }
+.mes { display: grid; grid-template-columns: repeat(15, 1fr); gap: 6px; }
+.dia { aspect-ratio: 1; border-radius: 7px; background: var(--sup); box-shadow: 0 0 0 1px var(--linha); padding: 5px 6px; font-size: 11px; color: var(--fraco); position: relative; }
+.dia.hoje { box-shadow: 0 0 0 1.5px var(--tinta); color: var(--tinta); font-weight: 700; }
+.dia.passou { background: transparent; }
+.dia .cob { position: absolute; left: 6px; bottom: 6px; display: flex; gap: 3px; }
+.dia .cob i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.logo-servico { width: 34px; height: 34px; border-radius: 9px; background: var(--c); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 14px; flex: none; }
+.assin-lista > div { display: grid; grid-template-columns: 34px 1.4fr 1fr 1fr 110px; align-items: center; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--linha); }
+.assin-lista > div:last-child { border-bottom: 0; }
+.assin-lista b { font-weight: 650; }
+.assin-lista .sub { color: var(--suave); font-size: 12px; }
+.assin-lista .valor { text-align: right; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="janela">
+  <aside class="lateral">
+    <div class="semaforo"><i></i><i></i><i></i></div>
+    <div class="marca"><span class="marca-simbolo">C</span><span class="marca-palavra">CRANKO<b>HUB</b></span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="conta"><span class="avatar">D</span><div><b>Diego</b><small>Sincronizado agora</small></div></div>
+  </aside>
+  <div class="palco">
+    <header class="topo">
+      <div class="trilha" id="trilha"></div>
+      <div class="busca"></div>
+      <span class="icone-btn"><i data-lucide="bell"></i></span>
+      <span class="icone-btn"><i data-lucide="moon"></i></span>
+    </header>
+    <main id="conteudo"></main>
+  </div>
+</div>
+<script>
+document.querySelector(".busca").innerHTML = `${icon("search")}Buscar ou registrar algo<kbd>Ctrl K</kbd>`;
+const contagem = { carro: 2, assinaturas: 1, tarefas: 4 };
+document.getElementById("nav").innerHTML =
+  `<a data-nav="inicio" href="#inicio">${icon("house")}Início</a><div class="nav-grupo">Áreas</div>` +
+  D.modulos.map(m => `<a data-nav="${m.id}" href="#${m.id}" style="--c:${m.cor}"><span class="ponto"></span>${m.nome}${contagem[m.id] ? `<span class="qtd">${contagem[m.id]}</span>` : ""}</a>`).join("") +
+  `<div class="nav-grupo">Sistema</div><a href="#">${icon("settings-2")}Configurações</a>`;
+
+const telas = {
+  inicio: () => {
+    const p = caminho(D.peso.serie, 380, 70, 3);
+    return `
+    <div class="cab-pagina">
+      <div><p class="data">${D.data}</p><h1>Boa tarde, Diego</h1></div>
+      <div class="acoes"><button class="botao">${icon("layout-grid")}Organizar</button><button class="botao primario">${icon("plus")}Registrar</button></div>
+    </div>
+    <div class="atencao">${D.alertas.map(a => `<div style="--c:${a.nivel === "serio" ? "var(--serio)" : a.nivel === "atencao" ? "var(--atencao)" : "var(--fraco)"}"><span class="marcador"></span><p><b>${a.texto}</b><span>${a.sub}</span></p></div>`).join("")}</div>
+    <div class="trio">
+      <section style="--c:${mod("dieta").cor}">
+        <div class="mod-cab"><span class="ponto"></span>Dieta<span class="ir">${icon("arrow-up-right")}</span></div>
+        <div class="grande">82,4<small>kg</small></div>
+        <p class="rot" style="margin-top:8px"><span class="delta">${icon("arrow-down")}1,9 kg</span> em 30 dias · faltam 4,4 kg para a meta</p>
+        <svg viewBox="0 0 380 70" style="width:100%;height:70px;margin-top:14px"><path d="${p.linha}" fill="none" stroke="var(--tinta)" stroke-width="1.6"/><line x1="0" x2="380" y1="${3 + (1 - (78 - 82.4) / (89.1 - 82.4)) * 64}" y2="0" stroke="none"/><circle cx="${p.ultimo[0]}" cy="${p.ultimo[1]}" r="3.5" fill="var(--palco)" stroke="var(--tinta)" stroke-width="1.6"/></svg>
+      </section>
+      <section style="--c:${mod("carro").cor}">
+        <div class="mod-cab"><span class="ponto"></span>Carro · Civic<span class="ir">${icon("arrow-up-right")}</span></div>
+        <div class="grande">11,8<small>km/l</small></div>
+        <p class="rot" style="margin-top:8px"><span class="delta">${icon("arrow-up")}5%</span> acima da média dos últimos 3 meses</p>
+        <div class="linha-dados"><div><span class="rot">Gasto em novembro</span><b>R$ 512,80</b></div><div><span class="rot">Odômetro</span><b>68.420 km</b></div><div><span class="rot">Tanque</span><b>64%</b></div></div>
+      </section>
+      <section style="--c:${mod("assinaturas").cor}">
+        <div class="mod-cab"><span class="ponto"></span>Assinaturas<span class="ir">${icon("arrow-up-right")}</span></div>
+        <div class="grande">${fmt.num(totalAssin, 0)}<small>R$ / mês</small></div>
+        <p class="rot" style="margin-top:8px">8 serviços ativos · ${fmt.brl(totalAssin * 12)} por ano</p>
+        <div class="linha-dados"><div><span class="rot">Próxima cobrança</span><b>Spotify, amanhã</b></div><div><span class="rot">Valor</span><b>R$ 34,90</b></div></div>
+      </section>
+    </div>
+    <div class="dupla">
+      <section>
+        <div class="sec-cab"><h2>Hoje</h2><a href="#">3 de 7 tarefas feitas</a></div>
+        <div class="lista">
+          ${D.agenda.map(e => `<div><span class="hora">${e.hora}</span><div><b>${e.titulo}</b><div class="sub">${e.local}</div></div><span class="fim" style="color:${mod("agenda").cor}">Agenda</span></div>`).join("")}
+          ${D.tarefas.hoje.slice(0, 3).map((t, i) => `<div><span class="check ${i === 0 ? "feito" : ""}">${i === 0 ? icon("check") : ""}</span><span style="${i === 0 ? "color:var(--fraco);text-decoration:line-through" : ""}">${t}</span><span class="fim">${i === 2 ? "Carro" : "Casa"}</span></div>`).join("")}
+        </div>
+      </section>
+      <section>
+        <div class="sec-cab"><h2>Atividade recente</h2><a href="#">Ver tudo</a></div>
+        <div class="lista">${D.atividade.map(a => `<div><span class="ic-mod" style="--c:${mod(a.modulo).cor}">${icon(a.icone)}</span><div><b style="font-weight:600">${a.texto}</b><div class="sub">${a.sub}</div></div><span class="fim">${a.quando}</span></div>`).join("")}</div>
+      </section>
+    </div>`;
+  },
+  carro: () => {
+    const max = Math.max(...D.carro.consumo), min = 9;
+    return `
+    <div class="cab-pagina" style="margin-bottom:22px">
+      <div><p class="data">${D.carro.modelo}</p><h1>Civic<span class="placa">${D.carro.placa}</span></h1></div>
+      <div class="acoes"><button class="botao">${icon("car-front")}Modo Carro</button><button class="botao primario">${icon("fuel")}Novo abastecimento</button></div>
+    </div>
+    <nav class="abas"><a class="ativo">Visão geral</a><a>Abastecimentos</a><a>Consumo</a><a>Manutenção</a><a>Documentos</a><a>Calculadoras</a></nav>
+    <div class="carro-grade">
+      <div>
+        <div class="quatro">
+          <div><span class="rot">Consumo médio</span><div class="v">11,8<small>km/l</small></div><span class="delta">${icon("arrow-up")}0,6 km/l</span></div>
+          <div><span class="rot">Custo por km</span><div class="v">0,52<small>R$</small></div><span class="rot">últimos 90 dias</span></div>
+          <div><span class="rot">Gasto em novembro</span><div class="v">512,80<small>R$</small></div><span class="rot">2 abastecimentos</span></div>
+          <div><span class="rot">Odômetro</span><div class="v">68.420<small>km</small></div><span class="rot">+1.240 km no mês</span></div>
+        </div>
+        <div class="sec-cab"><h2>Consumo por mês</h2><a href="#">km/l · últimos 12 meses</a></div>
+        <div class="barras">${D.carro.consumo.map((v, i) => `<div><span style="height:${((v - min) / (max - min)) * 82 + 12}%"></span><em>${D.carro.meses[i]}</em></div>`).join("")}</div>
+        <div class="sec-cab" style="margin-top:26px"><h2>Últimos abastecimentos</h2><a href="#">Ver histórico</a></div>
+        <table class="tabela"><tr><th>Data</th><th>Posto</th><th>Combustível</th><th class="num">Litros</th><th class="num">km/l</th><th class="num">Valor</th></tr>
+        ${D.carro.abastecimentos.slice(0, 4).map(a => `<tr><td>${a.data}</td><td>${a.posto}</td><td><span class="tag ${a.comb === "Etanol" ? "etanol" : ""}">${a.comb}</span></td><td class="num">${fmt.num(a.litros)} L</td><td class="num">${fmt.num(a.kml)}</td><td class="num"><b>${fmt.brl(a.valor)}</b></td></tr>`).join("")}</table>
+      </div>
+      <aside>
+        <div class="painel"><div class="sec-cab" style="margin:0"><h2>Tanque</h2><span class="rot">≈ 410 km de autonomia</span></div><div class="tanque"><span></span></div><div style="display:flex;justify-content:space-between" class="rot"><span>Vazio</span><span><b style="color:var(--tinta)">64%</b> · 30 L</span><span>Cheio</span></div></div>
+        <div class="painel"><div class="sec-cab" style="margin:0"><h2>Manutenção</h2><a href="#">3 lembretes</a></div>
+          ${D.carro.lembretes.map(l => `<div class="lemb"><div class="l1">${l.nome}<span>${l.estado === "atencao" ? `<b style="color:var(--atencao)">em ${l.falta}</b>` : "em " + l.falta}</span></div><div class="progresso ${l.estado === "atencao" ? "atencao-p" : ""}"><span style="width:${l.pct * 100}%"></span></div></div>`).join("")}
+        </div>
+        <div class="painel"><div class="sec-cab" style="margin:0 0 4px"><h2>Documentos</h2><a href="#">2027</a></div>
+          ${D.carro.documentos.map(d => `<div class="doc">${d.nome}<span class="${d.estado === "atencao" ? "at" : ""}">${d.info}</span></div>`).join("")}
+        </div>
+      </aside>
+    </div>`;
+  },
+  assinaturas: () => {
+    const ord = [...D.assinaturas].sort((a, b) => b.valor - a.valor);
+    const dias = Array.from({ length: 30 }, (_, i) => i + 1);
+    return `
+    <div class="cab-pagina">
+      <div><p class="data">8 serviços ativos</p><h1>${fmt.brl(totalAssin)} por mês</h1></div>
+      <div class="acoes"><button class="botao">${icon("pause")}Pausadas (2)</button><button class="botao primario">${icon("plus")}Nova assinatura</button></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-bottom:30px">
+      <section>
+        <div class="sec-cab"><h2>Para onde vai o dinheiro</h2><a href="#">${fmt.brl(totalAssin * 12)} por ano</a></div>
+        <div class="composicao">${ord.map(a => `<span style="--c:${a.cor};flex:${a.valor}"></span>`).join("")}</div>
+        <div class="legenda">${ord.map(a => `<span style="--c:${a.cor}">${a.nome} ${fmt.num(a.valor / totalAssin * 100, 0)}%</span>`).join("")}</div>
+      </section>
+      <section>
+        <div class="sec-cab"><h2>Cobranças de novembro</h2><a href="#">Hoje é dia 13</a></div>
+        <div class="mes">${dias.map(d => { const c = D.assinaturas.filter(a => a.dia === d); return `<div class="dia ${d === 13 ? "hoje" : d < 13 ? "passou" : ""}">${d}${c.length ? `<span class="cob">${c.map(a => `<i style="--c:${a.cor}"></i>`).join("")}</span>` : ""}</div>`; }).join("")}</div>
+      </section>
+    </div>
+    <div class="sec-cab"><h2>Todas</h2><a href="#">Ordenar por valor</a></div>
+    <div class="assin-lista">${ord.map(a => `<div><span class="logo-servico" style="--c:${a.cor}">${a.nome[0]}</span><div><b>${a.nome}</b><div class="sub">${a.plano}</div></div><span class="sub">${a.cat}</span><span class="sub">Todo dia ${a.dia}${a.dia === 14 ? ' · <b style="color:var(--atencao)">amanhã</b>' : ""}</span><span class="valor">${fmt.brl(a.valor)}</span></div>`).join("")}</div>`;
+  },
+};
+const trilha = { inicio: "Início", carro: "Carro", assinaturas: "Assinaturas" };
+const t = (location.hash || "#inicio").slice(1);
+document.getElementById("trilha").innerHTML = `CrankoHub <span style="margin:0 6px">/</span> <b>${trilha[t] || "Início"}</b>`;
+montar(telas);
+</script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conceito C — Vitrine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300..800&display=block" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="dados.js"></script>
+<style>
+/* Conceito C — Vitrine: claro, arejado, as cores dos módulos viram o próprio cartão.
+   Sem barra lateral: navegação em cápsula no topo, controles da janela numa cápsula à direita. */
+:root {
+  --fundo: #F2F3F7; --sup: #FFFFFF; --tinta: #101828; --suave: #5B6478; --fraco: #98A1B3; --linha: #E7E9EF;
+  --atencao: #C2410C; --bom: #15803D;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { font: 14px/1.5 "Plus Jakarta Sans", system-ui, sans-serif; color: var(--tinta); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, #FDE2E4 0%, #E2ECFF 45%, #EBDDFF 100%); display: grid; place-items: center; }
+svg.lucide { width: 18px; height: 18px; flex: none; }
+.janela { width: 1480px; height: 920px; border-radius: 22px; overflow: hidden; background: var(--fundo); display: flex; flex-direction: column;
+  box-shadow: 0 0 0 1px #0000000d, 0 50px 100px -40px #3b2d7a66, 0 20px 40px -20px #0002; }
+
+.topo { display: flex; align-items: center; gap: 16px; padding: 14px 18px 14px 24px; }
+.marca { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; letter-spacing: -.02em; width: 250px; }
+.marca-s { width: 32px; height: 32px; border-radius: 10px; background: radial-gradient(circle at 50% 30%, #2A3F7E, #0B1330); color: #fff; display: grid; place-items: center; font-size: 14px; }
+.marca span b { color: #4F6BED; }
+.nav { margin: 0 auto; display: flex; gap: 2px; padding: 5px; border-radius: 16px; background: var(--sup); box-shadow: 0 1px 2px #0000000a, 0 0 0 1px var(--linha); }
+.nav a { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 12px; color: var(--suave); font-weight: 600; font-size: 13.5px; }
+.nav a svg { width: 16px; height: 16px; }
+.nav a.ativo { background: var(--c, var(--tinta)); color: #fff; box-shadow: 0 6px 16px -6px var(--c, #000); }
+.direita { width: 250px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+.redondo { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--sup); box-shadow: 0 0 0 1px var(--linha); color: var(--suave); position: relative; }
+.redondo .n { position: absolute; top: -2px; right: -2px; min-width: 17px; height: 17px; border-radius: 9px; background: #F43F5E; color: #fff; font-size: 10px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--fundo); }
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #F472B6, #818CF8); color: #fff; display: grid; place-items: center; font-weight: 800; }
+/* Controles da janela: cápsula com três ícones finos; o fechar fica vermelho no hover */
+.janela-ctl { display: flex; align-items: center; margin-left: 6px; padding: 4px; border-radius: 12px; background: #E6E8EE; }
+.janela-ctl span { width: 30px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #6B7280; }
+.janela-ctl span svg { width: 14px; height: 14px; stroke-width: 2.2; }
+.janela-ctl span.fechar { background: #FF4D4F; color: #fff; }
+
+#conteudo { flex: 1; padding: 10px 24px 24px; overflow: hidden; }
+.cab { display: flex; align-items: flex-end; justify-content: space-between; padding: 14px 6px 22px; }
+h1 { font-size: 34px; font-weight: 750; letter-spacing: -.035em; line-height: 1.1; }
+.cab p { color: var(--suave); font-size: 14.5px; margin-top: 6px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 14px; border: 0; font: 700 13.5px "Plus Jakarta Sans"; background: var(--sup); color: var(--tinta); box-shadow: 0 0 0 1px var(--linha), 0 1px 2px #0000000a; }
+.btn.prim { background: var(--tinta); color: #fff; box-shadow: 0 8px 20px -8px #101828aa; }
+.cartao { background: var(--sup); border-radius: 26px; padding: 22px 24px; box-shadow: 0 1px 2px #0000000a, 0 0 0 1px #0000000a; position: relative; overflow: hidden; }
+.cartao h3 { font-size: 15px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+.cartao h3 .dir { margin-left: auto; color: var(--fraco); font-weight: 600; font-size: 12.5px; }
+.cor { background: linear-gradient(160deg, color-mix(in srgb, var(--c) 14%, #fff), color-mix(in srgb, var(--c) 4%, #fff)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 18%, transparent); }
+.cor .ic { width: 38px; height: 38px; border-radius: 12px; background: var(--c); color: #fff; display: grid; place-items: center; box-shadow: 0 8px 18px -8px var(--c); }
+.grande { font-size: 44px; font-weight: 750; letter-spacing: -.045em; line-height: 1; }
+.grande small { font-size: 15px; font-weight: 600; color: var(--suave); letter-spacing: 0; margin-left: 5px; }
+.sub { color: var(--suave); font-size: 13px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; background: #ffffffb3; color: var(--suave); }
+.chip.bom { color: var(--bom); background: #DCFCE7; }
+.chip.at { color: var(--atencao); background: #FFEDD5; }
+
+/* Início */
+.aneis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+.anel-c { display: flex; align-items: center; gap: 16px; padding: 18px 20px; }
+.anel-c b { font-size: 22px; font-weight: 750; letter-spacing: -.03em; display: block; line-height: 1.1; }
+.ini-grade { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 16px; height: 588px; }
+.ini-grade .cor { display: flex; flex-direction: column; }
+.ini-grade .rodape { margin-top: auto; display: flex; gap: 22px; }
+.ini-grade .rodape b { display: block; font-size: 15px; }
+.lista-at > div { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 16px; background: #F7F8FB; margin-top: 8px; }
+.lista-at .mi { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 14%, #fff); color: var(--c); }
+.lista-at .mi svg { width: 16px; height: 16px; }
+.lista-at b { font-size: 13.5px; font-weight: 700; display: block; line-height: 1.3; }
+.lista-at .chip { margin-left: auto; }
+
+/* Carro */
+.carro-hero { display: grid; grid-template-columns: 1fr 380px; gap: 16px; margin-bottom: 16px; }
+.hero-azul { background: radial-gradient(500px 300px at 85% 20%, #60A5FA, transparent), linear-gradient(135deg, #1D4ED8, #0B2A8A); color: #fff; border-radius: 28px; padding: 26px 30px; height: 300px; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.hero-azul .sub { color: #ffffffb0; }
+.hero-azul .linha { display: flex; gap: 34px; margin-top: auto; }
+.hero-azul .linha b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -.03em; }
+.carro-svg { position: absolute; right: 30px; top: 40px; width: 470px; opacity: .95; }
+.medidor { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; }
+.carro-baixo { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 16px; height: 398px; }
+.ab { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.ab:last-child { border: 0; }
+.ab .mi { width: 38px; height: 38px; border-radius: 12px; background: #EFF4FF; color: #2563EB; display: grid; place-items: center; }
+.ab .v { margin-left: auto; text-align: right; font-weight: 750; }
+.ab .v span { display: block; font-weight: 500; font-size: 12px; color: var(--suave); }
+.lem { margin-top: 14px; display: grid; gap: 14px; }
+.lem .l { display: flex; justify-content: space-between; font-weight: 650; font-size: 13.5px; }
+.barra { height: 10px; border-radius: 5px; background: #F1F2F6; margin-top: 7px; overflow: hidden; }
+.barra i { display: block; height: 100%; border-radius: 5px; background: #3B82F6; }
+.barra.at i { background: linear-gradient(90deg, #FB923C, #EA580C); }
+.doc { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-weight: 650; font-size: 13.5px; }
+.doc .ok { width: 22px; height: 22px; border-radius: 50%; background: #DCFCE7; color: var(--bom); display: grid; place-items: center; }
+.doc .ok svg { width: 13px; height: 13px; stroke-width: 3; }
+.doc .ok.at { background: #FFEDD5; color: var(--atencao); }
+.doc span.i { margin-left: auto; color: var(--suave); font-weight: 500; font-size: 12.5px; }
+
+/* Assinaturas */
+.assin-grade { display: grid; grid-template-columns: 1fr 400px; gap: 16px; height: 690px; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 16px; }
+.cal .sem { text-align: center; font-size: 12px; font-weight: 700; color: var(--fraco); padding-bottom: 2px; }
+.cal .d { height: 96px; border-radius: 16px; background: #F7F8FB; padding: 8px 10px; font-size: 12.5px; font-weight: 700; color: var(--suave); display: flex; flex-direction: column; }
+.cal .d.vazio { background: transparent; }
+.cal .d.passou { color: var(--fraco); background: #FAFBFC; }
+.cal .d.hoje { background: var(--tinta); color: #fff; }
+.cal .d .s { margin-top: auto; display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--tinta); background: #fff; border-radius: 9px; padding: 4px 6px; box-shadow: 0 1px 2px #0000000d; }
+.cal .d .s i { width: 16px; height: 16px; border-radius: 5px; background: var(--c); color: #fff; font-style: normal; font-size: 9.5px; display: grid; place-items: center; }
+.cal .d.passou .s { opacity: .55; }
+.svc { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+.svc .lg { width: 40px; height: 40px; border-radius: 13px; background: var(--c); color: #fff; display: grid; place-items: center; font-weight: 800; box-shadow: 0 6px 14px -6px var(--c); }
+.svc b { display: block; font-weight: 700; line-height: 1.3; }
+.svc .v { margin-left: auto; font-weight: 750; }
+</style>
+</head>
+<body>
+<div class="janela">
+  <header class="topo">
+    <div class="marca"><span class="marca-s">C</span><span>Cranko<b>Hub</b></span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="direita" id="direita"></div>
+  </header>
+  <main id="conteudo"></main>
+</div>
+<script>
+const navItens = [["inicio", "Início", "house", "#101828"], ["dieta", "Dieta", "scale", "#FF2D55"], ["carro", "Carro", "car", "#007AFF"], ["assinaturas", "Assinaturas", "repeat", "#AF52DE"], ["tarefas", "Tarefas", "square-check-big", "#34C759"], ["mais", "Mais", "layout-grid", "#000"]];
+document.getElementById("nav").innerHTML = navItens.map(([id, n, ic, c]) => `<a data-nav="${id}" style="--c:${c}">${icon(ic)}${n}</a>`).join("");
+document.getElementById("direita").innerHTML = `<span class="redondo">${icon("search")}</span><span class="redondo">${icon("bell")}<span class="n">4</span></span><span class="avatar">D</span>
+  <div class="janela-ctl"><span>${icon("minus")}</span><span>${icon("square")}</span><span class="fechar">${icon("x")}</span></div>`;
+
+function anel(pct, cor, r = 26, w = 8, txt = "") {
+  const c = 2 * Math.PI * r, s = 2 * r + w * 2;
+  return `<div style="position:relative;width:${s}px;height:${s}px;flex:none"><svg width="${s}" height="${s}" style="transform:rotate(-90deg)"><circle cx="${r + w}" cy="${r + w}" r="${r}" fill="none" stroke="color-mix(in srgb, ${cor} 15%, #fff)" stroke-width="${w}"/><circle cx="${r + w}" cy="${r + w}" r="${r}" fill="none" stroke="${cor}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${c * pct} ${c}"/></svg><span style="position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:12px">${txt}</span></div>`;
+}
+
+const telas = {
+  inicio: () => {
+    const p = caminho(D.peso.serie, 400, 120, 4);
+    return `
+    <div class="cab"><div><h1>Boa tarde, Diego 👋</h1><p>${D.data} · 4 coisas pedem sua atenção hoje</p></div>
+      <div style="display:flex;gap:10px"><button class="btn">${icon("sliders-horizontal")}Personalizar</button><button class="btn prim">${icon("plus")}Registrar</button></div></div>
+    <div class="aneis">
+      <div class="cartao anel-c">${anel(0.62, "#FF2D55", 26, 8, "62%")}<div><b>Meta de peso</b><span class="sub">6,7 de 11,1 kg perdidos</span></div></div>
+      <div class="cartao anel-c">${anel(0.64, "#007AFF", 26, 8, "64%")}<div><b>Tanque</b><span class="sub">≈ 410 km de autonomia</span></div></div>
+      <div class="cartao anel-c">${anel(3 / 7, "#34C759", 26, 8, "3/7")}<div><b>Tarefas de hoje</b><span class="sub">2 atrasadas no quadro Casa</span></div></div>
+      <div class="cartao anel-c">${anel(0.45, "#AF52DE", 26, 8, "45%")}<div><b>Assinaturas pagas</b><span class="sub">R$ 204 de R$ 453 em novembro</span></div></div>
+    </div>
+    <div class="ini-grade">
+      <section class="cartao cor" style="--c:#FF2D55">
+        <h3><span class="ic">${icon("scale")}</span>Dieta<span class="dir">últimos 90 dias</span></h3>
+        <div style="display:flex;align-items:flex-end;gap:12px;margin-top:22px"><div class="grande">82,4<small>kg</small></div><span class="chip bom">${icon("trending-down")}−1,9 kg no mês</span></div>
+        <svg viewBox="0 0 400 120" style="width:100%;margin-top:auto"><defs><linearGradient id="gd" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#FF2D55" stop-opacity=".28"/><stop offset="1" stop-color="#FF2D55" stop-opacity="0"/></linearGradient></defs><path d="${p.area}" fill="url(#gd)"/><path d="${p.linha}" fill="none" stroke="#FF2D55" stroke-width="2.5"/><circle cx="${p.ultimo[0]}" cy="${p.ultimo[1]}" r="5" fill="#fff" stroke="#FF2D55" stroke-width="2.5"/></svg>
+        <div class="rodape" style="margin-top:14px"><div><span class="sub">Início</span><b>89,1 kg</b></div><div><span class="sub">Meta</span><b>78,0 kg</b></div><div><span class="sub">IMC</span><b>25,4</b></div></div>
+      </section>
+      <section class="cartao">
+        <h3>Precisa de atenção<span class="dir">4</span></h3>
+        <div class="lista-at">${D.alertas.map(a => { const m = mod(a.modulo); return `<div style="--c:${m.cor}"><span class="mi">${icon(m.icone)}</span><div><b>${a.texto}</b><span class="sub" style="font-size:12px">${a.sub.split(" · ")[0]}</span></div></div>`; }).join("")}</div>
+        <h3 style="margin-top:18px">Hoje<span class="dir">Agenda</span></h3>
+        <div class="lista-at">${D.agenda.map(e => `<div style="--c:#30B0C7"><span class="mi" style="font-weight:800;font-size:11.5px;width:46px">${e.hora}</span><div><b>${e.titulo}</b><span class="sub" style="font-size:12px">${e.local}</span></div></div>`).join("")}</div>
+      </section>
+      <div style="display:grid;grid-template-rows:1fr 1fr;gap:16px">
+        <section class="cartao cor" style="--c:#007AFF">
+          <h3><span class="ic">${icon("car")}</span>Civic<span class="dir">FHK-2B47</span></h3>
+          <div style="display:flex;align-items:flex-end;gap:12px;margin-top:16px"><div class="grande" style="font-size:38px">11,8<small>km/l</small></div><span class="chip bom">+5%</span></div>
+          <p class="sub" style="margin-top:8px">R$ 512,80 em novembro · 68.420 km</p>
+        </section>
+        <section class="cartao cor" style="--c:#AF52DE">
+          <h3><span class="ic">${icon("repeat")}</span>Assinaturas<span class="dir">8 ativas</span></h3>
+          <div style="display:flex;align-items:flex-end;gap:12px;margin-top:16px"><div class="grande" style="font-size:38px">453<small>R$/mês</small></div></div>
+          <p class="sub" style="margin-top:8px">Spotify cobra amanhã · R$ 34,90</p>
+        </section>
+      </div>
+    </div>`;
+  },
+  carro: () => {
+    // Medidor de meio círculo (consumo)
+    const r = 120, c = Math.PI * r, pct = (11.8 - 6) / (16 - 6);
+    return `
+    <div class="cab"><div><h1>Civic</h1><p>${D.carro.modelo} · placa ${D.carro.placa}</p></div>
+      <div style="display:flex;gap:10px"><button class="btn">${icon("car-front")}Modo Carro</button><button class="btn">${icon("wrench")}Nova manutenção</button><button class="btn prim" style="background:#1D4ED8;box-shadow:0 8px 20px -8px #1D4ED8">${icon("fuel")}Novo abastecimento</button></div></div>
+    <div class="carro-hero">
+      <section class="hero-azul">
+        <span class="sub">Consumo médio · últimos 90 dias</span>
+        <div class="grande" style="color:#fff;font-size:64px;margin-top:6px">11,8<small style="color:#ffffffb0">km/l</small></div>
+        <span class="chip" style="align-self:flex-start;margin-top:10px;background:#ffffff26;color:#fff">${icon("trending-up")}0,6 km/l melhor que o trimestre anterior</span>
+        <svg class="carro-svg" viewBox="0 0 470 170" fill="none" stroke="#ffffff" stroke-opacity=".9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 120 C18 104 26 96 44 92 L118 82 C150 56 188 40 236 38 L292 38 C330 40 360 56 392 82 L432 90 C450 94 458 104 458 118 L458 124 C458 128 455 130 451 130 L420 130"/>
+          <path d="M360 130 L148 130 M88 130 L26 130 C21 130 18 127 18 122"/>
+          <path d="M134 82 C160 60 190 50 230 49 L240 49 L246 82 Z" stroke-opacity=".6"/>
+          <path d="M258 49 L290 49 C322 51 346 62 368 82 L264 82 Z" stroke-opacity=".6"/>
+          <circle cx="118" cy="130" r="28"/><circle cx="118" cy="130" r="12" stroke-opacity=".6"/>
+          <circle cx="390" cy="130" r="28"/><circle cx="390" cy="130" r="12" stroke-opacity=".6"/>
+          <path d="M440 100 L452 102" stroke-opacity=".8"/><path d="M26 102 L40 100" stroke-opacity=".8"/>
+        </svg>
+        <div class="linha"><div><span class="sub">Custo por km</span><b>R$ 0,52</b></div><div><span class="sub">Gasto em novembro</span><b>R$ 512,80</b></div><div><span class="sub">Odômetro</span><b>68.420 km</b></div></div>
+      </section>
+      <section class="cartao medidor">
+        <h3 style="align-self:stretch">Tanque<span class="dir">30 de 47 L</span></h3>
+        <svg width="280" height="160" viewBox="0 0 280 160" style="margin-top:12px"><path d="M20 150 A120 120 0 0 1 260 150" fill="none" stroke="#EEF2FF" stroke-width="22" stroke-linecap="round"/><path d="M20 150 A120 120 0 0 1 260 150" fill="none" stroke="url(#gt)" stroke-width="22" stroke-linecap="round" stroke-dasharray="${c * .64} ${c}"/><defs><linearGradient id="gt"><stop offset="0" stop-color="#93C5FD"/><stop offset="1" stop-color="#1D4ED8"/></linearGradient></defs></svg>
+        <div class="grande" style="margin-top:-62px">64%</div>
+        <span class="sub" style="margin-top:6px">≈ 410 km de autonomia</span>
+      </section>
+    </div>
+    <div class="carro-baixo">
+      <section class="cartao"><h3>Últimos abastecimentos<span class="dir">Ver todos</span></h3>
+        ${D.carro.abastecimentos.slice(0, 4).map(a => `<div class="ab"><span class="mi">${icon("fuel")}</span><div><b style="font-weight:700">${a.posto}</b><div class="sub">${a.data} · ${fmt.num(a.litros)} L de ${a.comb.toLowerCase()}</div></div><div class="v">${fmt.brl(a.valor)}<span>${fmt.num(a.kml)} km/l</span></div></div>`).join("")}
+      </section>
+      <section class="cartao"><h3>Manutenção<span class="dir">3 lembretes</span></h3>
+        <div class="lem">${D.carro.lembretes.map(l => `<div><div class="l">${l.nome}<span class="${l.estado === "atencao" ? "chip at" : "sub"}">${l.falta}</span></div><div class="barra ${l.estado === "atencao" ? "at" : ""}"><i style="width:${l.pct * 100}%"></i></div></div>`).join("")}</div>
+      </section>
+      <section class="cartao"><h3>Documentos<span class="dir">2027</span></h3>
+        <div style="margin-top:8px">${D.carro.documentos.map(d => `<div class="doc"><span class="ok ${d.estado === "atencao" ? "at" : ""}">${icon(d.estado === "atencao" ? "clock" : "check")}</span>${d.nome}<span class="i">${d.info}</span></div>`).join("")}</div>
+      </section>
+    </div>`;
+  },
+  assinaturas: () => {
+    const ord = [...D.assinaturas].sort((a, b) => b.valor - a.valor);
+    // Novembro de 2026 começa num domingo
+    const dias = Array.from({ length: 30 }, (_, i) => i + 1);
+    return `
+    <div class="cab"><div><h1>Assinaturas</h1><p>${fmt.brl(totalAssin)} por mês · ${fmt.brl(totalAssin * 12)} por ano · 8 ativas</p></div>
+      <div style="display:flex;gap:10px"><button class="btn">${icon("pause")}Pausadas</button><button class="btn prim" style="background:#7E22CE;box-shadow:0 8px 20px -8px #7E22CE">${icon("plus")}Nova assinatura</button></div></div>
+    <div class="assin-grade">
+      <section class="cartao"><h3>Novembro<span class="dir">${icon("chevron-left")}${icon("chevron-right")}</span></h3>
+        <div class="cal">${["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(s => `<div class="sem">${s}</div>`).join("")}
+        ${dias.map(d => { const c = D.assinaturas.find(a => a.dia === d); return `<div class="d ${d === 13 ? "hoje" : d < 13 ? "passou" : ""}">${d}${c ? `<span class="s"><i style="--c:${c.cor}">${c.nome[0]}</i>${fmt.num(c.valor, 0)}</span>` : ""}</div>`; }).join("")}
+        </div>
+      </section>
+      <section class="cartao cor" style="--c:#AF52DE;display:flex;flex-direction:column">
+        <h3>Por mês</h3>
+        <div class="grande" style="margin-top:10px">R$ 453<small>,29</small></div>
+        <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;margin:16px 0 8px">${ord.map(a => `<span style="flex:${a.valor};background:${a.cor}"></span>`).join("")}</div>
+        <div style="margin-top:10px">${ord.map(a => `<div class="svc" style="--c:${a.cor}"><span class="lg">${a.nome[0]}</span><div><b>${a.nome}</b><span class="sub">${a.plano} · dia ${a.dia}</span></div><span class="v">${fmt.brl(a.valor)}</span></div>`).join("")}</div>
+      </section>
+    </div>`;
+  },
+};
+montar(telas);
+</script>
+</body>
+</html>

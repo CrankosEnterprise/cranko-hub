@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conceito D — Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Barlow+Semi+Condensed:wght@300;400;500;600;700&display=block" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="dados.js"></script>
+<style>
+/* Conceito D — Cockpit: o painel de instrumentos do carro como linguagem.
+   Grafite quente, mostradores com escala, barras em segmentos, luz âmbar para destaque e ciano para informação. */
+:root {
+  --fundo: #17191C; --painel: #1E2024; --painel-2: #24272C; --linha: #ffffff0f; --linha-2: #ffffff1c;
+  --texto: #ECE9E2; --suave: #9A9890; --fraco: #63635E; --ambar: #FFB23F; --ciano: #5ED3E8; --vermelho: #FF5A4E; --verde: #7CDB8A;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { font: 15px/1.45 Barlow, system-ui, sans-serif; color: var(--texto); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
+  background: radial-gradient(900px 500px at 50% 0%, #3A3226, transparent), #0F1012; display: grid; place-items: center; }
+svg.lucide { width: 18px; height: 18px; flex: none; }
+.cond { font-family: "Barlow Semi Condensed", Barlow, sans-serif; }
+.janela { width: 1480px; height: 920px; border-radius: 12px; overflow: hidden; display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 46px 1fr;
+  background: var(--fundo); box-shadow: 0 0 0 1px #ffffff12, 0 50px 100px -30px #000, inset 0 1px 0 #ffffff10; }
+
+/* Barra de título: marca à esquerda, controles da janela em traço fino à direita (sem bolinhas) */
+.titulo { grid-column: 1 / -1; display: flex; align-items: center; padding: 0 0 0 20px; border-bottom: 1px solid var(--linha); background: #141619; }
+.marca { display: flex; align-items: center; gap: 10px; font: 600 14px "Barlow Semi Condensed"; letter-spacing: .14em; }
+.marca i { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, #FFB23F, #E07B12); display: grid; place-items: center; color: #1A1206; font-style: normal; font-weight: 800; font-size: 12px; letter-spacing: 0; }
+.marca b { color: var(--ambar); font-weight: 700; }
+.status { margin-left: 34px; display: flex; gap: 22px; color: var(--suave); font-size: 13px; }
+.status span { display: flex; align-items: center; gap: 7px; }
+.status span svg { width: 15px; height: 15px; }
+.luz { width: 7px; height: 7px; border-radius: 50%; background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+.ctl { margin-left: auto; display: flex; height: 100%; }
+.ctl span { width: 52px; display: grid; place-items: center; color: var(--suave); }
+.ctl span svg { width: 16px; height: 16px; stroke-width: 1.4; }
+.ctl span.x { color: var(--texto); background: #C42B1C; }
+
+.lateral { padding: 18px 12px; border-right: 1px solid var(--linha); display: flex; flex-direction: column; gap: 2px; background: #1A1C1F; }
+.lateral .grupo { font: 500 12.5px "Barlow Semi Condensed"; color: var(--fraco); padding: 14px 12px 6px; letter-spacing: .04em; }
+.lateral a { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: var(--suave); font-weight: 500; position: relative; }
+.lateral a.ativo { color: var(--texto); background: linear-gradient(90deg, #FFB23F1f, transparent); }
+.lateral a.ativo::before { content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; background: var(--ambar); border-radius: 0 3px 3px 0; box-shadow: 0 0 10px var(--ambar); }
+.lateral a.ativo svg { color: var(--ambar); }
+.lateral a .n { margin-left: auto; font: 600 12px "Barlow Semi Condensed"; color: #1A1206; background: var(--ambar); border-radius: 5px; padding: 0 6px; }
+.lateral .pe { margin-top: auto; padding: 12px; border-top: 1px solid var(--linha); display: flex; align-items: center; gap: 10px; color: var(--suave); font-size: 13px; }
+.lateral .pe b { color: var(--texto); display: block; font-weight: 600; }
+.lateral .pe .av { width: 32px; height: 32px; border-radius: 8px; background: #2C2F35; display: grid; place-items: center; font-weight: 700; color: var(--ambar); }
+
+#conteudo { padding: 24px 28px; overflow: hidden; }
+.cab { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
+h1 { font: 500 34px/1.05 "Barlow Semi Condensed"; letter-spacing: -.01em; }
+.cab p { color: var(--suave); margin-top: 4px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 8px; border: 0; font: 600 14px Barlow; color: var(--texto); background: var(--painel-2); box-shadow: inset 0 0 0 1px var(--linha-2), inset 0 1px 0 #ffffff0d; }
+.btn.prim { color: #1A1206; background: linear-gradient(180deg, #FFC468, #F59E1B); box-shadow: 0 0 0 1px #00000033, 0 6px 20px -6px #FFB23F88, inset 0 1px 0 #fff6; }
+.p { background: linear-gradient(180deg, var(--painel-2), var(--painel)); border-radius: 12px; box-shadow: inset 0 0 0 1px var(--linha), inset 0 1px 0 #ffffff0a; padding: 18px 20px; position: relative; }
+.p h3 { font: 600 14px "Barlow Semi Condensed"; color: var(--suave); letter-spacing: .03em; display: flex; align-items: center; gap: 8px; }
+.p h3 svg { width: 16px; height: 16px; color: var(--c, var(--suave)); }
+.p h3 .d { margin-left: auto; font-weight: 500; color: var(--fraco); }
+.v { font: 400 44px/1 "Barlow Semi Condensed"; letter-spacing: -.01em; }
+.v small { font-size: 16px; color: var(--suave); margin-left: 4px; }
+.sub { color: var(--suave); font-size: 13.5px; }
+.ok { color: var(--verde); } .at { color: var(--ambar); } .se { color: var(--vermelho); }
+/* Barra em segmentos, como as do painel */
+.seg { display: flex; gap: 3px; margin-top: 10px; }
+.seg i { flex: 1; height: 9px; border-radius: 2px; background: #ffffff10; }
+.seg i.on { background: var(--c, var(--ciano)); box-shadow: 0 0 6px color-mix(in srgb, var(--c, var(--ciano)) 60%, transparent); }
+
+/* Início */
+.cluster { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+.cluster .p { display: flex; align-items: center; gap: 16px; }
+.ini { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+.alerta { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--linha); }
+.alerta:first-of-type { border-top: 0; }
+.alerta .tri { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); }
+.alerta b { font-weight: 600; display: block; }
+.alerta .q { margin-left: auto; font: 600 13px "Barlow Semi Condensed"; color: var(--c); letter-spacing: .03em; }
+
+/* Carro */
+.mostradores { display: grid; grid-template-columns: 1fr 260px 1fr; gap: 14px; margin-bottom: 14px; align-items: stretch; }
+.mostrador { display: flex; flex-direction: column; align-items: center; padding: 18px 20px 14px; }
+.centro { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 16px; }
+.odo { display: flex; gap: 3px; }
+.odo span { width: 30px; height: 44px; border-radius: 5px; background: #101113; box-shadow: inset 0 0 0 1px #ffffff12, inset 0 8px 10px -6px #000; display: grid; place-items: center; font: 500 28px "Barlow Semi Condensed"; }
+.odo span.ult { color: var(--ambar); }
+.car-baixo { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; height: 404px; }
+.car-baixo .tab td { padding: 11px 0; }
+.car-baixo .seg i { height: 12px; }
+.tab { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.tab th { text-align: left; font: 500 13px "Barlow Semi Condensed"; color: var(--fraco); padding: 6px 0; border-bottom: 1px solid var(--linha); letter-spacing: .03em; }
+.tab td { padding: 9px 0; border-bottom: 1px solid var(--linha); }
+.tab tr:last-child td { border-bottom: 0; }
+.tab .r { text-align: right; }
+
+/* Assinaturas */
+.as-grade { display: grid; grid-template-columns: 1fr 420px; gap: 14px; }
+.regua { position: relative; height: 84px; margin-top: 14px; }
+.regua .eixo { position: absolute; left: 0; right: 0; top: 46px; height: 1px; background: var(--linha-2); }
+.regua .tick { position: absolute; top: 40px; width: 1px; height: 12px; background: #ffffff26; }
+.regua .tick.m { height: 6px; top: 43px; background: #ffffff14; }
+.regua .num { position: absolute; top: 58px; font: 500 12px "Barlow Semi Condensed"; color: var(--fraco); transform: translateX(-50%); }
+.regua .mk { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.regua .mk b { width: 24px; height: 24px; border-radius: 6px; background: var(--c); display: grid; place-items: center; font-size: 11px; color: #fff; }
+.regua .mk i { width: 1px; height: 14px; background: var(--c); }
+.regua .hoje { position: absolute; top: 30px; bottom: 26px; width: 2px; background: var(--ambar); box-shadow: 0 0 10px var(--ambar); }
+.svc { display: grid; grid-template-columns: 30px 150px 1fr 96px; align-items: center; gap: 14px; padding: 6px 0; border-top: 1px solid var(--linha); }
+.svc:first-of-type { border-top: 0; }
+.svc .lg { width: 30px; height: 30px; border-radius: 7px; background: var(--c); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.svc .seg { margin: 0; }
+.svc .seg i { height: 12px; }
+.svc .val { text-align: right; font: 500 19px "Barlow Semi Condensed"; }
+</style>
+</head>
+<body>
+<div class="janela">
+  <div class="titulo">
+    <span class="marca"><i>C</i>CRANKO<b>HUB</b></span>
+    <div class="status"><span><span class="luz"></span>Sincronizado</span><span>${''}</span></div>
+    <div class="ctl"><span id="c1"></span><span id="c2"></span><span id="c3" class="x"></span></div>
+  </div>
+  <aside class="lateral" id="lateral"></aside>
+  <main id="conteudo"></main>
+</div>
+<script>
+document.querySelector(".status").innerHTML = `<span><span class="luz"></span>Sincronizado</span><span>${icon("thermometer")}27 °C</span><span>${icon("clock-3")}14:42</span>`;
+c1.innerHTML = icon("minus"); c2.innerHTML = icon("square"); c3.innerHTML = icon("x");
+const qtd = { carro: 2, assinaturas: 1, tarefas: 4 };
+lateral.innerHTML = `<a data-nav="inicio">${icon("gauge")}Painel</a><div class="grupo">Áreas</div>` +
+  D.modulos.map(m => `<a data-nav="${m.id}">${icon(m.icone)}${m.nome}${qtd[m.id] ? `<span class="n">${qtd[m.id]}</span>` : ""}</a>`).join("") +
+  `<div class="grupo">Sistema</div><a>${icon("settings")}Configurações</a><div class="pe"><span class="av">D</span><div><b>Diego</b>Conta conectada</div></div>`;
+
+const seg = (pct, n = 20, c) => `<div class="seg" ${c ? `style="--c:${c}"` : ""}>${Array.from({ length: n }, (_, i) => `<i class="${i < Math.round(pct * n) ? "on" : ""}"></i>`).join("")}</div>`;
+
+// Mostrador com escala (arco de 240°)
+function mostrador({ valor, min, max, cor, rotulo, unidade, tam = 300, marcas = 10, texto }) {
+  const cx = tam / 2, cy = tam / 2, r = tam / 2 - 26, a0 = 150, a1 = 390;
+  const ang = (v) => (a0 + ((v - min) / (max - min)) * (a1 - a0)) * Math.PI / 180;
+  const pt = (a, rr) => [cx + rr * Math.cos(a), cy + rr * Math.sin(a)];
+  const arco = (v1, v2, rr) => { const [x1, y1] = pt(ang(v1), rr), [x2, y2] = pt(ang(v2), rr); const large = (ang(v2) - ang(v1)) > Math.PI ? 1 : 0; return `M${x1},${y1} A${rr},${rr} 0 ${large} 1 ${x2},${y2}`; };
+  let ticks = "";
+  for (let i = 0; i <= marcas * 5; i++) {
+    const v = min + (i / (marcas * 5)) * (max - min), a = ang(v), maior = i % 5 === 0;
+    const [x1, y1] = pt(a, r - (maior ? 16 : 8)), [x2, y2] = pt(a, r);
+    ticks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${v <= valor ? cor : "#ffffff30"}" stroke-width="${maior ? 2 : 1}"/>`;
+    if (maior) { const [tx, ty] = pt(a, r - 32); ticks += `<text x="${tx}" y="${ty + 4}" text-anchor="middle" fill="#8a8880" font-size="12" font-family="Barlow Semi Condensed">${Math.round(v)}</text>`; }
+  }
+  const [px, py] = pt(ang(valor), r - 46);
+  return `<svg width="${tam}" height="${tam * .82}" viewBox="0 0 ${tam} ${tam * .82}">
+    <path d="${arco(min, max, r + 8)}" fill="none" stroke="#ffffff0a" stroke-width="4"/>
+    <path d="${arco(min, valor, r + 8)}" fill="none" stroke="${cor}" stroke-width="4" stroke-linecap="round" style="filter:drop-shadow(0 0 6px ${cor})"/>
+    ${ticks}
+    <line x1="${cx}" y1="${cy}" x2="${px}" y2="${py}" stroke="${cor}" stroke-width="3" stroke-linecap="round" style="filter:drop-shadow(0 0 5px ${cor})"/>
+    <circle cx="${cx}" cy="${cy}" r="9" fill="#2a2d32" stroke="#ffffff22"/>
+    <text x="${cx}" y="${cy + 58}" text-anchor="middle" fill="#ECE9E2" font-size="40" font-family="Barlow Semi Condensed" font-weight="500">${texto ?? fmt.num(valor)}</text>
+    <text x="${cx}" y="${cy + 80}" text-anchor="middle" fill="#9A9890" font-size="13" font-family="Barlow">${unidade}</text>
+  </svg>`;
+}
+
+const telas = {
+  inicio: () => `
+    <div class="cab"><div><p style="margin:0 0 4px" class="sub">${D.data}</p><h1>Boa tarde, Diego</h1></div>
+      <div style="display:flex;gap:10px"><button class="btn">${icon("sliders-horizontal")}Ajustar painel</button><button class="btn prim">${icon("plus")}Registrar</button></div></div>
+    <div class="cluster">
+      <div class="p" style="--c:#FF5C7C"><div style="flex:1"><h3>${icon("scale")}Peso<span class="d">meta 78</span></h3><div class="v" style="margin-top:8px">82,4<small>kg</small></div>${seg(0.6, 18, "#FF5C7C")}<p class="sub" style="margin-top:6px"><span class="ok">−1,9 kg</span> em 30 dias</p></div></div>
+      <div class="p" style="--c:var(--ciano)"><div style="flex:1"><h3>${icon("fuel")}Tanque<span class="d">Civic</span></h3><div class="v" style="margin-top:8px">64<small>%</small></div>${seg(0.64, 18)}<p class="sub" style="margin-top:6px">≈ 410 km de autonomia</p></div></div>
+      <div class="p" style="--c:var(--verde)"><div style="flex:1"><h3>${icon("square-check-big")}Tarefas<span class="d">hoje</span></h3><div class="v" style="margin-top:8px">3<small>de 7</small></div>${seg(3 / 7, 18, "#7CDB8A")}<p class="sub" style="margin-top:6px"><span class="se">2 atrasadas</span> no quadro Casa</p></div></div>
+      <div class="p" style="--c:#C792FF"><div style="flex:1"><h3>${icon("repeat")}Assinaturas<span class="d">novembro</span></h3><div class="v" style="margin-top:8px">453<small>R$/mês</small></div>${seg(0.45, 18, "#C792FF")}<p class="sub" style="margin-top:6px">R$ 204 já cobrados</p></div></div>
+    </div>
+    <div class="ini">
+      <section class="p">
+        <h3 style="--c:var(--ambar)">${icon("triangle-alert")}Avisos<span class="d">4 ativos</span></h3>
+        <div style="margin-top:8px">${D.alertas.map(a => { const c = a.nivel === "serio" ? "var(--vermelho)" : a.nivel === "atencao" ? "var(--ambar)" : "var(--ciano)"; return `<div class="alerta" style="--c:${c}"><span class="tri">${icon(mod(a.modulo).icone)}</span><div><b>${a.texto}</b><span class="sub">${a.sub}</span></div><span class="q">${a.nivel === "serio" ? "ATRASADO" : a.nivel === "atencao" ? "EM BREVE" : "AMANHÃ"}</span></div>`; }).join("")}</div>
+      </section>
+      <div style="display:grid;gap:14px">
+        <section class="p">
+          <h3 style="--c:var(--ciano)">${icon("calendar")}Hoje<span class="d">2 compromissos</span></h3>
+          ${D.agenda.map(e => `<div class="alerta" style="--c:var(--ciano)"><span class="v" style="font-size:24px;width:62px">${e.hora}</span><div><b>${e.titulo}</b><span class="sub">${e.local}</span></div></div>`).join("")}
+        </section>
+        <section class="p">
+          <h3 style="--c:#FF9F43">${icon("clapperboard")}Em andamento</h3>
+          ${D.entretenimento.slice(0, 2).map(e => `<div style="margin-top:12px"><div style="display:flex;justify-content:space-between"><b style="font-weight:600">${e.titulo}</b><span class="sub">${e.tipo} · ${e.sub}</span></div>${seg(e.progresso, 30, "#FF9F43")}</div>`).join("")}
+        </section>
+      </div>
+    </div>
+    <section class="p" style="margin-top:14px"><h3 style="--c:var(--ciano)">${icon("activity")}Últimos registros<span class="d">Ver tudo</span></h3>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:12px">${D.atividade.map(a => `<div style="display:flex;gap:12px;align-items:center"><span class="alerta" style="--c:${mod(a.modulo).cor};border:0;padding:0"><span class="tri">${icon(a.icone)}</span></span><div><b style="font-weight:600;font-size:14px">${a.texto}</b><div class="sub" style="font-size:12.5px">${a.quando} · ${a.sub}</div></div></div>`).join("")}</div>
+    </section>`,
+  carro: () => `
+    <div class="cab"><div><p style="margin:0 0 4px" class="sub">${D.carro.modelo} · ${D.carro.placa}</p><h1>Civic</h1></div>
+      <div style="display:flex;gap:10px"><button class="btn">${icon("car-front")}Modo Carro</button><button class="btn">${icon("wrench")}Manutenção</button><button class="btn prim">${icon("fuel")}Novo abastecimento</button></div></div>
+    <div class="mostradores">
+      <section class="p mostrador"><h3 style="align-self:stretch;--c:var(--ambar)">${icon("gauge")}Consumo médio<span class="d">90 dias</span></h3>${mostrador({ valor: 11.8, min: 0, max: 20, cor: "#FFB23F", unidade: "km/l", marcas: 4, tam: 300 })}<p class="sub"><span class="ok">+0,6 km/l</span> vs. trimestre anterior</p></section>
+      <section class="p centro">
+        <div><p class="sub">Odômetro</p><div class="odo" style="margin-top:8px">${"068420".split("").map((d, i) => `<span class="${i === 5 ? "ult" : ""}">${d}</span>`).join("")}</div><p class="sub" style="margin-top:6px">+1.240 km no mês</p></div>
+        <div><p class="sub">Custo por km</p><div class="v" style="font-size:36px">0,52<small>R$</small></div></div>
+        <div><p class="sub">Gasto em novembro</p><div class="v" style="font-size:36px">512,80<small>R$</small></div></div>
+      </section>
+      <section class="p mostrador"><h3 style="align-self:stretch;--c:var(--ciano)">${icon("fuel")}Tanque<span class="d">30 de 47 L</span></h3>${mostrador({ valor: 64, min: 0, max: 100, cor: "#5ED3E8", unidade: "≈ 410 km de autonomia", marcas: 4, tam: 300, texto: "64%" })}<p class="sub">Último: 10 nov, 38,2 L</p></section>
+    </div>
+    <div class="car-baixo">
+      <section class="p"><h3 style="--c:var(--ambar)">${icon("fuel")}Abastecimentos<span class="d">Ver histórico</span></h3>
+        <table class="tab"><tr><th>DATA</th><th>POSTO</th><th class="r">LITROS</th><th class="r">KM/L</th><th class="r">VALOR</th></tr>
+        ${D.carro.abastecimentos.slice(0, 5).map(a => `<tr><td>${a.data}</td><td>${a.posto}${a.comb === "Etanol" ? ' <span class="ok" style="font-size:12px;font-weight:600">ETANOL</span>' : ""}</td><td class="r">${fmt.num(a.litros)}</td><td class="r">${fmt.num(a.kml)}</td><td class="r"><b style="font-weight:600">${fmt.brl(a.valor)}</b></td></tr>`).join("")}</table>
+      </section>
+      <section class="p"><h3 style="--c:var(--ambar)">${icon("wrench")}Manutenção e documentos</h3>
+        ${D.carro.lembretes.map(l => `<div style="margin-top:12px"><div style="display:flex;justify-content:space-between"><b style="font-weight:600">${l.nome}</b><span class="${l.estado === "atencao" ? "at" : "sub"}">em ${l.falta}</span></div>${seg(l.pct, 24, l.estado === "atencao" ? "#FFB23F" : "#5ED3E8")}</div>`).join("")}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-top:16px;padding-top:12px;border-top:1px solid var(--linha)">${D.carro.documentos.map(d => `<div style="display:flex;justify-content:space-between;font-size:14px"><span>${d.nome}</span><span class="${d.estado === "atencao" ? "at" : "ok"}">${d.estado === "atencao" ? "18 dias" : "OK"}</span></div>`).join("")}</div>
+      </section>
+    </div>`,
+  assinaturas: () => {
+    const ord = [...D.assinaturas].sort((a, b) => b.valor - a.valor);
+    const max = ord[0].valor, X = (d) => `${((d - 1) / 29) * 100}%`;
+    return `
+    <div class="cab"><div><p style="margin:0 0 4px" class="sub">8 ativas · 2 pausadas</p><h1>Assinaturas</h1></div>
+      <div style="display:flex;gap:10px"><button class="btn">${icon("pause")}Pausadas</button><button class="btn prim">${icon("plus")}Nova assinatura</button></div></div>
+    <section class="p" style="margin-bottom:14px">
+      <div style="display:flex;align-items:flex-end;gap:50px">
+        <div><p class="sub">Total por mês</p><div class="v" style="font-size:64px">453,29<small>R$</small></div></div>
+        <div><p class="sub">Por ano</p><div class="v" style="font-size:32px">5.439,48<small>R$</small></div></div>
+        <div><p class="sub">Já cobrado em novembro</p><div class="v" style="font-size:32px">196,80<small>R$</small></div></div>
+        <div><p class="sub">Próxima</p><div class="v at" style="font-size:32px">Spotify<small>amanhã</small></div></div>
+      </div>
+      <div class="regua">
+        <div class="eixo"></div>
+        ${Array.from({ length: 30 }, (_, i) => `<span class="tick ${(i + 1) % 5 && i ? "m" : ""}" style="left:${X(i + 1)}"></span>${(i + 1) % 5 === 0 || i === 0 ? `<span class="num" style="left:${X(i + 1)}">${i + 1}</span>` : ""}`).join("")}
+        <span class="hoje" style="left:${X(13)}"></span>
+        ${D.assinaturas.map(a => `<span class="mk" style="left:${X(a.dia)};--c:${a.cor};${a.dia < 13 ? "opacity:.45" : ""}"><b>${a.nome[0]}</b><i></i></span>`).join("")}
+      </div>
+    </section>
+    <section class="p"><h3 style="--c:#C792FF">${icon("chart-bar-big")}Peso de cada uma no mês<span class="d">ordenado por valor</span></h3>
+      <div style="margin-top:6px">${ord.map(a => `<div class="svc" style="--c:${a.cor}"><span class="lg">${a.nome[0]}</span><div><b style="font-weight:600">${a.nome}</b><div class="sub" style="font-size:12.5px">${a.plano} · dia ${a.dia}</div></div>${seg(a.valor / max, 40, a.cor)}<span class="val">${fmt.brl(a.valor)}</span></div>`).join("")}</div>
+    </section>`;
+  },
+};
+montar(telas);
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>CrankoHub — conceitos de redesign</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300..800&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; padding: 50px 60px; background: #EDEEF1; font-family: Manrope, sans-serif; color: #14161B; }
+  h1 { font-size: 34px; font-weight: 300; letter-spacing: -.02em; margin: 0 0 6px; }
+  .intro { color: #5F6470; margin: 0 0 34px; font-size: 16px; }
+  .linha { display: grid; grid-template-columns: 300px repeat(3, 1fr); gap: 20px; align-items: start; margin-bottom: 34px; }
+  .nome b { display: block; font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+  .nome p { color: #5F6470; margin: 6px 0 0; font-size: 14px; line-height: 1.5; }
+  img { width: 100%; border-radius: 10px; box-shadow: 0 0 0 1px #0000000f, 0 10px 30px -14px #0004; display: block; }
+  .rot { font-size: 13px; color: #5F6470; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h1>CrankoHub — 4 direções de redesign</h1>
+<p class="intro">Mesmas telas e mesmos dados em cada direção: Início, Carro e Assinaturas.</p>
+<div id="linhas"></div>
+<script>
+const c = [
+  ["a-atelier", "A · Atelier", "Herdeiro do CrankoForge. Claro, linhas finas no lugar de cartões, números grandes e leves, azul-marinho do logo. Semáforo do mac."],
+  ["b-meia-noite", "B · Meia-noite", "Escuro em azul-marinho, trilho de ícones, blocos em mosaico de tamanhos diferentes, cada módulo brilha na sua cor. Semáforo do mac."],
+  ["c-vitrine", "C · Vitrine", "Claro e colorido, sem barra lateral: menu em cápsula no topo, cartões tingidos com a cor do módulo. Botões da janela numa cápsula à direita."],
+  ["d-cockpit", "D · Cockpit", "Painel de instrumentos: grafite, mostradores com escala, barras em segmentos, luz âmbar. Botões da janela em traço fino, estilo Windows."],
+];
+document.getElementById("linhas").innerHTML = c.map(([id, n, d]) => `<div class="linha"><div class="nome"><b>${n}</b><p>${d}</p></div>${["inicio", "carro", "assinaturas"].map(t => `<div><img src="imagens/${id}-${t}.png"><div class="rot">${{ inicio: "Início", carro: "Carro", assinaturas: "Assinaturas" }[t]}</div></div>`).join("")}</div>`).join("");
+</script>
+</body>
+</html>

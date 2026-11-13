@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conceito B — Meia-noite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&display=block" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="dados.js"></script>
+<style>
+/* Conceito B — Meia-noite: o azul-marinho do logo vira o ambiente.
+   Trilho de ícones, mosaico de blocos de tamanhos diferentes, cada módulo acende na sua própria cor. */
+:root {
+  --fundo: #070B16; --bloco: #0E1424; --bloco-2: #131B30; --linha: #ffffff10; --linha-2: #ffffff1a;
+  --texto: #ECEFF8; --suave: #8D96B0; --fraco: #59627C; --destaque: #A9B8FF;
+  --atencao: #FFB547; --serio: #FF6B5E; --bom: #4ADE9B;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { font: 14px/1.5 Geist, system-ui, sans-serif; color: var(--texto); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
+  background: radial-gradient(900px 600px at 70% 10%, #2B3A78, transparent), radial-gradient(800px 600px at 10% 90%, #3A1E5C, transparent), #0B0F1E;
+  display: grid; place-items: center; }
+svg.lucide { width: 18px; height: 18px; flex: none; }
+
+.janela { width: 1480px; height: 920px; border-radius: 16px; overflow: hidden; position: relative; display: grid; grid-template-columns: 84px 1fr;
+  background: radial-gradient(700px 380px at 60% -10%, #1B2A5E88, transparent), var(--fundo);
+  box-shadow: 0 0 0 1px #ffffff14, 0 50px 120px -30px #000c, inset 0 1px 0 #ffffff12; }
+
+.trilho { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 0; border-right: 1px solid var(--linha); }
+.semaforo { display: flex; gap: 6px; margin-bottom: 18px; }
+.semaforo i { width: 10px; height: 10px; border-radius: 50%; }
+.semaforo i:nth-child(1) { background: #FF5F57 } .semaforo i:nth-child(2) { background: #FEBC2E } .semaforo i:nth-child(3) { background: #28C840 }
+.logo { width: 42px; height: 42px; border-radius: 12px; background: radial-gradient(circle at 50% 30%, #2B4290, #0A1230); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff; box-shadow: 0 0 0 1px #ffffff1f, 0 8px 24px -6px #3B5BDB88; margin-bottom: 14px; }
+.logo b { color: var(--destaque); }
+.trilho a { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; color: var(--suave); position: relative; }
+.trilho a.ativo { color: #fff; background: linear-gradient(160deg, color-mix(in srgb, var(--c) 55%, #0000), color-mix(in srgb, var(--c) 22%, #0000)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, #fff3), 0 10px 30px -8px var(--c); }
+.trilho a.ativo::before { content: ""; position: absolute; left: -19px; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--c); }
+.trilho .badge { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--atencao); box-shadow: 0 0 0 2px var(--fundo); }
+.trilho .fim { margin-top: auto; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: conic-gradient(from 200deg, #A9B8FF, #C084FC, #A9B8FF); padding: 2px; }
+.avatar span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: #18213F; font-weight: 700; font-size: 13px; }
+
+.area { display: flex; flex-direction: column; min-width: 0; }
+.topo { display: flex; align-items: center; gap: 14px; padding: 16px 28px; }
+.titulo-pg { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; }
+.titulo-pg .ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c); }
+.cmd { margin: 0 auto; width: 460px; display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 12px; background: #ffffff08; box-shadow: inset 0 0 0 1px var(--linha-2); color: var(--fraco); }
+.cmd kbd { margin-left: auto; font: 500 11px Geist; color: var(--suave); padding: 2px 7px; border-radius: 6px; background: #ffffff0d; }
+.sinc { display: flex; align-items: center; gap: 8px; color: var(--suave); font-size: 12.5px; }
+.sinc i { width: 7px; height: 7px; border-radius: 50%; background: var(--bom); box-shadow: 0 0 10px var(--bom); }
+.btn { display: inline-flex; align-items: center; gap: 8px; font: 600 13px Geist; padding: 9px 15px; border-radius: 11px; border: 0; color: var(--texto); background: #ffffff0d; box-shadow: inset 0 0 0 1px var(--linha-2); }
+.btn.prim { color: #0A1030; background: linear-gradient(180deg, #C7D2FF, #9AABFF); box-shadow: 0 8px 24px -8px #8EA2FFaa, inset 0 1px 0 #fff8; }
+#conteudo { flex: 1; padding: 4px 28px 26px; overflow: hidden; }
+
+.bento { display: grid; gap: 14px; height: 100%; }
+.b { background: linear-gradient(180deg, var(--bloco-2), var(--bloco)); border-radius: 20px; box-shadow: inset 0 0 0 1px var(--linha), inset 0 1px 0 #ffffff0d; padding: 20px 22px; position: relative; overflow: hidden; }
+.b-cab { display: flex; align-items: center; gap: 9px; color: var(--suave); font-size: 13px; font-weight: 500; }
+.b-cab .ic { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.b-cab .ic svg { width: 15px; height: 15px; }
+.b-cab .dir { margin-left: auto; color: var(--fraco); font-size: 12px; }
+.brilho::after { content: ""; position: absolute; width: 260px; height: 260px; right: -80px; top: -120px; background: radial-gradient(circle, color-mix(in srgb, var(--c) 30%, transparent), transparent 70%); pointer-events: none; }
+.num { font-size: 46px; font-weight: 300; letter-spacing: -.04em; line-height: 1; }
+.num small { font-size: 15px; color: var(--suave); font-weight: 400; letter-spacing: 0; margin-left: 5px; }
+.sub { color: var(--suave); font-size: 12.5px; }
+.pos { color: var(--bom); font-weight: 600; }
+.pilula { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: #ffffff0d; color: var(--suave); }
+.pilula.at { color: var(--atencao); background: #FFB5471a; }
+.pilula.se { color: var(--serio); background: #FF6B5E1a; }
+
+/* Início */
+.inicio { grid-template-columns: 1.25fr 1fr 1fr 1fr; grid-template-rows: 250px 300px minmax(0, 1fr); }
+.inicio .b { min-height: 0; }
+.ola { grid-column: span 2; display: flex; flex-direction: column; background: radial-gradient(500px 260px at 0% 0%, #2B3F8A66, transparent), linear-gradient(180deg, var(--bloco-2), var(--bloco)); }
+.ola h1 { font-size: 38px; font-weight: 400; letter-spacing: -.035em; line-height: 1.1; margin-top: 6px; }
+.ola p.resumo { color: var(--suave); font-size: 15px; margin-top: 10px; max-width: 460px; }
+.ola p.resumo b { color: var(--texto); font-weight: 500; }
+.ola .acoes { margin-top: auto; display: flex; gap: 8px; }
+.peso { grid-row: span 2; display: flex; flex-direction: column; }
+.peso svg.graf { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 55%; }
+.alertas { grid-column: span 2; }
+.alertas .item { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--linha); }
+.alertas .item:first-of-type { border-top: 0; margin-top: 8px; }
+.alertas .item b { font-weight: 550; font-size: 13.5px; }
+.alertas .item .pilula { margin-left: auto; }
+.alertas .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); flex: none; }
+.anel { position: absolute; right: 20px; bottom: 18px; }
+.estante { grid-column: span 2; }
+.capas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.capa { border-radius: 12px; height: 104px; padding: 12px; display: flex; flex-direction: column; justify-content: flex-end; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: inset 0 0 0 1px #ffffff14; position: relative; }
+.capa b { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.capa span { font-size: 11px; color: #ffffffaa; }
+.capa .barra { height: 3px; border-radius: 2px; background: #ffffff26; margin-top: 8px; }
+.capa .barra i { display: block; height: 100%; border-radius: 2px; background: #fff; }
+.capa .tipo { position: absolute; top: 10px; left: 12px; font-size: 10.5px; padding: 1px 7px; border-radius: 10px; background: #0005; color: #fffc; }
+.hoje .ev { display: flex; gap: 10px; padding: 7px 0; }
+.hoje .ev b { font-weight: 600; width: 44px; font-size: 13px; }
+
+/* Carro */
+.carro { grid-template-columns: 1fr 1fr 1fr 330px; grid-template-rows: auto 1fr 1fr; }
+.carro-hero { grid-column: span 3; grid-row: span 2; display: flex; flex-direction: column; background: radial-gradient(700px 300px at 30% 0%, #1E4FD833, transparent), linear-gradient(180deg, var(--bloco-2), var(--bloco)); }
+.carro-hero h1 { font-size: 34px; font-weight: 400; letter-spacing: -.03em; }
+.stats { display: flex; gap: 40px; margin-top: 22px; }
+.stats .v { font-size: 30px; font-weight: 300; letter-spacing: -.03em; }
+.stats .v small { font-size: 13px; color: var(--suave); margin-left: 3px; }
+.graf-cons { margin-top: auto; height: 250px; position: relative; }
+.graf-cons .eixo { position: absolute; left: 0; right: 0; display: flex; justify-content: space-between; bottom: -4px; color: var(--fraco); font-size: 11px; }
+.cab-carro { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 2px 2px 4px; }
+.cab-carro .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #ffffff08; box-shadow: inset 0 0 0 1px var(--linha); }
+.cab-carro .tabs a { padding: 6px 13px; border-radius: 9px; color: var(--suave); font-weight: 500; font-size: 13px; }
+.cab-carro .tabs a.ativo { background: #ffffff12; color: var(--texto); box-shadow: inset 0 0 0 1px var(--linha-2); }
+.veic { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; border-radius: 12px; background: #ffffff08; box-shadow: inset 0 0 0 1px var(--linha); }
+.veic .ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: #007AFF26; color: #5AA9FF; }
+.lado { display: flex; flex-direction: column; gap: 14px; grid-row: span 2; }
+.lado .b { flex: none; }
+.lemb { margin-top: 12px; display: grid; gap: 12px; }
+.lemb .l1 { display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; }
+.trilha-p { height: 6px; border-radius: 3px; background: #ffffff0f; margin-top: 7px; overflow: hidden; }
+.trilha-p i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #3B82F6, #A9B8FF); }
+.trilha-p.at i { background: linear-gradient(90deg, #F59E0B, #FFB547); }
+.abast { grid-column: span 3; }
+.ab-linha { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+.ab { border-radius: 14px; padding: 13px 14px; background: #ffffff06; box-shadow: inset 0 0 0 1px var(--linha); }
+.ab b { display: block; font-size: 18px; font-weight: 500; letter-spacing: -.02em; }
+.doc { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--linha); font-size: 13px; }
+.doc:first-of-type { border-top: 0; margin-top: 8px; }
+
+/* Assinaturas */
+.assin { grid-template-columns: 400px 1fr; grid-template-rows: 1fr; }
+.rosca-b { display: flex; flex-direction: column; align-items: center; text-align: center; background: radial-gradient(400px 300px at 50% 30%, #AF52DE22, transparent), linear-gradient(180deg, var(--bloco-2), var(--bloco)); }
+.rosca-centro { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.prox { width: 100%; text-align: left; margin-top: auto; }
+.prox .p { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--linha); font-size: 13px; }
+.prox .p b { margin-left: auto; font-weight: 600; }
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-content: start; }
+.historico { grid-column: 1 / -1; height: 290px; display: flex; flex-direction: column; }
+.hbarras { flex: 1; display: flex; align-items: flex-end; gap: 14px; margin-top: 14px; }
+.hbarras div { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 7px; color: var(--fraco); font-size: 11px; }
+.hbarras span { width: 100%; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, #AF52DE66, #AF52DE14); box-shadow: inset 0 1px 0 #ffffff1a; }
+.hbarras div:last-child span { background: linear-gradient(180deg, #C77DFF, #7A3BB0); box-shadow: 0 10px 30px -10px #AF52DE; }
+.hbarras div:last-child { color: var(--texto); }
+.cards-cab { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+.cards-cab h2 { font-size: 20px; font-weight: 500; letter-spacing: -.02em; }
+.cards-cab .acoes { margin-left: auto; display: flex; gap: 8px; }
+.sv { border-radius: 18px; padding: 16px; min-height: 168px; display: flex; flex-direction: column; background: radial-gradient(240px 160px at 100% 0%, color-mix(in srgb, var(--c) 26%, transparent), transparent), linear-gradient(180deg, var(--bloco-2), var(--bloco)); box-shadow: inset 0 0 0 1px var(--linha); }
+.sv .lg { width: 38px; height: 38px; border-radius: 11px; background: var(--c); display: grid; place-items: center; font-weight: 800; color: #fff; box-shadow: 0 8px 20px -8px var(--c); }
+.sv .valor { margin-top: auto; font-size: 24px; font-weight: 400; letter-spacing: -.03em; }
+.sv .valor small { font-size: 12px; color: var(--suave); }
+.sv .top { display: flex; justify-content: space-between; align-items: flex-start; }
+</style>
+</head>
+<body>
+<div class="janela">
+  <aside class="trilho" id="trilho"></aside>
+  <div class="area">
+    <header class="topo">
+      <div class="titulo-pg" id="titulo"></div>
+      <div class="cmd" id="cmd"></div>
+      <div class="sinc"><i></i>Sincronizado</div>
+    </header>
+    <main id="conteudo"></main>
+  </div>
+</div>
+<script>
+const nomes = { inicio: ["Início", "#A9B8FF"], carro: ["Carro", "#007AFF"], assinaturas: ["Assinaturas", "#AF52DE"] };
+const tela = (location.hash || "#inicio").slice(1);
+document.getElementById("trilho").innerHTML =
+  `<div class="semaforo"><i></i><i></i><i></i></div><div class="logo">C<b>H</b></div>` +
+  `<a data-nav="inicio" style="--c:#6E86FF">${icon("house")}</a>` +
+  D.modulos.map(m => `<a data-nav="${m.id}" style="--c:${m.cor}">${icon(m.icone)}${["carro", "tarefas"].includes(m.id) ? '<span class="badge"></span>' : ""}</a>`).join("") +
+  `<a class="fim">${icon("settings")}</a><div class="avatar"><span>D</span></div>`;
+document.getElementById("titulo").innerHTML = `<span class="ponto" style="--c:${nomes[tela][1]}"></span>${nomes[tela][0]}`;
+document.getElementById("cmd").innerHTML = `${icon("search")}Buscar, registrar peso, novo abastecimento…<kbd>Ctrl K</kbd>`;
+
+function anel(pct, cor, r = 34, w = 7) {
+  const c = 2 * Math.PI * r;
+  return `<svg width="${2 * r + w * 2}" height="${2 * r + w * 2}" style="transform:rotate(-90deg)"><circle cx="${r + w}" cy="${r + w}" r="${r}" fill="none" stroke="#ffffff10" stroke-width="${w}"/><circle cx="${r + w}" cy="${r + w}" r="${r}" fill="none" stroke="${cor}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${c * pct} ${c}" style="filter:drop-shadow(0 0 6px ${cor})"/></svg>`;
+}
+
+const telas = {
+  inicio: () => {
+    const p = caminho(D.peso.serie, 300, 160, 2);
+    return `<div class="bento inicio">
+      <section class="b ola">
+        <span class="sub">${D.data}</span>
+        <h1>Boa tarde, Diego.</h1>
+        <p class="resumo">Hoje você tem <b>2 compromissos</b>, <b>4 tarefas</b> e <b>uma cobrança</b> chegando. O IPVA do Civic vence em 18 dias.</p>
+        <div class="acoes"><button class="btn prim">${icon("plus")}Registrar</button><button class="btn">${icon("scale")}Peso</button><button class="btn">${icon("fuel")}Abastecimento</button></div>
+      </section>
+      <section class="b peso brilho" style="--c:#FF2D55">
+        <div class="b-cab"><span class="ic">${icon("scale")}</span>Dieta<span class="dir">90 dias</span></div>
+        <div class="num" style="margin-top:22px">82,4<small>kg</small></div>
+        <p class="sub" style="margin-top:8px"><span class="pos">−1,9 kg</span> no mês</p>
+        <p class="sub">Meta 78 kg · faltam 4,4</p>
+        <svg class="graf" viewBox="0 0 300 160" preserveAspectRatio="none"><defs><linearGradient id="gp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF2D55" stop-opacity=".45"/><stop offset="1" stop-color="#FF2D55" stop-opacity="0"/></linearGradient></defs><path d="${p.area}" fill="url(#gp)"/><path d="${p.linha}" fill="none" stroke="#FF5C7C" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+      </section>
+      <section class="b brilho" style="--c:#007AFF">
+        <div class="b-cab"><span class="ic">${icon("car")}</span>Civic</div>
+        <div class="num" style="margin-top:22px">11,8<small>km/l</small></div>
+        <p class="sub" style="margin-top:8px"><span class="pos">+5%</span> vs. 3 meses</p>
+        <div class="anel">${anel(.64, "#3B9BFF", 26, 6)}</div>
+      </section>
+      <section class="b alertas">
+        <div class="b-cab">${icon("sparkles")}Precisa de atenção<span class="dir">4 itens</span></div>
+        ${D.alertas.map(a => `<div class="item"><span class="dot" style="--c:${mod(a.modulo).cor}"></span><div><b>${a.texto}</b><div class="sub">${a.sub}</div></div><span class="pilula ${a.nivel === "serio" ? "se" : a.nivel === "atencao" ? "at" : ""}">${a.nivel === "serio" ? "Atrasado" : a.nivel === "atencao" ? "Em breve" : "Amanhã"}</span></div>`).join("")}
+      </section>
+      <section class="b brilho" style="--c:#AF52DE">
+        <div class="b-cab"><span class="ic">${icon("repeat")}</span>Assinaturas</div>
+        <div class="num" style="margin-top:22px;font-size:38px">453<small>R$/mês</small></div>
+        <p class="sub" style="margin-top:8px">Spotify cobra amanhã</p>
+      </section>
+      <section class="b estante">
+        <div class="b-cab"><span class="ic" style="--c:#FF9500">${icon("clapperboard")}</span>Continuar de onde parou</div>
+        <div class="capas">${D.entretenimento.map(e => `<div class="capa" style="--c1:${e.cor1};--c2:${e.cor2}"><span class="tipo">${e.tipo}</span><b>${e.titulo}</b><span>${e.sub}</span><div class="barra"><i style="width:${e.progresso * 100}%"></i></div></div>`).join("")}</div>
+      </section>
+      <section class="b hoje" style="grid-column:span 2">
+        <div class="b-cab"><span class="ic" style="--c:#30B0C7">${icon("calendar")}</span>Hoje<span class="dir">3 de 7 tarefas</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:10px">
+          <div>${D.agenda.map(e => `<div class="ev"><b>${e.hora}</b><div>${e.titulo}<div class="sub">${e.local}</div></div></div>`).join("")}</div>
+          <div>${D.tarefas.hoje.slice(1, 4).map(t => `<div class="ev"><span style="width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #34C759;flex:none;margin-top:2px"></span>${t}</div>`).join("")}</div>
+        </div>
+      </section>
+    </div>`;
+  },
+  carro: () => {
+    const p = caminho(D.carro.consumo, 900, 220, 6, 9.5, 13);
+    return `<div class="bento carro">
+      <div class="cab-carro">
+        <div class="veic"><span class="ic">${icon("car")}</span><div><b style="font-weight:600">Civic</b> <span class="sub">FHK-2B47</span></div>${icon("chevrons-up-down")}</div>
+        <nav class="tabs"><a class="ativo">Visão geral</a><a>Abastecimentos</a><a>Consumo</a><a>Manutenção</a><a>Documentos</a><a>Calculadoras</a></nav>
+        <div style="margin-left:auto;display:flex;gap:8px"><button class="btn">${icon("car-front")}Modo Carro</button><button class="btn prim">${icon("fuel")}Novo abastecimento</button></div>
+      </div>
+      <section class="b carro-hero">
+        <span class="sub">${D.carro.modelo}</span>
+        <h1>11,8 km/l de média</h1>
+        <div class="stats">
+          <div><span class="sub">Custo por km</span><div class="v">0,52<small>R$</small></div></div>
+          <div><span class="sub">Gasto em novembro</span><div class="v">512,80<small>R$</small></div></div>
+          <div><span class="sub">Odômetro</span><div class="v">68.420<small>km</small></div></div>
+          <div><span class="sub">Melhor mês</span><div class="v">12,4<small>out</small></div></div>
+        </div>
+        <div class="graf-cons">
+          <svg viewBox="0 0 900 220" preserveAspectRatio="none" style="width:100%;height:225px"><defs><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B82F6" stop-opacity=".4"/><stop offset="1" stop-color="#3B82F6" stop-opacity="0"/></linearGradient></defs>
+          ${[0.25, 0.5, 0.75].map(y => `<line x1="0" x2="900" y1="${220 * y}" y2="${220 * y}" stroke="#ffffff0c"/>`).join("")}
+          <path d="${p.area}" fill="url(#gc)"/><path d="${p.linha}" fill="none" stroke="#7FB2FF" stroke-width="2.2" vector-effect="non-scaling-stroke"/>
+          </svg>
+          <div class="eixo">${D.carro.meses.map(m => `<span>${m}</span>`).join("")}</div>
+        </div>
+      </section>
+      <div class="lado">
+        <section class="b brilho" style="--c:#007AFF;display:flex;align-items:center;gap:18px">
+          <div style="position:relative">${anel(.64, "#3B9BFF", 38, 8)}<div class="rosca-centro"><b style="font-size:20px;font-weight:500">64%</b></div></div>
+          <div><div class="b-cab" style="padding:0">Tanque</div><div style="font-size:22px;font-weight:400;letter-spacing:-.02em">≈ 410 km</div><span class="sub">30 de 47 litros</span></div>
+        </section>
+        <section class="b">
+          <div class="b-cab"><span class="ic" style="--c:#FFB547">${icon("wrench")}</span>Manutenção</div>
+          <div class="lemb">${D.carro.lembretes.map(l => `<div><div class="l1">${l.nome}<span class="${l.estado === "atencao" ? "pilula at" : "sub"}">${l.falta}</span></div><div class="trilha-p ${l.estado === "atencao" ? "at" : ""}"><i style="width:${l.pct * 100}%"></i></div></div>`).join("")}</div>
+        </section>
+        <section class="b">
+          <div class="b-cab"><span class="ic" style="--c:#4ADE9B">${icon("file-check-2")}</span>Documentos</div>
+          ${D.carro.documentos.map(d => `<div class="doc">${d.nome}<span class="${d.estado === "atencao" ? "pilula at" : "sub"}">${d.info}</span></div>`).join("")}
+        </section>
+      </div>
+      <section class="b abast">
+        <div class="b-cab"><span class="ic" style="--c:#007AFF">${icon("fuel")}</span>Últimos abastecimentos<span class="dir">Ver histórico</span></div>
+        <div class="ab-linha">${D.carro.abastecimentos.slice(0, 4).map(a => `<div class="ab"><span class="sub">${a.data} · ${a.comb}</span><b>${fmt.brl(a.valor)}</b><span class="sub">${fmt.num(a.litros)} L · ${fmt.num(a.kml)} km/l</span></div>`).join("")}</div>
+      </section>
+    </div>`;
+  },
+  assinaturas: () => {
+    const ord = [...D.assinaturas].sort((a, b) => b.valor - a.valor);
+    const r = 110, c = 2 * Math.PI * r; let acc = 0;
+    const arcos = ord.map(a => { const f = a.valor / totalAssin; const s = `<circle cx="140" cy="140" r="${r}" fill="none" stroke="${a.cor}" stroke-width="22" stroke-dasharray="${c * f - 4} ${c}" stroke-dashoffset="${-c * acc}"/>`; acc += f; return s; }).join("");
+    const prox = [...D.assinaturas].filter(a => a.dia > 13).sort((a, b) => a.dia - b.dia).slice(0, 4);
+    return `<div class="bento assin">
+      <section class="b rosca-b">
+        <div class="b-cab" style="align-self:stretch">${icon("pie-chart")}Por mês<span class="dir">8 ativas</span></div>
+        <div style="position:relative;margin-top:18px"><svg width="280" height="280" style="transform:rotate(-90deg)">${arcos}</svg>
+          <div class="rosca-centro"><span class="sub">Total mensal</span><div class="num" style="font-size:40px">453,29</div><span class="sub">R$ 5.439 por ano</span></div></div>
+        <div class="prox"><div class="b-cab" style="margin-bottom:6px">Próximas cobranças</div>
+          ${prox.map(a => `<div class="p"><span class="lg" style="width:22px;height:22px;border-radius:6px;background:${a.cor};display:grid;place-items:center;font-size:11px;font-weight:800">${a.nome[0]}</span>${a.nome}<span class="sub">dia ${a.dia}${a.dia === 14 ? " · amanhã" : ""}</span><b>${fmt.brl(a.valor)}</b></div>`).join("")}
+        </div>
+      </section>
+      <div class="cards">
+        <div class="cards-cab"><h2>Seus serviços</h2><span class="pilula">Ativas 8</span><span class="pilula">Pausadas 2</span><div class="acoes"><button class="btn">${icon("arrow-down-wide-narrow")}Valor</button><button class="btn prim">${icon("plus")}Nova assinatura</button></div></div>
+        ${ord.map(a => `<div class="sv" style="--c:${a.cor}"><div class="top"><span class="lg">${a.nome[0]}</span><span class="pilula ${a.dia === 14 ? "at" : ""}">${a.dia === 14 ? "Amanhã" : "Dia " + a.dia}</span></div><b style="margin-top:14px;font-weight:600">${a.nome}</b><span class="sub">${a.plano} · ${a.cat}</span><div class="valor">${fmt.brl(a.valor)}<small> /mês</small></div></div>`).join("")}
+        <section class="b historico"><div class="b-cab"><span class="ic" style="--c:#AF52DE">${icon("chart-column")}</span>Gasto mensal com assinaturas<span class="dir">Subiu R$ 119,90 em julho, com o ChatGPT</span></div>
+          <div class="hbarras">${[311.5, 311.5, 333.4, 333.4, 333.4, 333.4, 333.4, 453.3, 453.3, 453.3, 453.3, 453.3].map((v, i) => `<div><b style="font-weight:500;font-size:11.5px">${Math.round(v)}</b><span style="height:${v / 453.3 * 72}%"></span>${D.carro.meses[i]}</div>`).join("")}</div>
+        </section>
+      </div>
+    </div>`;
+  },
+};
+montar(telas);
+</script>
+</body>
+</html>
