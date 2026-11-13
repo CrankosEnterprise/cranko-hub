@@ -1,0 +1,134 @@
+@namespace CrankoHub.Components
+@* Configurações → Módulos: mostrar/esconder, reordenar (arrastando ou pelas setas) e mudar nome, descrição, cor e ícone.
+   A ordem e a aparência valem para o menu, os atalhos do topo e o Início (Models/Comum/Modulo.cs). *@
+@implements IAsyncDisposable
+@inject ArmazenamentoService Store
+@inject IDialogoService Dialogo
+@inject IJSRuntime JS
+
+@{
+    var cfg = Store.Dados.Config;
+    var lista = Modulo.Ordenados(cfg).ToList();
+    var mexeu = cfg.OrdemModulos.Count > 0 || cfg.ModulosPersonalizados.Count > 0;
+}
+
+<section class="card">
+    <div class="card-head"><div><h2>Módulos</h2><p>Escolha o que aparece, em que ordem e como cada módulo se chama. Vale para o menu, os atalhos e o Início. Esconder um módulo não apaga os dados dele.</p></div></div>
+
+    <ul class="mod-lista" @ref="_lista">
+        @for (var i = 0; i < lista.Count; i++)
+        {
+            var m = lista[i];
+            var indice = i;
+            var visivel = Modulo.Visivel(cfg, m.Id);
+            var editando = _editando == m.Id;
+            <li class="mod-linha @(editando ? "aberta" : "") @(visivel ? "" : "oculto")" data-id="@m.Id" @key="m.Id">
+                <div class="mod-topo">
+                    <button type="button" class="mod-alca" data-alca title="Arraste para mudar a ordem" aria-label="Arrastar @m.Nome">@Icones.Alca</button>
+                    <span class="tile" style="--c:@m.Cor">@m.Icone</span>
+                    <div class="mod-texto"><b>@m.Nome</b><span>@m.Descricao</span></div>
+                    <div class="mod-acoes">
+                        <button type="button" class="icon-btn" title="Subir" aria-label="Subir @m.Nome" disabled="@(indice == 0)" @onclick="() => Store.MoverModulo(m.Id, indice - 1)">@Icones.Subir</button>
+                        <button type="button" class="icon-btn mod-descer" title="Descer" aria-label="Descer @m.Nome" disabled="@(indice == lista.Count - 1)" @onclick="() => Store.MoverModulo(m.Id, indice + 1)">@Icones.Subir</button>
+                        <button type="button" class="icon-btn @(editando ? "ativo" : "")" title="Personalizar" aria-label="Personalizar @m.Nome" aria-expanded="@editando"
+                                @onclick="() => _editando = editando ? null : m.Id">@Icones.Editar</button>
+                        <label class="check" title="@(visivel ? "Esconder" : "Mostrar")"><input type="checkbox" aria-label="Mostrar @m.Nome" checked="@visivel" @onchange="@(e => Store.MostrarModulo(m.Id, e.Value is true))"></label>
+                    </div>
+                </div>
+
+                @if (editando)
+                {
+                    var padrao = m.Padrao;
+                    var p = cfg.ModulosPersonalizados.GetValueOrDefault(m.Id);
+                    var corPersonalizada = p?.Cor is { } c && !CorDestaque.Paleta.Any(x => x.Claro == c);
+                    <div class="mod-editor">
+                        <div class="form-grid">
+                            <label class="field"><span>Nome</span>
+                                <input type="text" maxlength="@PersonalizacaoModulo.MaxNome" placeholder="@padrao.Nome" value="@p?.Nome"
+                                       @onchange="@(e => Store.PersonalizarModulo(m.Id, x => x.Nome = e.Value?.ToString()))"></label>
+                            <label class="field"><span>Descrição</span>
+                                <input type="text" maxlength="@PersonalizacaoModulo.MaxDescricao" placeholder="@padrao.Descricao" value="@p?.Descricao"
+                                       @onchange="@(e => Store.PersonalizarModulo(m.Id, x => x.Descricao = e.Value?.ToString()))"></label>
+                        </div>
+
+                        <span class="mod-rotulo">Cor</span>
+                        <div class="paleta">
+                            <button type="button" class="cor @(p?.Cor is null ? "ativa" : "")" title="Padrão" aria-label="Cor padrão"
+                                    style="background:@padrao.Cor;--cor:@padrao.Cor" @onclick="() => MudarCor(m.Id, null)"></button>
+                            <span class="mod-sep" aria-hidden="true"></span>
+                            @foreach (var cor in CorDestaque.Paleta)
+                            {
+                                <button type="button" class="cor @(p?.Cor == cor.Claro ? "ativa" : "")" title="@cor.Nome" aria-label="@cor.Nome"
+                                        style="background:@cor.Claro;--cor:@cor.Claro" @onclick="() => MudarCor(m.Id, cor.Claro)"></button>
+                            }
+                            <label class="cor cor-personalizada @(corPersonalizada ? "ativa" : "")" title="Personalizada"
+                                   style="@(corPersonalizada ? $"background:{p!.Cor};--cor:{p.Cor}" : "")">
+                                <input type="color" value="@(corPersonalizada ? p!.Cor!.ToLowerInvariant() : "#5856d6")" @onchange="@(e => MudarCor(m.Id, e.Value?.ToString()))">
+                            </label>
+                        </div>
+
+                        <span class="mod-rotulo">Ícone</span>
+                        <div class="mod-icones" role="group" aria-label="Ícone de @m.Nome">
+                            @foreach (var (chave, nome, svg) in Icones.DeModulo)
+                            {
+                                var ativo = (p?.Icone ?? m.Id) == chave;
+                                <button type="button" class="mod-icone @(ativo ? "ativo" : "")" style="--c:@m.Cor" title="@nome" aria-label="@nome" aria-pressed="@ativo"
+                                        @onclick="() => Store.PersonalizarModulo(m.Id, x => x.Icone = chave == m.Id ? null : chave)">@svg</button>
+                            }
+                        </div>
+
+                        <div class="mod-editor-rodape">
+                            <button type="button" class="btn" disabled="@(p is null)" @onclick="() => Store.RestaurarModulo(m.Id)">Restaurar padrão</button>
+                            <button type="button" class="btn primary" @onclick="() => _editando = null">Pronto</button>
+                        </div>
+                    </div>
+                }
+            </li>
+        }
+    </ul>
+
+    <div class="mod-rodape">
+        <button type="button" class="btn" disabled="@(!mexeu)" @onclick="RestaurarTudo">Restaurar ordem e aparência</button>
+    </div>
+</section>
+
+@code {
+    private ElementReference _lista;
+    private OrdenarInterop? _interop;
+    private DotNetObjectReference<ListaModulos>? _ref;
+
+    // Módulo com o painel de personalização aberto (um por vez)
+    private string? _editando;
+
+    protected override void OnInitialized() => Store.ModulosMudaram += Redesenhar;
+
+    private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ref = DotNetObjectReference.Create(this);
+        _interop = new OrdenarInterop(JS);
+        await _interop.IniciarAsync(_lista, _ref, nameof(MoveuModulo));
+    }
+
+    /// <summary>Chamado pelo ordenar.js ao soltar um módulo arrastado.</summary>
+    [JSInvokable]
+    public void MoveuModulo(string id, int posicao) => Store.MoverModulo(id, posicao);
+
+    private void MudarCor(string id, string? cor) => Store.PersonalizarModulo(id, x => x.Cor = cor);
+
+    private async Task RestaurarTudo()
+    {
+        if (!await Dialogo.Confirmar("Voltar a ordem, os nomes, as cores e os ícones de todos os módulos ao padrão?\nOs módulos escondidos continuam escondidos.")) return;
+        _editando = null;
+        Store.RestaurarModulos();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Store.ModulosMudaram -= Redesenhar;
+        if (_interop is not null) await _interop.DisposeAsync();
+        _ref?.Dispose();
+    }
+}

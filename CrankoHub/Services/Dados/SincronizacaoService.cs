@@ -43,7 +43,8 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     private record ColunaLinha(string Id, string QuadroId, string Nome, int Ordem);
     private record AgendaLinha(string Id, string Nome, string Cor, int Ordem);
     private record PerfilLinha(double? Altura, double? Meta, string? Tema, string? CorDestaque, List<string>? ModulosOcultos,
-        int? DiasLembretePeso, int? DiasOcultarConcluidas, bool? NomesEpisodios);
+        int? DiasLembretePeso, int? DiasOcultarConcluidas, bool? NomesEpisodios,
+        List<string>? OrdemModulos, Dictionary<string, PersonalizacaoModulo>? ModulosPersonalizados);
 
     /// <summary>
     /// Uma tabela do servidor: como tirar as linhas dos dados do app e como aplicar uma linha recebida.
@@ -64,7 +65,8 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     [
         new("perfis", typeof(PerfilLinha),
             d => [(IdPerfil, new PerfilLinha(d.Dieta.Perfil.Altura, d.Dieta.Perfil.Meta, d.Tema, d.Config.CorDestaque, d.Config.ModulosOcultos,
-                d.Dieta.Perfil.DiasLembretePeso, d.Tarefas.DiasOcultarConcluidas, d.Config.NomesEpisodios))],
+                d.Dieta.Perfil.DiasLembretePeso, d.Tarefas.DiasOcultarConcluidas, d.Config.NomesEpisodios,
+                d.Config.OrdemModulos, d.Config.ModulosPersonalizados))],
             (d, o, _) =>
             {
                 if (o is not PerfilLinha p) return;
@@ -76,6 +78,9 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
                 d.Tema = p.Tema;
                 if (p.CorDestaque is not null) d.Config.CorDestaque = p.CorDestaque;
                 d.Config.ModulosOcultos = p.ModulosOcultos ?? [];
+                // null: a coluna ainda não existe (0013) ou nunca foi preenchida. A normalização limpa o que vier inválido
+                if (p.OrdemModulos is not null) d.Config.OrdemModulos = p.OrdemModulos;
+                if (p.ModulosPersonalizados is not null) d.Config.ModulosPersonalizados = p.ModulosPersonalizados;
             }),
         Lista("registros_peso", d => d.Dieta.Registros, r => r.Id),
         Lista("veiculos", d => d.Carro.Veiculos, v => v.Id),
@@ -313,6 +318,8 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         ("entretenimento", "temporadas", "0012_entretenimento_episodios.sql"),
         ("entretenimento", "episodios_vistos", "0012_entretenimento_episodios.sql"),
         ("perfis", "nomes_episodios", "0012_entretenimento_episodios.sql"),
+        ("perfis", "ordem_modulos", "0013_modulos_personalizados.sql"),
+        ("perfis", "modulos_personalizados", "0013_modulos_personalizados.sql"),
     ];
 
     private readonly HashSet<string> _semTabela = [];

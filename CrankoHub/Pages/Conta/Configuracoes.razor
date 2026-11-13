@@ -27,15 +27,7 @@
 @switch (_aba)
 {
     case "modulos":
-        <section class="card">
-            <div class="card-head"><div><h2>Módulos</h2><p>Escolha o que aparece no menu, no Início e nos avisos. Esconder um módulo não apaga os dados dele.</p></div></div>
-            <div class="opcoes">
-                @foreach (var m in Modulo.Todos)
-                {
-                    <label class="check" @key="m.Id"><input type="checkbox" checked="@Modulo.Visivel(cfg, m.Id)" @onchange="@(e => Store.MostrarModulo(m.Id, e.Value is true))"> <span><b>@m.Nome</b> <span class="muted">· @m.Descricao</span></span></label>
-                }
-            </div>
-        </section>
+        <ListaModulos />
         break;
 
     case "integracoes":

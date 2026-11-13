@@ -1,6 +1,6 @@
 namespace CrankoHub.Models;
 
-/// <summary>Preferências do aplicativo. Só a cor de destaque e os módulos ocultos vão para a conta (tabela perfis).</summary>
+/// <summary>Preferências do aplicativo. A cor de destaque e os módulos (ocultos, ordem e personalização) vão para a conta (tabela perfis).</summary>
 public class Configuracoes
 {
     /// <summary>Cor de destaque: chave da paleta (ver <see cref="Models.CorDestaque"/>) ou "#RRGGBB".</summary>
@@ -46,6 +46,12 @@ public class Configuracoes
 
     /// <summary>Módulos escondidos do menu, do Início e dos avisos (os dados continuam salvos).</summary>
     public List<string> ModulosOcultos { get; set; } = [];
+
+    /// <summary>Ordem dos módulos no menu, nos atalhos e no Início (ids). Vazio = ordem padrão; os que faltarem vão para o fim.</summary>
+    public List<string> OrdemModulos { get; set; } = [];
+
+    /// <summary>Nome, descrição, cor e ícone que o usuário mudou em cada módulo (por id).</summary>
+    public Dictionary<string, PersonalizacaoModulo> ModulosPersonalizados { get; set; } = [];
 
     public bool VerificarAtualizacoes { get; set; } = true;
 

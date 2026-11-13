@@ -30,7 +30,7 @@
     if (Conta.Usuario is { Length: > 0 } nome) saudacao += ", " + char.ToUpper(nome[0]) + nome[1..];
 
     var atividades = (Modulo.Visivel(d.Config, Modulo.Dieta) ? rs : []).TakeLast(6)
-        .Select(r => (r.Data, Icone: Icones.Balanca, Texto: $"{Num(r.Peso)} kg registrados", Sub: string.IsNullOrEmpty(r.Obs) ? "Dieta" : r.Obs))
+        .Select(r => (r.Data, Icone: Icones.Balanca, Texto: $"{Num(r.Peso)} kg registrados", Sub: string.IsNullOrEmpty(r.Obs) ? Modulo.De(d.Config, Modulo.Dieta)!.Nome : r.Obs))
         .Concat((Modulo.Visivel(d.Config, Modulo.Carro) ? abs : []).TakeLast(6).Select(a => (a.Data, Icone: Icones.Bomba,
             Texto: $"{Num(a.Litros, 1)} L de {Combustivel.NomeDe(a.Combustivel)}{(a.Valor > 0 ? " · " + Money(a.Valor) : "")}",
             Sub: $"{veic?.Nome} · {(a.Inicial ? "ponto de partida" : Num(a.Kml, 2) + " km/l")}")))
@@ -45,9 +45,7 @@
     var proximasCobrancas = AssinaturasCalculos.CobrancasAte(assinAtivas, Hoje, 30);
 
     var cfg = d.Config;
-    var (verDieta, verCarro, verAssin, verEnt, verTarefas) = (Modulo.Visivel(cfg, Modulo.Dieta), Modulo.Visivel(cfg, Modulo.Carro),
-        Modulo.Visivel(cfg, Modulo.Assinaturas), Modulo.Visivel(cfg, Modulo.Entretenimento), Modulo.Visivel(cfg, Modulo.Tarefas));
-    var verAgenda = Modulo.Visivel(cfg, Modulo.Agenda);
+    var (verDieta, verCarro) = (Modulo.Visivel(cfg, Modulo.Dieta), Modulo.Visivel(cfg, Modulo.Carro));
     var agenda = AgendaCalculos.ResumoDe(d.Agenda, agora);
 
     // Mini-gráficos: últimos 90 dias
@@ -76,8 +74,18 @@
     </section>
 }
 
-<div class="grid-2 @(verAssin ? "" : "um")">
-    <section class="card">
+@* Cartões na ordem escolhida em Configurações → Módulos: "Precisa de atenção" primeiro, depois os módulos visíveis.
+   Vão em pares; a estante do Entretenimento ocupa a linha inteira, e quem sobra sozinho também. *@
+@foreach (var linha in LinhasDoInicio(cfg))
+{
+<div class="grid-2 @(linha.Count == 1 ? "um" : "")">
+@foreach (var id in linha)
+{
+    var m = Modulo.De(cfg, id);
+    switch (id)
+    {
+        case Atencao:
+    <section class="card" @key="id">
         <div class="card-head"><div><h2>Precisa de atenção</h2><p>@(alertas.Count > 0 ? $"{alertas.Count} {Plural(alertas.Count, "item", "itens")} para resolver" : "Lembretes de todas as áreas")</p></div></div>
         @if (alertas.Count > 0)
         {
@@ -99,85 +107,76 @@
             <div class="chart-empty"><span>Tudo em dia por aqui. ✓</span></div>
         }
     </section>
-    @if (verAssin)
-    {
-        <a class="card link-card" href="assinaturas" style="--c:@Modulo.CorDe(Modulo.Assinaturas)">
-            <div class="link-head">
-                <span class="link-icon">@Icones.Assinaturas</span>
-                <div><h2>Assinaturas</h2><p>Serviços recorrentes e cobranças</p></div>
-                <span class="go">@Icones.Seta</span>
-            </div>
-            <div class="mini-stats">
-                <div><span>Custo mensal</span><b>@Money(custoAssin)</b></div>
-                <div><span>Ativas</span><b>@assinAtivas.Count</b></div>
-                <div><span>Próx. 30 dias</span><b>@Money(proximasCobrancas.Sum(c => c.Assinatura.Valor))</b></div>
-            </div>
-            @if (proximasCobrancas.Count > 0)
-            {
-                <ul class="activity">
-                    @foreach (var (a, data) in proximasCobrancas.Take(4))
-                    {
-                        var (texto, classe) = AssinaturasCalculos.Prazo(data.DayNumber - Hoje.DayNumber);
-                        <li>
-                            <div class="a-text">@a.Nome<small>@Money(a.Valor) · @DataBR(data)</small></div>
-                            <span class="badge @classe">@texto</span>
-                        </li>
-                    }
-                </ul>
-            }
-            else
-            {
-                <div class="chart-empty"><span>Nenhuma cobrança nos próximos 30 dias.</span></div>
-            }
-        </a>
-    }
-</div>
+            break;
 
-@if (verDieta || verCarro)
-{
-    <div class="grid-2 @(verDieta && verCarro ? "" : "um")">
-        @if (verDieta)
+        case Modulo.Assinaturas:
+    <a class="card link-card" href="assinaturas" style="--c:@m!.Cor" @key="id">
+        <div class="link-head">
+            <span class="link-icon">@m.Icone</span>
+            <div><h2>@m.Nome</h2><p>@m.Descricao</p></div>
+            <span class="go">@Icones.Seta</span>
+        </div>
+        <div class="mini-stats">
+            <div><span>Custo mensal</span><b>@Money(custoAssin)</b></div>
+            <div><span>Ativas</span><b>@assinAtivas.Count</b></div>
+            <div><span>Próx. 30 dias</span><b>@Money(proximasCobrancas.Sum(c => c.Assinatura.Valor))</b></div>
+        </div>
+        @if (proximasCobrancas.Count > 0)
         {
-            <a class="card link-card" href="dieta" style="--c:@Modulo.CorDe(Modulo.Dieta)">
-                <div class="link-head">
-                    <span class="link-icon">@Icones.Coracao</span>
-                    <div><h2>Dieta</h2><p>Peso, medidas e meta</p></div>
-                    <span class="go">@Icones.Seta</span>
-                </div>
-                <div class="mini-stats">
-                    <div><span>Peso atual</span><b>@(last is not null ? Num(last.Peso) + " kg" : Vazio)</b></div>
-                    <div><span>Últimos 30 dias</span><b>@if (var30 is not null) { <Delta Valor="var30" Unidade=" kg" BomQuandoCai="perdendo" /> } else { @Vazio }</b></div>
-                    <div><span>Meta</span><b>@(meta is not null ? Num(meta) + " kg" : Vazio)</b></div>
-                </div>
-                <GraficoLinha Altura="150" Formato="FormatoNumero.Kg" MsgVazia="Sem pesos nos últimos 90 dias."
-                              Series="@([new SerieLinha("Peso", "var(--series-1)", rs.Where(r => r.Data > corte).Select(r => new PontoLinha(r.Data, r.Peso)).ToList(), Markers: false, Area: true)])" />
-            </a>
+            <ul class="activity">
+                @foreach (var (a, data) in proximasCobrancas.Take(4))
+                {
+                    var (texto, classe) = AssinaturasCalculos.Prazo(data.DayNumber - Hoje.DayNumber);
+                    <li>
+                        <div class="a-text">@a.Nome<small>@Money(a.Valor) · @DataBR(data)</small></div>
+                        <span class="badge @classe">@texto</span>
+                    </li>
+                }
+            </ul>
         }
-        @if (verCarro)
+        else
         {
-            <a class="card link-card" href="carro" style="--c:@Modulo.CorDe(Modulo.Carro)">
-                <div class="link-head">
-                    <span class="link-icon">@Icones.Carro</span>
-                    <div><h2>Carro</h2><p>@(veic is null ? "Cadastre seu veículo para começar" : $"{veic.Nome} · consumo e custos")</p></div>
-                    <span class="go">@Icones.Seta</span>
-                </div>
-                <div class="mini-stats">
-                    <div><span>Consumo médio</span><b>@(st.Media is not null ? Num(st.Media) + " km/l" : Vazio)</b></div>
-                    <div><span>Custo por km</span><b>@Money(st.CustoKm)</b></div>
-                    <div><span>Gasto no mês</span><b>@Money(gastoMes)</b></div>
-                </div>
-                <GraficoLinha Altura="150" FormatoY="new FormatoNumero(1)" Formato="@(new FormatoNumero(2, " km/l"))" MsgVazia="Sem abastecimentos nos últimos 90 dias."
-                              Series="@([new SerieLinha("Consumo", "var(--series-1)", abs.Where(a => a.Data > corte && !a.Inicial).Select(a => new PontoLinha(a.Data, a.Kml)).ToList(), Markers: false, Area: true)])" />
-            </a>
+            <div class="chart-empty"><span>Nenhuma cobrança nos próximos 30 dias.</span></div>
         }
-    </div>
-}
+    </a>
+            break;
 
-@if (verAgenda || verTarefas)
-{
-<div class="grid-2 @(verAgenda && verTarefas ? "" : "um")">
-@if (verAgenda)
-{
+        case Modulo.Dieta:
+    <a class="card link-card" href="dieta" style="--c:@m!.Cor" @key="id">
+        <div class="link-head">
+            <span class="link-icon">@m.Icone</span>
+            <div><h2>@m.Nome</h2><p>@m.Descricao</p></div>
+            <span class="go">@Icones.Seta</span>
+        </div>
+        <div class="mini-stats">
+            <div><span>Peso atual</span><b>@(last is not null ? Num(last.Peso) + " kg" : Vazio)</b></div>
+            <div><span>Últimos 30 dias</span><b>@if (var30 is not null) { <Delta Valor="var30" Unidade=" kg" BomQuandoCai="perdendo" /> } else { @Vazio }</b></div>
+            <div><span>Meta</span><b>@(meta is not null ? Num(meta) + " kg" : Vazio)</b></div>
+        </div>
+        <GraficoLinha Altura="150" Formato="FormatoNumero.Kg" MsgVazia="Sem pesos nos últimos 90 dias."
+                      Series="@([new SerieLinha("Peso", "var(--series-1)", rs.Where(r => r.Data > corte).Select(r => new PontoLinha(r.Data, r.Peso)).ToList(), Markers: false, Area: true)])" />
+    </a>
+            break;
+
+        case Modulo.Carro:
+    <a class="card link-card" href="carro" style="--c:@m!.Cor" @key="id">
+        <div class="link-head">
+            <span class="link-icon">@m.Icone</span>
+            <div><h2>@m.Nome</h2><p>@(veic is null ? "Cadastre seu veículo para começar" : $"{veic.Nome} · consumo e custos")</p></div>
+            <span class="go">@Icones.Seta</span>
+        </div>
+        <div class="mini-stats">
+            <div><span>Consumo médio</span><b>@(st.Media is not null ? Num(st.Media) + " km/l" : Vazio)</b></div>
+            <div><span>Custo por km</span><b>@Money(st.CustoKm)</b></div>
+            <div><span>Gasto no mês</span><b>@Money(gastoMes)</b></div>
+        </div>
+        <GraficoLinha Altura="150" FormatoY="new FormatoNumero(1)" Formato="@(new FormatoNumero(2, " km/l"))" MsgVazia="Sem abastecimentos nos últimos 90 dias."
+                      Series="@([new SerieLinha("Consumo", "var(--series-1)", abs.Where(a => a.Data > corte && !a.Inicial).Select(a => new PontoLinha(a.Data, a.Kml)).ToList(), Markers: false, Area: true)])" />
+    </a>
+            break;
+
+        case Modulo.Agenda:
+        {
     // Hoje: o que ainda falta hoje. Semana/Mês: de agora até 7/30 dias à frente (não a semana/mês do calendário)
     var periodoDias = _periodoAgenda switch { VisaoAgenda.Semana => 7, VisaoAgenda.Mes => 30, _ => 1 };
     var doPeriodo = _periodoAgenda == VisaoAgenda.Dia ? agenda.Proximos
@@ -185,10 +184,10 @@
             .Where(o => o.Fim > agora || (o.NoTopo && o.Data >= Hoje) || (o.Fim == o.Inicio && o.Inicio >= agora))
             .OrderBy(o => o.Data).ThenBy(o => !o.NoTopo).ThenBy(o => o.Inicio).ToList();
     var maxItens = _periodoAgenda == VisaoAgenda.Dia ? 4 : 6;
-    <section class="card cartao-ini" style="--c:@Modulo.CorDe(Modulo.Agenda)">
+    <section class="card cartao-ini" style="--c:@m!.Cor" @key="id">
         <a class="link-head cartao-ini-link" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda">
-            <span class="link-icon">@Icones.Agenda</span>
-            <div><h2>Agenda</h2><p>@(_periodoAgenda switch { VisaoAgenda.Semana => "O que vem nos próximos 7 dias", VisaoAgenda.Mes => "O que vem nos próximos 30 dias", _ => "O que ainda vem hoje" })</p></div>
+            <span class="link-icon">@m.Icone</span>
+            <div><h2>@m.Nome</h2><p>@(_periodoAgenda switch { VisaoAgenda.Semana => "O que vem nos próximos 7 dias", VisaoAgenda.Mes => "O que vem nos próximos 30 dias", _ => "O que ainda vem hoje" })</p></div>
             <span class="go">@Icones.Seta</span>
         </a>
         <div class="chips cartao-ini-chips" role="group" aria-label="Período da agenda">
@@ -228,7 +227,7 @@
             </ul>
             @if (doPeriodo.Count > maxItens)
             {
-                <a class="cartao-ini-mais" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda">+ @(doPeriodo.Count - maxItens) @Plural(doPeriodo.Count - maxItens, "compromisso", "compromissos") · ver na Agenda</a>
+                <a class="cartao-ini-mais" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda">+ @(doPeriodo.Count - maxItens) @Plural(doPeriodo.Count - maxItens, "compromisso", "compromissos") · ver em @m.Nome</a>
             }
         }
         else
@@ -241,13 +240,15 @@
             })</span></div>
         }
     </section>
-}
-@if (verTarefas)
-{
-    <a class="card link-card" href="tarefas?quadro=hoje" style="--c:@Modulo.CorDe(Modulo.Tarefas)">
+            break;
+        }
+
+        case Modulo.Tarefas:
+        {
+    <a class="card link-card" href="tarefas?quadro=hoje" style="--c:@m!.Cor" @key="id">
         <div class="link-head">
-            <span class="link-icon">@Icones.Tarefas</span>
-            <div><h2>Tarefas de hoje</h2><p>Resumo do dia em todos os quadros</p></div>
+            <span class="link-icon">@m.Icone</span>
+            <div><h2>@m.Nome de hoje</h2><p>Resumo do dia em todos os quadros</p></div>
             <span class="go">@Icones.Seta</span>
         </div>
         <div class="mini-stats">
@@ -282,16 +283,14 @@
             <div class="chart-empty"><span>@(resumo.ConcluidosHoje.Count > 0 ? "Tudo o que era para hoje está feito. ✓" : "Nenhuma tarefa para hoje.")</span></div>
         }
     </a>
-}
-</div>
-}
+            break;
+        }
 
-@if (verEnt)
-{
-    <a class="card link-card" href="entretenimento" style="--c:@Modulo.CorDe(Modulo.Entretenimento)">
+        case Modulo.Entretenimento:
+    <a class="card link-card" href="entretenimento" style="--c:@m!.Cor" @key="id">
         <div class="link-head">
-            <span class="link-icon">@Icones.Entretenimento</span>
-            <div><h2>Entretenimento</h2><p>@d.Entretenimento.Count @Plural(d.Entretenimento.Count, "item", "itens") na estante · @d.Entretenimento.Count(e => e.Status == "concluido" && e.Data?.Year == Hoje.Year) em @Hoje.Year</p></div>
+            <span class="link-icon">@m.Icone</span>
+            <div><h2>@m.Nome</h2><p>@d.Entretenimento.Count @Plural(d.Entretenimento.Count, "item", "itens") na estante · @d.Entretenimento.Count(e => e.Status == "concluido" && e.Data?.Year == Hoje.Year) em @Hoje.Year</p></div>
             <span class="go">@Icones.Seta</span>
         </div>
         @if (d.Entretenimento.Count > 0)
@@ -308,6 +307,10 @@
             <div class="chart-empty"><span>Sua estante ainda está vazia.</span></div>
         }
     </a>
+            break;
+    }
+}
+</div>
 }
 
 @if (verDieta || verCarro)
@@ -329,7 +332,7 @@
         }
         else
         {
-            <div class="chart-empty"><span>Nada registrado ainda. Comece pela <a href="dieta">Dieta</a> ou pelo <a href="carro">Carro</a>.</span></div>
+            <div class="chart-empty"><span>Nada registrado ainda. Comece por <a href="dieta">@Modulo.De(cfg, Modulo.Dieta)!.Nome</a> ou <a href="carro">@Modulo.De(cfg, Modulo.Carro)!.Nome</a>.</span></div>
         }
     </section>
 }
@@ -358,6 +361,38 @@
     }
 
     private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
+
+    // Id do cartão "Precisa de atenção" (sempre o primeiro)
+    private const string Atencao = "atencao";
+
+    /// <summary>
+    /// Os cartões do Início em linhas de até dois, na ordem dos módulos. A estante do Entretenimento é larga e fica
+    /// sozinha na linha; quem fica sem par antes dela também.
+    /// </summary>
+    private static List<List<string>> LinhasDoInicio(Models.Configuracoes cfg)
+    {
+        var linhas = new List<List<string>>();
+        List<string>? aberta = null;
+        foreach (var id in Modulo.Visiveis(cfg).Select(m => m.Id).Prepend(Atencao))
+        {
+            if (id == Modulo.Entretenimento)
+            {
+                aberta = null;
+                linhas.Add([id]);
+            }
+            else if (aberta is null)
+            {
+                aberta = [id];
+                linhas.Add(aberta);
+            }
+            else
+            {
+                aberta.Add(id);
+                aberta = null;
+            }
+        }
+        return linhas;
+    }
 
     private static string HaQuanto(DateTime quando)
     {

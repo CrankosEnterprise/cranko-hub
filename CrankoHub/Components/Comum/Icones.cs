@@ -62,4 +62,39 @@ public static class Icones
     public static readonly MarkupString Mais = new("""<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>""");
     public static readonly MarkupString Alvo = new("""<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>""");
     public static readonly MarkupString Coracao = new("""<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.3-9.6C1.4 7.6 4 4 7.6 4c2 0 3.4 1.1 4.4 2.6C13 5.1 14.4 4 16.4 4 20 4 22.6 7.6 21.3 11.4 19.5 16.4 12 21 12 21z"/></svg>""");
+    public static readonly MarkupString Estrela = new("""<svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/></svg>""");
+    public static readonly MarkupString Livro = new("""<svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>""");
+    public static readonly MarkupString Dinheiro = new("""<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15 9.2c-.5-1-1.6-1.6-3-1.6-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.4 0 1.3-1.3 2.2-3 2.2-1.4 0-2.6-.6-3.1-1.7M12 6v1.6M12 16.4V18"/></svg>""");
+    public static readonly MarkupString Haltere = new("""<svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>""");
+    public static readonly MarkupString Pasta = new("""<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>""");
+    public static readonly MarkupString Alca = new("""<svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>""");
+    public static readonly MarkupString Subir = new("""<svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>""");
+
+    /// <summary>Ícones que o usuário pode escolher para um módulo (Configurações → Módulos). A chave fica salva na conta.</summary>
+    public static readonly IReadOnlyList<(string Chave, string Nome, MarkupString Svg)> DeModulo =
+    [
+        ("dieta", "Saúde", Dieta),
+        ("carro", "Carro", Carro),
+        ("assinaturas", "Cartão", Assinaturas),
+        ("entretenimento", "Filme", Entretenimento),
+        ("tarefas", "Quadro", Tarefas),
+        ("agenda", "Calendário", Agenda),
+        ("coracao", "Coração", Coracao),
+        ("balanca", "Balança", Balanca),
+        ("haltere", "Treino", Haltere),
+        ("alvo", "Meta", Alvo),
+        ("estrela", "Estrela", Estrela),
+        ("livro", "Livro", Livro),
+        ("musica", "Música", Musica),
+        ("dinheiro", "Dinheiro", Dinheiro),
+        ("bomba", "Combustível", Bomba),
+        ("ferramenta", "Ferramenta", Ferramenta),
+        ("relogio", "Relógio", Relogio),
+        ("pasta", "Pasta", Pasta),
+        ("casa", "Casa", Inicio),
+    ];
+
+    /// <summary>O ícone do catálogo <see cref="DeModulo"/> com essa chave (null se não existir).</summary>
+    public static MarkupString? IconeModulo(string? chave) =>
+        DeModulo.FirstOrDefault(i => i.Chave == chave) is { Chave: not null } i ? i.Svg : null;
 }

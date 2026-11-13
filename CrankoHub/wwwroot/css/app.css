@@ -627,6 +627,55 @@ tr.inativa td b { color: var(--text-2); font-weight: 600; }
 /* O texto pode quebrar em várias linhas (celular): a altura acompanha, sem invadir a opção de baixo */
 .opcoes .check { min-height: 34px; padding: 5px 0; align-self: stretch; line-height: 1.35; }
 
+/* ===== Configurações → Módulos: lista reordenável (wwwroot/js/ordenar.js) e personalização ===== */
+.mod-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mod-linha {
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+  transition: transform .18s ease, box-shadow .18s, opacity .15s;
+}
+.mod-linha.aberta { background: var(--surface-2); }
+.mod-linha.oculto .mod-topo > .tile, .mod-linha.oculto .mod-texto { opacity: .45; }
+.mod-lista.ordenando .mod-linha { user-select: none; }
+.mod-linha.arrastando { position: relative; z-index: 2; transition: box-shadow .18s; box-shadow: var(--shadow), 0 10px 28px rgba(0,0,0,.18); }
+.mod-topo { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 4px; min-width: 0; }
+.mod-alca {
+  display: grid; place-items: center; flex: none; width: 28px; height: 34px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); cursor: grab; touch-action: none;
+}
+.mod-alca:hover { color: var(--text); background: var(--sidebar-hover); }
+.mod-lista.ordenando, .mod-lista.ordenando .mod-alca { cursor: grabbing; }
+.mod-alca svg { width: 18px; height: 18px; fill: currentColor; stroke: none; }
+.mod-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.mod-texto b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-texto span { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-acoes { display: flex; align-items: center; gap: 2px; flex: none; }
+.mod-acoes .icon-btn { width: 32px; height: 32px; }
+.mod-acoes .icon-btn svg { width: 17px; height: 17px; }
+.mod-acoes .icon-btn:disabled { opacity: .3; cursor: default; background: transparent; }
+.mod-acoes .icon-btn.ativo { color: var(--accent); background: var(--accent-soft); }
+.mod-descer svg { transform: rotate(180deg); }
+.mod-acoes .check { min-height: 32px; margin-left: 6px; align-self: center; }
+.mod-editor { display: flex; flex-direction: column; gap: 10px; padding: 4px 14px 14px 42px; }
+.mod-rotulo { font-size: 12px; font-weight: 600; color: var(--text-2); margin-top: 4px; }
+.mod-sep { width: 1px; height: 18px; background: var(--border); }
+.mod-icones { display: flex; flex-wrap: wrap; gap: 6px; }
+.mod-icone {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+}
+.mod-icone:hover { color: var(--text); border-color: var(--c); }
+.mod-icone svg { width: 18px; height: 18px; }
+.mod-icone.ativo { color: #fff; border-color: var(--c); background: var(--c); }
+.mod-editor-rodape { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.mod-rodape { display: flex; justify-content: flex-end; margin-top: 14px; }
+.mod-lista + .mod-rodape .btn:disabled, .mod-editor-rodape .btn:disabled { opacity: .5; cursor: default; background: var(--surface); }
+@media (max-width: 520px) {
+  .mod-topo { gap: 8px; }
+  .mod-acoes .icon-btn { width: 30px; }
+  .mod-editor { padding-left: 14px; }
+  .mod-editor .form-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Configurações → Modo Carro: escolha do layout, com uma miniatura de cada (m = mapa, p = painel) */
 .lc-config { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
 .lc-rotulo { font-size: 13px; font-weight: 600; color: var(--text); }

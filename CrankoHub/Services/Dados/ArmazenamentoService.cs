@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CrankoHub.Components;
 using CrankoHub.Models;
 
 namespace CrankoHub.Services;
@@ -82,6 +83,57 @@ public class ArmazenamentoService
         if (!visivel) Dados.Config.ModulosOcultos.Add(id);
         Salvar();
         ModulosMudaram?.Invoke();
+    }
+
+    /// <summary>Leva o módulo para a posição <paramref name="posicao"/> da ordem (menu, atalhos e Início).</summary>
+    public void MoverModulo(string id, int posicao)
+    {
+        var ordem = Modulo.OrdemAtual(Dados.Config);
+        if (!ordem.Remove(id)) return;
+        ordem.Insert(Math.Clamp(posicao, 0, ordem.Count), id);
+        Dados.Config.OrdemModulos = ordem;
+        Salvar();
+        ModulosMudaram?.Invoke();
+    }
+
+    /// <summary>Muda nome, descrição, cor ou ícone de um módulo (null = volta ao padrão).</summary>
+    public void PersonalizarModulo(string id, Action<PersonalizacaoModulo> mudar)
+    {
+        if (Modulo.Buscar(id) is null) return;
+        var p = Dados.Config.ModulosPersonalizados.TryGetValue(id, out var atual) ? atual : new PersonalizacaoModulo();
+        mudar(p);
+        Limpar(p);
+        if (p.Vazia) Dados.Config.ModulosPersonalizados.Remove(id);
+        else Dados.Config.ModulosPersonalizados[id] = p;
+        Salvar();
+        ModulosMudaram?.Invoke();
+    }
+
+    /// <summary>Volta nome, descrição, cor e ícone do módulo ao padrão.</summary>
+    public void RestaurarModulo(string id)
+    {
+        if (!Dados.Config.ModulosPersonalizados.Remove(id)) return;
+        Salvar();
+        ModulosMudaram?.Invoke();
+    }
+
+    /// <summary>Volta a ordem e a aparência de todos os módulos ao padrão (quem está escondido continua escondido).</summary>
+    public void RestaurarModulos()
+    {
+        Dados.Config.OrdemModulos = [];
+        Dados.Config.ModulosPersonalizados = [];
+        Salvar();
+        ModulosMudaram?.Invoke();
+    }
+
+    // Texto vazio vira "padrão"; cor e ícone inválidos também
+    private static void Limpar(PersonalizacaoModulo p)
+    {
+        static string? Texto(string? s, int max) => string.IsNullOrWhiteSpace(s) ? null : s.Trim()[..Math.Min(s.Trim().Length, max)].TrimEnd();
+        p.Nome = Texto(p.Nome, PersonalizacaoModulo.MaxNome);
+        p.Descricao = Texto(p.Descricao, PersonalizacaoModulo.MaxDescricao);
+        p.Cor = Modulo.CorValida(p.Cor) ? p.Cor!.ToUpperInvariant() : null;
+        if (Icones.IconeModulo(p.Icone) is null) p.Icone = null;
     }
 
     /// <summary>Id curto e único (mesmo estilo do app web).</summary>
@@ -171,6 +223,13 @@ public class ArmazenamentoService
         s.Config.ModulosOcultos ??= [];
         s.Config.DestinosRecentes ??= [];
         s.Config.ModulosOcultos.RemoveAll(id => Modulo.Buscar(id) is null);
+        s.Config.OrdemModulos = (s.Config.OrdemModulos ?? []).Where(id => Modulo.Buscar(id) is not null).Distinct().ToList();
+        s.Config.ModulosPersonalizados ??= [];
+        foreach (var (id, p) in s.Config.ModulosPersonalizados.ToList())
+        {
+            if (p is not null) Limpar(p);
+            if (Modulo.Buscar(id) is null || p is null || p.Vazia) s.Config.ModulosPersonalizados.Remove(id);
+        }
         s.Assinaturas ??= []; // backups antigos (e do app web) não têm assinaturas
         s.Assinaturas.RemoveAll(a => a is null);
         s.Entretenimento ??= [];

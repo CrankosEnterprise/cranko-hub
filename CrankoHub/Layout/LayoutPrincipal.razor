@@ -76,21 +76,15 @@
     private bool _menuAberto;
     private string _caminho = "";
 
-    private string TituloDaPagina => _caminho switch
+    private string TituloDaPagina => ModuloAtual?.Nome ?? _caminho switch
     {
-        "dieta" => "Dieta",
-        "carro" => "Carro",
-        "assinaturas" => "Assinaturas",
-        "entretenimento" => "Entretenimento",
-        "tarefas" => "Tarefas",
-        "agenda" => "Agenda",
         "configuracoes" => "Configurações",
         "conta" or "dados" => "Conta",
         _ => "Início",
     };
 
-    // Módulo da página aberta, para o ícone colorido ao lado do título
-    private Modulo? ModuloAtual => Modulo.Buscar(_caminho.Split('/')[0]);
+    // Módulo da página aberta (com o nome, a cor e o ícone escolhidos), para o título e o ícone colorido ao lado
+    private Modulo? ModuloAtual => Modulo.De(Store.Dados.Config, _caminho.Split('/')[0]);
 
     protected override void OnInitialized()
     {

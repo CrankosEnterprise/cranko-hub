@@ -132,7 +132,7 @@ Todas as tabelas de dados têm:
 
 | Tabela | Origem | Observação |
 |---|---|---|
-| `perfis` | `Dieta.Perfil`, `Tema`, `Config.CorDestaque`, `Config.ModulosOcultos` | PK `user_id`, uma linha por usuário |
+| `perfis` | `Dieta.Perfil`, `Tema`, `Config.CorDestaque`, `Config.ModulosOcultos`, `Config.OrdemModulos`, `Config.ModulosPersonalizados` (item 19) | PK `user_id`, uma linha por usuário |
 | `registros_peso` | `Dieta.Registros` | |
 | `veiculos` | `Carro.Veiculos` | |
 | `abastecimentos`, `manutencoes` | `Carro.*` | FK composta para `veiculos` |
@@ -352,3 +352,19 @@ O formulário do abastecimento estava confuso (km, litros colocados, litros gast
 **Como testar**
 1. ✅ `dotnet build` sem erros nem avisos.
 2. ⏳ No app: veículo sem abastecimentos → ponto de partida com odômetro; o próximo só pede o odômetro e mostra a conta; total + preço calculando os litros; "Não completei" com o marcador; "Esqueci de anotar" vira início; editar um antigo (sem odômetro) abre em "km rodados"; resumo, Início e gráficos ignoram o ponto de partida.
+
+## 19. Módulos personalizáveis ✅ (feito em 13/11/2026; falta rodar a migration e testar no aparelho)
+
+Em **Configurações → Módulos** (e só lá) cada módulo pode ser reordenado, renomeado e ganhar outra cor, ícone e descrição.
+
+- **Ordem:** arrastando pela alça (mouse e toque, `wwwroot/js/ordenar.js` + `Components/Comum/OrdenarInterop.cs`) ou pelas setas ↑/↓. Vale para o **menu lateral**, os **atalhos do topo** e os **cartões do Início**.
+- **Início:** "Precisa de atenção" vem primeiro e os cartões dos módulos seguem a ordem, em pares; a estante do Entretenimento ocupa a linha inteira, e quem sobra sem par também. O cartão da Dieta passou a usar o ícone do módulo (antes era o coração).
+- **Personalizar** (lápis na linha): nome (até 24 letras), descrição, cor (a paleta da cor de destaque, a cor padrão ou uma personalizada) e ícone (catálogo `Icones.DeModulo`). Campo vazio = o padrão. O nome novo aparece no menu, no título do topo e no Início.
+- **Restaurar:** por módulo ("Restaurar padrão") e geral ("Restaurar ordem e aparência", com confirmação). Mostrar/esconder não muda.
+- **Modelo:** `Modulo.Todos` continua com os padrões; a tela usa `Modulo.De(cfg, id)`, `Modulo.Ordenados(cfg)` e `Modulo.Visiveis(cfg)` (já na ordem e personalizados). Salvo em `Config.OrdemModulos` (ids) e `Config.ModulosPersonalizados` (id → `PersonalizacaoModulo`), limpos na normalização.
+- **Sync:** vão para a conta (perfis: `ordem_modulos`, `modulos_personalizados`). A migration é `supabase/migrations/0013_modulos_personalizados.sql`. Enquanto não rodar, fica só no aparelho e o card da Conta avisa.
+
+**Como testar**
+1. ✅ `dotnet build` (Windows e Linux) sem erros nem avisos.
+2. ⏳ Rodar a `0013_modulos_personalizados.sql` no Supabase.
+3. ⏳ No app: arrastar e usar as setas (menu, atalhos e Início mudam na hora); renomear, trocar cor e ícone; esconder um módulo no meio da ordem (o Início refaz os pares); restaurar um e todos; fechar e abrir; ver chegar no outro aparelho. No Android, arrastar pela alça sem rolar a página.

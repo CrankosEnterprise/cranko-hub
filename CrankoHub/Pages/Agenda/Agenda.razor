@@ -60,7 +60,7 @@
             {
                 var quadros = Store.Dados.Tarefas.Quadros;
                 <div class="ag-lat-titulo"><span>Tarefas com prazo</span></div>
-                <ul class="ag-agendas" style="--c:@Modulo.CorDe(Modulo.Tarefas)">
+                <ul class="ag-agendas" style="--c:@Modulo.CorDe(Store.Dados.Config, Modulo.Tarefas)">
                     <li>
                         <label class="ag-agenda">
                             <input type="checkbox" checked="@a.MostrarTarefas" @onchange="AlternarTarefas">
@@ -415,7 +415,7 @@
     {
         var hora = TarefasCalculos.Hora(c.PrazoHora!.Value);
         <div class="ag-evento curto ag-tarefa-bloco @(c.Concluido is not null ? "feita" : "") @(passou && c.Concluido is null ? "venceu" : "")" @key="c.Id"
-             style="--c:@Modulo.CorDe(Modulo.Tarefas); @posicao" title="@c.Titulo · tarefa de @NomeDoQuadro(c) · entrega às @hora" @onclick="() => AbrirTarefa(c)">
+             style="--c:@Modulo.CorDe(Store.Dados.Config, Modulo.Tarefas); @posicao" title="@c.Titulo · tarefa de @NomeDoQuadro(c) · entrega às @hora" @onclick="() => AbrirTarefa(c)">
             <button type="button" class="tarefa-check" title="@(c.Concluido is null ? "Marcar como concluída" : "Reabrir")"
                     @onclick="() => AlternarTarefa(c)" @onclick:stopPropagation="true">@(c.Concluido is null ? "" : "✓")</button>
             <b>@c.Titulo</b>
