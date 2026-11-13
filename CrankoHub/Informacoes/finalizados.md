@@ -353,7 +353,7 @@ O formulário do abastecimento estava confuso (km, litros colocados, litros gast
 1. ✅ `dotnet build` sem erros nem avisos.
 2. ⏳ No app: veículo sem abastecimentos → ponto de partida com odômetro; o próximo só pede o odômetro e mostra a conta; total + preço calculando os litros; "Não completei" com o marcador; "Esqueci de anotar" vira início; editar um antigo (sem odômetro) abre em "km rodados"; resumo, Início e gráficos ignoram o ponto de partida.
 
-## 19. Módulos personalizáveis ✅ (feito em 13/11/2026; falta rodar a migration e testar no aparelho)
+## 19. Módulos personalizáveis ✅ (feito em 13/11/2026; migration rodada, testado no computador; falta testar no celular)
 
 Em **Configurações → Módulos** (e só lá) cada módulo pode ser reordenado, renomeado e ganhar outra cor, ícone e descrição.
 
@@ -366,5 +366,5 @@ Em **Configurações → Módulos** (e só lá) cada módulo pode ser reordenado
 
 **Como testar**
 1. ✅ `dotnet build` (Windows e Linux) sem erros nem avisos.
-2. ⏳ Rodar a `0013_modulos_personalizados.sql` no Supabase.
+2. ✅ Rodar a `0013_modulos_personalizados.sql` no Supabase.
 3. ⏳ No app: arrastar e usar as setas (menu, atalhos e Início mudam na hora); renomear, trocar cor e ícone; esconder um módulo no meio da ordem (o Início refaz os pares); restaurar um e todos; fechar e abrir; ver chegar no outro aparelho. No Android, arrastar pela alça sem rolar a página.
