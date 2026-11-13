@@ -1684,10 +1684,29 @@ html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; 
 .marcador-conta.aviso { background: var(--warn-bg); }
 .marcador-msg { flex-basis: 100%; color: var(--text-2); }
 
-/* Litros gastos no formulário do abastecimento */
-.gasto-linha { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.gasto-linha input { flex: 1 1 140px; min-width: 0; }
-.gasto-linha .btn svg { width: 15px; height: 15px; margin-right: 4px; vertical-align: -2px; }
-.gasto-linha .check { align-self: center; min-height: 0; }
-.field > span .estimado { margin-left: 6px; font-size: 11px; padding: 1px 7px; vertical-align: 1px; }
+/* Formulário do abastecimento em passos (usa .fipe-passos): 1. km → 2. bomba → 3. tanque → 4. detalhes */
+.abs-topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; }
+.abs-topo h2 { margin: 0; }
+.abs-data { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.abs-data input { width: auto; }
+.abs-passos { margin-top: 2px; }
+.abs-aviso { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 13px; }
+.abs-aviso span { color: var(--text-2); line-height: 1.4; }
+.abs-conta { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+.abs-resultado { color: var(--text); font-size: 14px; }
+.abs-resultado b { color: var(--accent); }
+.abs-erro { flex-basis: 100%; color: var(--warn); font-size: 12.5px; }
+.abs-links { display: flex; align-items: center; gap: 4px 14px; flex-wrap: wrap; }
+.abs-links .btn svg { width: 15px; height: 15px; margin-right: 4px; vertical-align: -2px; }
+.abs-link { align-self: flex-start; padding: 2px 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.abs-comb { align-self: flex-start; flex-wrap: wrap; }
+.abs-cor { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.abs-valores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.abs-pergunta { font-size: 13.5px; font-weight: 600; }
+.abs-escolhas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.abs-escolha { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.abs-escolha small { font-size: 12px; color: var(--muted); }
+.abs-escolha:hover, .abs-escolha:focus-visible { border-color: var(--accent); outline: none; }
+.abs-escolha.ativa { border-color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 480px) { .abs-valores { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .abs-valores .field:last-child { grid-column: 1 / -1; } }
 .estimado-sinal { color: var(--warn); font-weight: 700; margin-right: 3px; }

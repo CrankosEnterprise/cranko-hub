@@ -32,7 +32,7 @@
         .Select(r => (r.Data, Icone: Icones.Balanca, Texto: $"{Num(r.Peso)} kg registrados", Sub: string.IsNullOrEmpty(r.Obs) ? "Dieta" : r.Obs))
         .Concat((Modulo.Visivel(d.Config, Modulo.Carro) ? abs : []).TakeLast(6).Select(a => (a.Data, Icone: Icones.Bomba,
             Texto: $"{Num(a.Litros, 1)} L de {Combustivel.NomeDe(a.Combustivel)}{(a.Valor > 0 ? " · " + Money(a.Valor) : "")}",
-            Sub: $"{veic?.Nome} · {Num(a.Kml, 2)} km/l")))
+            Sub: $"{veic?.Nome} · {(a.Inicial ? "ponto de partida" : Num(a.Kml, 2) + " km/l")}")))
         .OrderByDescending(x => x.Data)
         .Take(6)
         .ToList();
@@ -166,7 +166,7 @@
                     <div><span>Gasto no mês</span><b>@Money(gastoMes)</b></div>
                 </div>
                 <GraficoLinha Altura="150" FormatoY="new FormatoNumero(1)" Formato="@(new FormatoNumero(2, " km/l"))" MsgVazia="Sem abastecimentos nos últimos 90 dias."
-                              Series="@([new SerieLinha("Consumo", "var(--series-1)", abs.Where(a => a.Data > corte).Select(a => new PontoLinha(a.Data, a.Kml)).ToList(), Markers: false, Area: true)])" />
+                              Series="@([new SerieLinha("Consumo", "var(--series-1)", abs.Where(a => a.Data > corte && !a.Inicial).Select(a => new PontoLinha(a.Data, a.Kml)).ToList(), Markers: false, Area: true)])" />
             </a>
         }
     </div>

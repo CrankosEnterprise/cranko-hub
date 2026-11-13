@@ -93,7 +93,7 @@
         var gastoManut = manutPeriodo.Sum(m => m.Valor ?? 0);
         var proximos = lembretes.Where(s => s.TemLembrete).Take(5).ToList();
         var recentes = list.Select(a => (a.Data, Icone: Icones.Bomba, Texto: $"{Combustivel.NomeDe(a.Combustivel)} · {Num(a.Litros, 1)} L",
-                                         Sub: $"{Num(a.Kml, 2)} km/l · {Money(a.Valor)}"))
+                                         Sub: $"{(a.Inicial ? "ponto de partida" : Num(a.Kml, 2) + " km/l")} · {Money(a.Valor)}"))
             .Concat(manut.Select(m => (m.Data, Icone: Icones.Ferramenta, Texto: TipoManutencao.NomeDe(m),
                                        Sub: string.Join(" · ", new[] { m.Descricao, m.Valor is not null ? Money(m.Valor) : null }.Where(s => !string.IsNullOrEmpty(s))))))
             .OrderByDescending(x => x.Data).Take(6).ToList();
@@ -134,13 +134,14 @@
                 @if (_consumoUltimo)
                 {
                     // Cada abastecimento guarda os km desde o anterior: o km/l dele é o consumo daquele trecho
-                    var ultimo = list.LastOrDefault();
-                    var penultimo = list.Count > 1 ? list[^2] : null;
+                    var trechos = CarroCalculos.ComConsumo(list);
+                    var ultimo = trechos.LastOrDefault();
+                    var penultimo = trechos.Count > 1 ? trechos[^2] : null;
                     <span class="kpi-value">@Num(ultimo?.Kml, 2)<small>km/l</small></span>
                     <span class="kpi-sub">
                         @if (ultimo is null)
                         {
-                            <span>Nenhum abastecimento ainda</span>
+                            <span>@(list.Count > 0 ? "Aparece no próximo abastecimento" : "Nenhum abastecimento ainda")</span>
                         }
                         else
                         {

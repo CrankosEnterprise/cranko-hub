@@ -337,3 +337,18 @@ Séries, animes e animações em série trazem as temporadas e os episódios, e 
 2. ✅ Respostas reais do TVmaze, do AniList (sequências de Attack on Titan) e da Wikipedia (Animações) conferidas. O Jikan não respondeu da rede usada no desenvolvimento; testar no aparelho.
 3. ⏳ Rodar a `0012_entretenimento_episodios.sql` no Supabase.
 4. ⏳ No app: adicionar uma série (com e sem chave do TMDB), um anime com várias temporadas e uma animação em série; marcar episódios e temporadas e ver o status mudar; desligar os nomes na engrenagem; "Atualizar" numa série em exibição; abrir no outro aparelho depois de sincronizar.
+
+## 18. Novo abastecimento em passos ✅ (feito em 13/11/2026; falta testar no aparelho)
+
+O formulário do abastecimento estava confuso (km, litros colocados, litros gastos, marcador e odômetro todos juntos). Virou um **passo a passo** no estilo da FIPE: cada passo concluído vira um resumo com **Alterar**, e o **Continuar** (ou Enter) avança.
+
+1. **Quanto rodou:** pede o **odômetro de agora** e faz a conta sozinho: `odômetro agora − odômetro do anterior = km rodados` (para carro sem odômetro parcial). O odômetro do anterior é o anotado nele ou, se não tiver, o último anotado + os km somados depois (`CarroCalculos.OdometroNo`, com "≈"). Aceita o número como aparece no painel ("45.210" = 45 210 km). Links: **Prefiro digitar os km rodados** (quem tem parcial; o odômetro fica opcional) e **Esqueci de anotar algum abastecimento**.
+2. **Na bomba:** combustível em botões, **litros, total e preço/litro**: com dois preenchidos, o terceiro é calculado (inclusive litros a partir de total + preço do cupom).
+3. **Tanque:** "Completou o tanque?" Sim / Não. No "Não", pede o **ponteiro antes de abastecer** (marcador). O computador de bordo ficou num link discreto.
+4. **Detalhes:** posto e observação (opcionais), com a prévia do consumo.
+- A **data** fica no topo da janela (hoje por padrão). Editar abre com todos os passos resumidos.
+- **Ponto de partida** (`Abastecimento.Inicial`, km = 0): o **primeiro abastecimento** do veículo, ou um recomeço depois de um que não foi anotado. Não pede km; guarda odômetro, tanque cheio/ponteiro e os gastos. Fica fora do consumo (média, melhor, pior, último, gráficos) e do custo por km (`CarroCalculos.ComConsumo`), mas o valor conta no gasto do mês. No histórico aparece como **início**. Sem migration (a coluna `km` já aceita 0).
+
+**Como testar**
+1. ✅ `dotnet build` sem erros nem avisos.
+2. ⏳ No app: veículo sem abastecimentos → ponto de partida com odômetro; o próximo só pede o odômetro e mostra a conta; total + preço calculando os litros; "Não completei" com o marcador; "Esqueci de anotar" vira início; editar um antigo (sem odômetro) abre em "km rodados"; resumo, Início e gráficos ignoram o ponto de partida.

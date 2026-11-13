@@ -1,5 +1,8 @@
 @* Abastecimentos do veículo (dentro da aba Consumo): histórico e a janela para registrar/editar.
-   A aba abre a janela pelo método Novo(); editar abre pela linha do histórico. *@
+   A aba abre a janela pelo método Novo(); editar abre pela linha do histórico.
+   A janela é um passo a passo (como o da FIPE): 1. odômetro/km rodados → 2. bomba → 3. tanque → 4. detalhes.
+   O primeiro abastecimento (ou um recomeço) é o "ponto de partida": sem km rodados, só a base do próximo. *@
+@using System.Text.RegularExpressions
 @inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject IDialogoService Dialogo
@@ -12,66 +15,234 @@
 
 @if (_aberto)
 {
+    var anterior = Anterior();
+    var partida = Partida();
+    var odoBase = OdometroBase();
+    var km = KmRodados();
+    var litros = Pf(_fLitros);
+    var valor = Pf(_fValor);
+    var gastos = Pf(_fGastos) is > 0 and var g0 ? g0 : litros;
 <div class="modal-backdrop" @onclick="Fechar">
-<form class="card modal modal-medio" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="SalvarAbastecimento">
-    <div><h2>@(ed is not null ? "Editar abastecimento" : "Novo abastecimento")</h2><p class="muted">Informe os km rodados desde o último abastecimento e os litros colocados. Se não encheu o tanque, use o marcador para estimar o gasto.</p></div>
-    <div class="form-grid">
-        <label class="field"><span>Data</span><input type="date" required @bind="_fData"></label>
-        <label class="field"><span>Combustível</span>
-            <select @bind="_fComb">
-                @foreach (var f in Combustivel.Todos)
-                {
-                    <option value="@f.Chave">@f.Nome</option>
-                }
-            </select></label>
-        <label class="field"><span>Km rodados *</span><input inputmode="decimal" required placeholder="ex.: 420" autofocus @bind="_fKm" @bind:event="oninput" @bind:after="@(() => AoDigitar("km"))"></label>
-        <label class="field"><span>Litros colocados *</span><input inputmode="decimal" required placeholder="o que a bomba marcou" @bind="_fLitros" @bind:event="oninput" @bind:after="@(() => AoDigitar("litros"))"></label>
-        <label class="field"><span>Valor total (R$)</span><input inputmode="decimal" placeholder="ex.: 215,90" @bind="_fValor" @bind:event="oninput" @bind:after="@(() => AoDigitar("valor"))"></label>
-        <label class="field"><span>Preço por litro (R$)</span><input inputmode="decimal" placeholder="calculado automaticamente" @bind="_fPreco" @bind:event="oninput" @bind:after="@(() => AoDigitar("preco"))"></label>
-        <div class="field full">
-            <span>Litros gastos desde o anterior @if (_gastoEstimado && _fGastos != "") { <span class="badge warning estimado" title="Calculado pelo marcador de combustível">≈ estimado</span> }</span>
-            <div class="gasto-linha">
-                <input inputmode="decimal" aria-label="Litros gastos desde o anterior" placeholder="igual aos colocados (tanque cheio)" @bind="_fGastos" @bind:event="oninput" @bind:after="() => _gastoEstimado = false">
-                <button type="button" class="btn sm" title="Marcar o ponteiro do painel para estimar o gasto" @onclick="() => _marcadorAberto = true">@Icones.Bomba Marcador</button>
-                <label class="check"><input type="checkbox" @bind="_tanqueCheio"> Enchi o tanque</label>
-            </div>
-            @if (_nivel is int nivel)
-            {
-                <small class="muted">Ponteiro antes de abastecer: <b>@MarcadorCombustivel.Fracao(nivel)</b> · <a href="" @onclick="() => _nivel = null" @onclick:preventDefault="true">remover</a></small>
-            }
-            else
-            {
-                <small class="muted">Computador de bordo, ou o marcador quando o carro não mostra.</small>
-            }
-        </div>
-        <label class="field"><span>Odômetro (opcional)</span><input inputmode="decimal" placeholder="preenche os km sozinho" @bind="_fOdometro" @bind:event="oninput" @bind:after="@(() => AoDigitar("odometro"))"></label>
-        <label class="field"><span>Posto</span><input maxlength="60" placeholder="opcional" @bind="_fPosto"></label>
-        <label class="field full"><span>Observação</span><input maxlength="140" placeholder="viagem, ar-condicionado ligado, trânsito..." @bind="_fObs"></label>
+<form class="card modal modal-medio" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="Enviar">
+    <div class="abs-topo">
+        <h2>@(ed is not null ? "Editar abastecimento" : "Novo abastecimento")</h2>
+        <label class="abs-data"><span>Data</span><input type="date" required @bind="_fData"></label>
     </div>
-    @{
-        var pKm = Pf(_fKm);
-        var pLitros = Pf(_fLitros);
-        var pValor = Pf(_fValor);
-        var pGastos = Pf(_fGastos) is > 0 and var g ? g : pLitros;
-    }
-    @if (pKm > 0 && pGastos > 0)
+
+    <ol class="fipe-passos abs-passos">
+        @* ---- 1. Quanto rodou ---- *@
+        <li class="@Classe(1)">
+            <span class="fp-num">@Numero(1)</span>
+            <div class="fp-corpo">
+                @if (_passo == 1)
+                {
+                    @if (partida)
+                    {
+                        <div class="abs-aviso">
+                            <b>@(_recomeco ? "Recomeçar a conta daqui" : "Primeiro abastecimento")</b>
+                            <span>@(_recomeco
+                                ? "Sem o abastecimento que faltou não dá para saber o consumo deste trecho. Este vira o novo ponto de partida."
+                                : $"Ainda não dá para saber quanto o {Veiculo.Nome} faz por litro: este registro é o ponto de partida. O consumo aparece a partir do próximo abastecimento.")</span>
+                        </div>
+                        <label class="field"><span>Quanto marca o odômetro agora? (recomendado)</span>
+                            <input @ref="_foco" inputmode="numeric" placeholder="o total de km do painel, ex.: 45.210" @bind="_fOdometro" @bind:event="oninput"></label>
+                        <small class="muted">Com ele anotado, no próximo é só digitar o odômetro de novo que a gente faz a conta dos km rodados.</small>
+                        @if (_recomeco)
+                        {
+                            <button type="button" class="abs-link" @onclick="() => _recomeco = false">Não pulei nenhum abastecimento</button>
+                        }
+                    }
+                    else if (ModoOdometro())
+                    {
+                        <label class="field"><span>Quanto marca o odômetro agora?</span>
+                            <input @ref="_foco" inputmode="numeric" placeholder="o total de km do painel" @bind="_fOdometro" @bind:event="oninput"></label>
+                        @if (odoBase is { } b)
+                        {
+                            var odo = LerKm(_fOdometro);
+                            <div class="abs-conta">
+                                <span>No abastecimento de @DataBR(anterior!.Data): <b>@(b.Estimado ? "≈ " : "")@Num(b.Valor, 0) km</b></span>
+                                @if (odo is double o && o > b.Valor)
+                                {
+                                    <span class="abs-resultado">@Num(o, 0) − @Num(b.Valor, 0) = <b>@Num(o - b.Valor, 0) km rodados</b></span>
+                                }
+                                else if (odo is not null)
+                                {
+                                    <span class="abs-erro">Precisa ser maior que @Num(b.Valor, 0) km. Confira o número do painel.</span>
+                                }
+                            </div>
+                        }
+                        <div class="abs-links">
+                            <button type="button" class="abs-link" @onclick="() => TrocarModo(false)">Prefiro digitar os km rodados</button>
+                            <button type="button" class="abs-link" @onclick="() => _recomeco = true">Esqueci de anotar algum abastecimento</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <label class="field"><span>Quantos km rodou desde o último abastecimento?</span>
+                            <input @ref="_foco" inputmode="decimal" placeholder="ex.: 420" @bind="_fKm" @bind:event="oninput"></label>
+                        <label class="field"><span>Odômetro agora (opcional)</span>
+                            <input inputmode="numeric" placeholder="o total de km do painel" @bind="_fOdometro" @bind:event="oninput"></label>
+                        @if (odoBase is null)
+                        {
+                            <small class="muted">O abastecimento anterior não tem odômetro. Anote o de agora e, no próximo, a conta dos km é automática.</small>
+                        }
+                        <div class="abs-links">
+                            @if (odoBase is not null)
+                            {
+                                <button type="button" class="abs-link" @onclick="() => TrocarModo(true)">Usar o odômetro (a conta é automática)</button>
+                            }
+                            <button type="button" class="abs-link" @onclick="() => _recomeco = true">Esqueci de anotar algum abastecimento</button>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="fp-escolha"><small>@(partida ? "Ponto de partida" : "Rodou")</small><b>@ResumoKm(partida, km, odoBase)</b></div>
+                    <button class="btn sm" type="button" @onclick="() => IrPara(1)">Alterar</button>
+                }
+            </div>
+        </li>
+
+        @* ---- 2. Na bomba ---- *@
+        <li class="@Classe(2)">
+            <span class="fp-num">@Numero(2)</span>
+            <div class="fp-corpo">
+                @if (_passo == 2)
+                {
+                    <div class="chips abs-comb" role="group" aria-label="Combustível">
+                        @foreach (var f in Combustivel.Todos)
+                        {
+                            <button type="button" class="chip @(_fComb == f.Chave ? "active" : "")" aria-pressed="@(_fComb == f.Chave)" @onclick="() => _fComb = f.Chave">
+                                <i class="abs-cor" style="background:@f.Cor"></i>@f.Nome</button>
+                        }
+                    </div>
+                    <div class="abs-valores">
+                        <label class="field"><span>Litros</span><input @ref="_foco" inputmode="decimal" placeholder="ex.: 38,5" @bind="_fLitros" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("litros"))"></label>
+                        <label class="field"><span>Total (R$)</span><input inputmode="decimal" placeholder="ex.: 215,90" @bind="_fValor" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("valor"))"></label>
+                        <label class="field"><span>Preço/litro</span><input inputmode="decimal" placeholder="ex.: 5,89" @bind="_fPreco" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("preco"))"></label>
+                    </div>
+                    <small class="muted">Está no visor da bomba ou no cupom. Preencha dois e o terceiro é calculado.</small>
+                }
+                else if (_alcancado >= 2 && litros > 0)
+                {
+                    <div class="fp-escolha"><small>Na bomba</small><b>@ResumoBomba(litros.Value, valor)</b></div>
+                    <button class="btn sm" type="button" @onclick="() => IrPara(2)">Alterar</button>
+                }
+                else
+                {
+                    <span class="fp-pendente">Litros e valor</span>
+                }
+            </div>
+        </li>
+
+        @* ---- 3. Tanque ---- *@
+        <li class="@Classe(3)">
+            <span class="fp-num">@Numero(3)</span>
+            <div class="fp-corpo">
+                @if (_passo == 3)
+                {
+                    <span class="abs-pergunta">Completou o tanque?</span>
+                    <div class="abs-escolhas">
+                        <button @ref="_foco" type="button" class="abs-escolha @(_encheu == true ? "ativa" : "")" aria-pressed="@(_encheu == true)" @onclick="() => _encheu = true">
+                            <b>Sim, completei</b><small>até o bico desarmar</small></button>
+                        <button type="button" class="abs-escolha @(_encheu == false ? "ativa" : "")" aria-pressed="@(_encheu == false)" @onclick="() => _encheu = false">
+                            <b>Não, só uma parte</b><small>ex.: R$ 100 ou 20 litros</small></button>
+                    </div>
+                    @if (_encheu == false)
+                    {
+                        <div class="abs-conta">
+                            <span>@(partida
+                                ? "Marque onde estava o ponteiro antes de abastecer: ele serve de base para o consumo do próximo."
+                                : "Para o consumo sair certo, marque onde estava o ponteiro antes de abastecer.")</span>
+                            <div class="abs-links">
+                                <button type="button" class="btn sm" @onclick="() => _marcadorAberto = true">@Icones.Bomba @(_nivel is null ? "Marcar o ponteiro" : "Ponteiro: " + MarcadorCombustivel.Fracao(_nivel.Value))</button>
+                                @if (_gastoEstimado && Pf(_fGastos) is double ge)
+                                {
+                                    <span>gasto <b>≈ @Num(ge, 1) L</b></span>
+                                }
+                            </div>
+                        </div>
+                    }
+                    @if (!partida)
+                    {
+                        @if (_bordo || (!_gastoEstimado && _fGastos != ""))
+                        {
+                            <label class="field"><span>Litros gastos no computador de bordo</span>
+                                <input inputmode="decimal" placeholder="desde o último abastecimento" @bind="_fGastos" @bind:event="oninput" @bind:after="() => _gastoEstimado = false"></label>
+                        }
+                        else
+                        {
+                            <button type="button" class="abs-link" @onclick="() => _bordo = true">Meu carro mostra os litros gastos (computador de bordo)</button>
+                        }
+                    }
+                }
+                else if (_alcancado >= 3 && _encheu is not null)
+                {
+                    <div class="fp-escolha"><small>Tanque</small><b>@ResumoTanque(partida)</b></div>
+                    <button class="btn sm" type="button" @onclick="() => IrPara(3)">Alterar</button>
+                }
+                else
+                {
+                    <span class="fp-pendente">Tanque</span>
+                }
+            </div>
+        </li>
+
+        @* ---- 4. Detalhes e salvar ---- *@
+        <li class="@Classe(4)">
+            <span class="fp-num">4</span>
+            <div class="fp-corpo">
+                @if (_passo == 4)
+                {
+                    <div class="form-grid">
+                        <label class="field"><span>Posto (opcional)</span><input @ref="_foco" maxlength="60" placeholder="ex.: Shell da avenida" @bind="_fPosto"></label>
+                        <label class="field"><span>Observação (opcional)</span><input maxlength="140" placeholder="viagem, trânsito..." @bind="_fObs"></label>
+                    </div>
+                }
+                else
+                {
+                    <span class="fp-pendente">Posto e observação (opcional)</span>
+                }
+            </div>
+        </li>
+    </ol>
+
+    @if (_passo >= 3 && _encheu is not null)
     {
-        var k = pKm.Value / pGastos.Value;
         <div class="preview">
-            <span>Consumo deste tanque: <b>@(_gastoEstimado && _fGastos != "" ? "≈ " : "")@Num(k, 2) km/l</b></span>
-            @if (st.Media > 0 && ed is null) { <Delta Valor="(k / st.Media - 1) * 100" Unidade="% vs média" BomQuandoCai="false" /> }
-            @if (pValor > 0) { <span>· <b>@Money(pValor / pKm)</b>/km</span> }
+            @if (partida)
+            {
+                <span>Ponto de partida: o consumo aparece no próximo abastecimento.</span>
+            }
+            else if (km > 0 && gastos > 0)
+            {
+                var k = km.Value / gastos.Value;
+                var aprox = _gastoEstimado && _fGastos != "";
+                <span>Consumo deste tanque: <b>@(aprox ? "≈ " : "")@Num(k, 2) km/l</b></span>
+                @if (st.Media > 0 && ed is null) { <Delta Valor="(k / st.Media - 1) * 100" Unidade="% vs média" BomQuandoCai="false" /> }
+                @if (valor > 0) { <span>· <b>@Money(valor / km)</b>/km</span> }
+                @if (_encheu == false && Pf(_fGastos) is null)
+                {
+                    <span class="abs-erro">Sem o ponteiro, o consumo usa os litros colocados e fica aproximado.</span>
+                }
+            }
         </div>
     }
+
     <div class="form-actions">
         <button class="btn" type="button" @onclick="Fechar">Cancelar</button>
-        <button class="btn primary" type="submit">@(ed is not null ? "Salvar alterações" : "Adicionar abastecimento")</button>
+        @if (_passo > 1)
+        {
+            <button class="btn" type="button" @onclick="() => IrPara(_passo - 1)">Voltar</button>
+        }
+        <button class="btn primary" type="submit">
+            @(_passo < 4 ? "Continuar" : ed is not null ? "Salvar alterações" : "Adicionar abastecimento")</button>
     </div>
 </form>
 </div>
 @if (_marcadorAberto)
 {
-    <MarcadorCombustivel Veiculo="Veiculo" Anterior="Anterior()" Km="Pf(_fKm)" NivelInicial="_nivel"
+    <MarcadorCombustivel Veiculo="Veiculo" Anterior="partida ? null : anterior" Km="km" NivelInicial="_nivel"
                          Confirmado="AplicarMarcador" Fechado="() => _marcadorAberto = false" />
 }
 }
@@ -91,13 +262,22 @@
                     <tr @key="a.Id">
                         <td>@DataBR(a.Data)</td>
                         <td><span class="fuel"><i style="background:@Combustivel.CorDe(a.Combustivel)"></i>@Combustivel.NomeDe(a.Combustivel)</span></td>
-                        <td class="num">@Num(a.Km, 1)</td>
-                        <td class="num">@Num(a.Litros, 2)</td>
-                        <td class="num" title="@(a.LitrosGastos is > 0 ? $"Gasto {(a.GastoEstimado ? "≈ " : "")}{Num(a.LitrosGastos, 1)} L" : null)">
-                            @if (a.GastoEstimado && a.LitrosGastos is > 0) { <span class="estimado-sinal">≈</span> }<b>@Num(a.Kml, 2)</b></td>
+                        @if (a.Inicial)
+                        {
+                            <td class="num"><span class="badge" title="Ponto de partida: o consumo começa a contar no próximo">início</span></td>
+                            <td class="num">@Num(a.Litros, 2)</td>
+                            <td class="num">@Vazio</td>
+                        }
+                        else
+                        {
+                            <td class="num">@Num(a.Km, 1)</td>
+                            <td class="num">@Num(a.Litros, 2)</td>
+                            <td class="num" title="@(a.LitrosGastos is > 0 ? $"Gasto {(a.GastoEstimado ? "≈ " : "")}{Num(a.LitrosGastos, 1)} L" : null)">
+                                @if (a.GastoEstimado && a.LitrosGastos is > 0) { <span class="estimado-sinal">≈</span> }<b>@Num(a.Kml, 2)</b></td>
+                        }
                         <td class="num">@(a.Valor is not null ? Money(a.Valor / a.Litros) : Vazio)</td>
                         <td class="num">@Money(a.Valor)</td>
-                        <td class="num">@(a.Valor is not null ? Money(a.Valor / a.Km) : Vazio)</td>
+                        <td class="num">@(a.Valor is not null && !a.Inicial ? Money(a.Valor / a.Km) : Vazio)</td>
                         <td class="num">@(a.Odometro is not null ? Num(a.Odometro, 0) : Vazio)</td>
                         <td class="obs">@string.Join(" · ", new[] { a.Posto, a.Obs }.Where(s => !string.IsNullOrEmpty(s)))</td>
                         <td><div class="row-actions">
@@ -123,16 +303,24 @@
     private string? _editId;
     private bool _aberto;
 
+    // Passo a passo: o atual e o mais longe já alcançado ("Alterar" volta, "Continuar" retorna para onde estava)
+    private int _passo = 1, _alcancado = 1;
+    private ElementReference _foco;
+    private bool _focar;
+
     private DateOnly? _fData = Hoje;
     private string _fComb = "gasolina";
     private string _fKm = "", _fLitros = "", _fValor = "", _fPreco = "", _fOdometro = "", _fPosto = "", _fObs = "";
-    private bool _kmAutomatico; // km preenchido a partir do odômetro (pode ser recalculado)
+    private bool _modoOdometro = true; // km rodados = odômetro agora − odômetro do anterior
+    private bool _recomeco;            // usuário pulou algum abastecimento: este vira ponto de partida
+    private string? _calculado;        // campo de litros/total/preço preenchido pela conta (pode ser refeito)
 
-    // Litros gastos e marcador de combustível
+    // Tanque: litros gastos e marcador de combustível
+    private bool? _encheu;
     private string _fGastos = "";
     private bool _gastoEstimado; // _fGastos veio do marcador (some ao digitar no campo)
+    private bool _bordo;         // mostrar o campo do computador de bordo
     private int? _nivel;         // ponteiro antes de abastecer, em oitavos
-    private bool _tanqueCheio;
     private bool _marcadorAberto;
 
     private DadosCarro Dados => Store.Dados.Carro;
@@ -145,13 +333,21 @@
     {
         LimparFormulario();
         _aberto = NovoAoAbrir;
+        _focar = _aberto;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focar || !_aberto) return;
+        _focar = false;
+        try { await _foco.FocusAsync(); } catch { /* campo ainda não está na tela */ }
     }
 
     /// <summary>Abre a janela para um abastecimento novo.</summary>
     public void Novo()
     {
         LimparFormulario();
-        _aberto = true;
+        _aberto = _focar = true;
         StateHasChanged();
     }
 
@@ -164,14 +360,88 @@
     private void LimparFormulario()
     {
         _editId = null;
+        _passo = _alcancado = 1;
         _fData = Hoje;
         _fComb = DoVeiculo().LastOrDefault()?.Combustivel ?? "gasolina";
         _fKm = _fLitros = _fValor = _fPreco = _fOdometro = _fPosto = _fObs = _fGastos = "";
-        _kmAutomatico = _gastoEstimado = _tanqueCheio = _marcadorAberto = false;
+        _recomeco = _gastoEstimado = _bordo = _marcadorAberto = false;
+        _calculado = null;
+        _encheu = null;
         _nivel = null;
+        _modoOdometro = OdometroBase() is not null;
     }
 
-    /// <summary>Abastecimento antes deste (base do marcador): o anterior na lista ao editar, senão o último até a data.</summary>
+    // ---- Passos ----
+
+    private string Classe(int p) => p == _passo ? "atual" : p <= _alcancado ? "feito" : "";
+
+    private string Numero(int p) => p != _passo && p <= _alcancado ? "✓" : p.ToString();
+
+    private void IrPara(int p)
+    {
+        _passo = Math.Clamp(p, 1, 4);
+        _focar = true;
+    }
+
+    private async Task Enviar()
+    {
+        if (_passo < 4)
+        {
+            if (!Validar(_passo)) return;
+            // Depois de "Alterar", volta para onde estava (pulando os passos que já estão certos)
+            var proximo = _passo + 1;
+            while (proximo < _alcancado && Validar(proximo, avisar: false)) proximo++;
+            _alcancado = Math.Max(_alcancado, proximo);
+            IrPara(proximo);
+            return;
+        }
+        await SalvarAbastecimento();
+    }
+
+    private bool Validar(int passo, bool avisar = true)
+    {
+        string? erro = passo switch
+        {
+            1 => ErroKm(),
+            2 => Pf(_fLitros) is not > 0 ? "Informe quantos litros colocou." :
+                 Pf(_fValor) is double v && v <= 0 ? "Valor inválido." : null,
+            3 => _encheu is null ? "Diga se completou o tanque." :
+                 Pf(_fGastos) is double g && g <= 0 ? "Litros gastos inválidos." :
+                 KmRodados() is > 0 and var k && k / (Pf(_fGastos) ?? Pf(_fLitros) ?? 1) > 60 ? "Consumo acima de 60 km/l: confira os km e os litros." : null,
+            _ => null
+        };
+        if (erro is not null && avisar) Toast.Erro(erro);
+        return erro is null;
+    }
+
+    private string? ErroKm()
+    {
+        var odo = LerKm(_fOdometro);
+        if (_fOdometro.Trim() != "" && odo is not > 0) return "Odômetro inválido.";
+        if (Partida()) return null;
+        if (ModoOdometro() && OdometroBase() is { } b)
+        {
+            if (odo is null) return "Digite quanto marca o odômetro.";
+            if (odo <= b.Valor) return $"O odômetro precisa ser maior que {Num(b.Valor, 0)} km (o do último abastecimento).";
+            return null;
+        }
+        return LerKm(_fKm) is > 0 ? null : "Informe quantos km rodou.";
+    }
+
+    private void TrocarModo(bool odometro)
+    {
+        // Leva o que já dá para saber para o outro modo
+        if (!odometro && KmRodados() is double k) _fKm = InVal(k, 1);
+        _modoOdometro = odometro;
+        _focar = true;
+    }
+
+    // ---- Contas ----
+
+    /// <summary>Sem abastecimento antes (o primeiro) ou o usuário pulou algum: não há km rodados.</summary>
+    private bool Partida() => _recomeco || Anterior() is null;
+
+    /// <summary>Abastecimento antes deste: o anterior na lista ao editar, senão o último até a data.</summary>
     private Abastecimento? Anterior()
     {
         var lista = DoVeiculo();
@@ -181,6 +451,65 @@
         return lista.LastOrDefault(a => a.Id != _editId && a.Data <= data);
     }
 
+    /// <summary>Odômetro depois do anterior (anotado, ou estimado pelos km somados desde o último anotado).</summary>
+    private (double Valor, bool Estimado)? OdometroBase() =>
+        Anterior() is { } a ? CarroCalculos.OdometroNo(DoVeiculo(), a) : null;
+
+    /// <summary>Calcula os km pelo odômetro: escolhido e com odômetro do anterior para subtrair.</summary>
+    private bool ModoOdometro() => _modoOdometro && OdometroBase() is not null;
+
+    private double? KmRodados()
+    {
+        if (Partida()) return 0;
+        if (ModoOdometro() && OdometroBase() is { } b)
+            return LerKm(_fOdometro) is double o && o > b.Valor ? o - b.Valor : null;
+        return LerKm(_fKm);
+    }
+
+    /// <summary>Km digitado como aparece no painel: "45.210" é 45210 (ponto de milhar), "420,5" é 420,5.</summary>
+    private static double? LerKm(string s)
+    {
+        var t = s.Trim().Replace(" ", "");
+        if (Regex.IsMatch(t, @"^\d{1,3}(\.\d{3})+$")) t = t.Replace(".", "");
+        return Pf(t);
+    }
+
+    /// <summary>Litros, total e preço: com dois preenchidos, calcula o terceiro (o que estiver vazio ou já calculado).</summary>
+    private void AoDigitarValor(string campo)
+    {
+        if (_calculado == campo) _calculado = null;
+        var v = new Dictionary<string, double?> { ["litros"] = Pf(_fLitros), ["valor"] = Pf(_fValor), ["preco"] = Pf(_fPreco) };
+        var alvo = new[] { _calculado, "preco", "valor", "litros" }
+            .FirstOrDefault(c => c is not null && c != campo && (c == _calculado || v[c] is null));
+        if (alvo is null) return;
+        var (litros, valor, preco) = (v["litros"], v["valor"], v["preco"]);
+        string? resultado = alvo switch
+        {
+            "preco" when litros > 0 && valor > 0 => InVal(valor / litros, 3),
+            "valor" when litros > 0 && preco > 0 => InVal(litros * preco, 2),
+            "litros" when valor > 0 && preco > 0 => InVal(valor / preco, 2),
+            _ => null
+        };
+        if (resultado is null)
+        {
+            // Apagou um dos dois: o calculado também some
+            if (alvo == _calculado) { Definir(alvo, ""); _calculado = null; }
+            return;
+        }
+        Definir(alvo, resultado);
+        _calculado = alvo;
+    }
+
+    private void Definir(string campo, string texto)
+    {
+        switch (campo)
+        {
+            case "litros": _fLitros = texto; break;
+            case "valor": _fValor = texto; break;
+            case "preco": _fPreco = texto; break;
+        }
+    }
+
     private void AplicarMarcador((int Nivel, double? Gasto) r)
     {
         _nivel = r.Nivel;
@@ -188,57 +517,59 @@
         {
             _fGastos = InVal(g, 1);
             _gastoEstimado = true;
+            _bordo = false;
         }
         _marcadorAberto = false;
     }
 
-    // Preenchimentos automáticos: odômetro → km, valor ↔ preço por litro
-    private void AoDigitar(string campo)
+    // ---- Resumos dos passos concluídos ----
+
+    private string ResumoKm(bool partida, double? km, (double Valor, bool Estimado)? odoBase)
     {
-        var litros = Pf(_fLitros);
-        var valor = Pf(_fValor);
-        var preco = Pf(_fPreco);
-        if (campo == "odometro")
-        {
-            var odometro = Pf(_fOdometro);
-            var anterior = OdometroAnterior();
-            if (odometro is not null && anterior is not null && odometro > anterior && (_fKm == "" || _kmAutomatico))
-            {
-                _fKm = InVal(odometro - anterior, 1);
-                _kmAutomatico = true;
-            }
-        }
-        if (campo == "km") _kmAutomatico = false;
-        if (campo is "valor" or "litros" && litros > 0 && valor > 0)
-            _fPreco = InVal(valor / litros, 3);
-        else if (campo is "preco" or "litros" && litros > 0 && preco > 0 && !(valor > 0 && campo == "litros"))
-            _fValor = InVal(preco * litros, 2);
+        var odo = LerKm(_fOdometro);
+        if (partida) return odo is double o ? $"odômetro em {Num(o, 0)} km" : "sem odômetro anotado";
+        var texto = $"{Num(km, 0)} km";
+        if (ModoOdometro() && odoBase is { } b && odo is double o2) texto += $" ({Num(b.Valor, 0)} → {Num(o2, 0)})";
+        return texto;
     }
 
-    private double? OdometroAnterior()
+    private string ResumoBomba(double litros, double? valor) =>
+        $"{Num(litros, 2)} L de {Combustivel.NomeDe(_fComb)}" +
+        (valor > 0 ? $" · {Money(valor)} ({Money(valor / litros, 3)}/L)" : "");
+
+    private string ResumoTanque(bool partida)
     {
-        var data = _fData ?? Hoje;
-        return DoVeiculo().LastOrDefault(a => a.Id != _editId && a.Odometro is not null && a.Data <= data)?.Odometro;
+        var partes = new List<string> { _encheu == true ? "completou" : "parcial" };
+        if (_nivel is int n) partes.Add("ponteiro antes em " + MarcadorCombustivel.Fracao(n));
+        if (!partida && Pf(_fGastos) is double g) partes.Add($"gasto {(_gastoEstimado ? "≈ " : "")}{Num(g, 1)} L");
+        return string.Join(" · ", partes);
     }
+
+    // ---- Editar, excluir, salvar ----
 
     private void Editar(Abastecimento a)
     {
+        LimparFormulario();
         _editId = a.Id;
         _fData = a.Data;
         _fComb = a.Combustivel;
-        _fKm = InVal(a.Km, 1);
         _fLitros = InVal(a.Litros, 2);
         _fValor = InVal(a.Valor, 2);
         _fPreco = a.Valor > 0 ? InVal(a.Valor / a.Litros, 3) : "";
+        _calculado = a.Valor > 0 ? "preco" : null;
         _fOdometro = InVal(a.Odometro, 0);
         _fPosto = a.Posto ?? "";
         _fObs = a.Obs ?? "";
-        _kmAutomatico = false;
         _fGastos = InVal(a.LitrosGastos, 2);
         _gastoEstimado = a.GastoEstimado;
         _nivel = a.NivelAntes;
-        _tanqueCheio = a.TanqueCheio;
-        _marcadorAberto = false;
+        _encheu = a.TanqueCheio || (a.NivelAntes is null && a.LitrosGastos is null);
+        _recomeco = a.Inicial && Anterior() is not null;
+        // Odômetro bate com o anterior + km: segue no modo do odômetro; senão, km digitados
+        var b = OdometroBase();
+        _modoOdometro = b is not null && a.Odometro is double o && Math.Abs(o - b.Value.Valor - a.Km) < 1;
+        _fKm = a.Inicial ? "" : InVal(a.Km, 1);
+        _passo = _alcancado = 4;
         _aberto = true;
     }
 
@@ -253,31 +584,29 @@
 
     private async Task SalvarAbastecimento()
     {
-        var km = Pf(_fKm);
-        var litros = Pf(_fLitros);
-        var valor = Pf(_fValor);
-        var preco = Pf(_fPreco);
-        if (valor is null && preco > 0 && litros > 0) valor = Math.Round(preco.Value * litros.Value, 2);
         if (_fData is not DateOnly data) { Toast.Erro("Informe a data."); return; }
-        if (km is not > 0) { Toast.Erro("Informe quantos km você rodou."); return; }
-        if (litros is not > 0) { Toast.Erro("Informe quantos litros abasteceu."); return; }
-        var gastos = Pf(_fGastos);
-        if (gastos is not null && gastos is not > 0) { Toast.Erro("Litros gastos inválidos."); return; }
-        if (km / (gastos ?? litros) > 60) { Toast.Erro("Consumo acima de 60 km/l — confira os valores."); return; }
-        if (valor is not null && valor is not > 0) { Toast.Erro("Valor inválido."); return; }
+        for (var p = 1; p <= 3; p++)
+            if (!Validar(p)) { IrPara(p); return; }
+
+        var partida = Partida();
+        var km = partida ? 0 : KmRodados()!.Value;
+        var litros = Pf(_fLitros)!.Value;
+        var valor = Pf(_fValor);
+        if (valor is null && Pf(_fPreco) is > 0 and var preco) valor = Math.Round(preco * litros, 2);
+        var gastos = partida ? null : Pf(_fGastos);
 
         void Preencher(Abastecimento a)
         {
             a.Data = data;
             a.Combustivel = _fComb;
-            a.Km = km.Value;
-            a.Litros = litros.Value;
+            a.Km = km;
+            a.Litros = litros;
             a.LitrosGastos = gastos;
             a.GastoEstimado = gastos is not null && _gastoEstimado;
             a.NivelAntes = _nivel;
-            a.TanqueCheio = _tanqueCheio;
+            a.TanqueCheio = _encheu == true;
             a.Valor = valor;
-            a.Odometro = Pf(_fOdometro);
+            a.Odometro = LerKm(_fOdometro);
             a.Posto = string.IsNullOrWhiteSpace(_fPosto) ? null : _fPosto.Trim();
             a.Obs = string.IsNullOrWhiteSpace(_fObs) ? null : _fObs.Trim();
         }
@@ -293,7 +622,9 @@
             var novo = new Abastecimento { Id = ArmazenamentoService.NovoId(), VeiculoId = Veiculo.Id };
             Preencher(novo);
             Dados.Abastecimentos.Add(novo);
-            Toast.Ok($"Abastecimento salvo: {(novo.GastoEstimado ? "≈ " : "")}{Num(novo.Kml, 2)} km/l");
+            Toast.Ok(novo.Inicial
+                ? "Ponto de partida salvo. O consumo aparece no próximo abastecimento."
+                : $"Abastecimento salvo: {(novo.GastoEstimado ? "≈ " : "")}{Num(novo.Kml, 2)} km/l");
         }
         Store.Salvar();
         Fechar();

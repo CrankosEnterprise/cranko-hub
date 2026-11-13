@@ -15,7 +15,7 @@ public class Abastecimento
 
     public double? Odometro { get; set; }
 
-    /// <summary>Km rodados desde o abastecimento anterior.</summary>
+    /// <summary>Km rodados desde o abastecimento anterior. 0 = ponto de partida (ver <see cref="Inicial"/>).</summary>
     public double Km { get; set; }
 
     /// <summary>Litros colocados na bomba (base do preço por litro).</summary>
@@ -42,6 +42,13 @@ public class Abastecimento
     public string? Posto { get; set; }
 
     public string? Obs { get; set; }
+
+    /// <summary>
+    /// Ponto de partida (primeiro abastecimento, ou recomeço depois de um que não foi anotado): sem km rodados,
+    /// não tem consumo; só guarda odômetro, tanque e ponteiro como base do próximo. Os gastos contam normalmente.
+    /// </summary>
+    [JsonIgnore]
+    public bool Inicial => Km <= 0;
 
     /// <summary>Litros usados no consumo (km/l).</summary>
     [JsonIgnore]

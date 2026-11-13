@@ -5,14 +5,15 @@
     var list = CarroCalculos.DoVeiculo(Store.Dados.Carro, Veiculo.Id);
     var st = CarroCalculos.Estatisticas(list);
     var last = list.LastOrDefault();
-    double? lastK = last?.Kml;
+    var ultimoTrecho = list.LastOrDefault(a => !a.Inicial);
+    double? lastK = ultimoTrecho?.Kml;
     var porComb = Combustivel.Todos
         .Select(f => (Comb: f, St: CarroCalculos.Estatisticas(list.Where(a => a.Combustivel == f.Chave).ToList())))
         .Where(x => x.St.N > 0).ToList();
 
     var corte = _periodo > 0 && last is not null ? last.Data.AddDays(-_periodo) : DateOnly.MinValue;
     var seriesConsumo = Combustivel.Todos.Select(f => new SerieLinha(f.Nome, f.Cor,
-            list.Where(a => a.Combustivel == f.Chave && a.Data >= corte)
+            list.Where(a => a.Combustivel == f.Chave && a.Data >= corte && !a.Inicial)
                 .Select(a => new PontoLinha(a.Data, a.Kml, string.Join(" · ", new[] { Num(a.Km, 0) + " km", (a.GastoEstimado && a.LitrosGastos > 0 ? "≈ " : "") + Num(a.Consumidos, 1) + " L", a.Posto }.Where(s => !string.IsNullOrEmpty(s)))))
                 .ToList()))
         .Where(s => s.Points.Count > 0).ToList();
@@ -30,8 +31,9 @@
     <div class="kpi"><span class="kpi-label">Último consumo</span>
         <span class="kpi-value">@Num(lastK, 2)<small>km/l</small></span>
         <span class="kpi-sub">
-            @if (lastK is not null && st.N > 1) { <Delta Valor="(lastK / st.Media - 1) * 100" Unidade="% vs média" BomQuandoCai="false" /> }
-            else if (last is not null) { @DataBR(last.Data) }
+            @if (lastK is not null && CarroCalculos.ComConsumo(list).Count > 1) { <Delta Valor="(lastK / st.Media - 1) * 100" Unidade="% vs média" BomQuandoCai="false" /> }
+            else if (ultimoTrecho is not null) { @DataBR(ultimoTrecho.Data) }
+            else if (last is not null) { <span>aparece no próximo abastecimento</span> }
             else { @Vazio }
         </span></div>
     <div class="kpi"><span class="kpi-label">Melhor tanque</span>

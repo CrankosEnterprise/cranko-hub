@@ -25,19 +25,43 @@ public static class CarroCalculos
     {
         var km = lista.Sum(a => a.Km);
         var litros = lista.Sum(a => a.Litros);
-        var consumidos = lista.Sum(a => a.Consumidos);
+        // Consumo e custo por km só nos trechos (o ponto de partida não tem km rodados)
+        var trechos = ComConsumo(lista);
+        var consumidos = trechos.Sum(a => a.Consumidos);
         // Custos só consideram os abastecimentos com valor informado
         var comValor = lista.Where(a => a.Valor is not null).ToList();
         var valor = comValor.Sum(a => a.Valor!.Value);
-        var kmComValor = comValor.Sum(a => a.Km);
+        var trechosComValor = comValor.Where(a => !a.Inicial).ToList();
+        var kmComValor = trechosComValor.Sum(a => a.Km);
         var litrosComValor = comValor.Sum(a => a.Litros);
         return new EstatisticasCarro(
             lista.Count, km, litros, valor,
             Media: consumidos > 0 ? km / consumidos : null,
-            CustoKm: kmComValor > 0 ? valor / kmComValor : null,
+            CustoKm: kmComValor > 0 ? trechosComValor.Sum(a => a.Valor!.Value) / kmComValor : null,
             PrecoMedio: litrosComValor > 0 ? valor / litrosComValor : null,
-            Melhor: lista.Count > 0 ? lista.Max(a => a.Kml) : null,
-            Pior: lista.Count > 0 ? lista.Min(a => a.Kml) : null);
+            Melhor: trechos.Count > 0 ? trechos.Max(a => a.Kml) : null,
+            Pior: trechos.Count > 0 ? trechos.Min(a => a.Kml) : null);
+    }
+
+    /// <summary>Abastecimentos que têm consumo (km/l): todos menos os pontos de partida.</summary>
+    public static List<Abastecimento> ComConsumo(IEnumerable<Abastecimento> lista) => lista.Where(a => !a.Inicial).ToList();
+
+    /// <summary>
+    /// Odômetro logo depois de um abastecimento: o que foi anotado nele, ou o último anotado antes somado aos km
+    /// rodados desde então (Estimado). Null se nenhum odômetro foi anotado até ali.
+    /// </summary>
+    public static (double Valor, bool Estimado)? OdometroNo(List<Abastecimento> lista, Abastecimento alvo)
+    {
+        if (alvo.Odometro is double o) return (o, false);
+        var i = lista.IndexOf(alvo);
+        if (i < 0) return null;
+        double soma = 0;
+        for (var j = i; j >= 0; j--)
+        {
+            if (lista[j].Odometro is double base_) return (base_ + soma, true);
+            soma += lista[j].Km;
+        }
+        return null;
     }
 
     /// <summary>Soma mensal dos últimos 12 meses.</summary>
