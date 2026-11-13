@@ -96,19 +96,30 @@ Baixe a versão oficial do **CrankoHub**:
 ```
 cranko-hub/
 ├── CrankoHub/                       # Projeto principal (WPF + Blazor Hybrid, .NET 10)
-│   ├── Pages/                       # Telas .razor (Início, Dieta, Carro, Assinaturas, Entretenimento, Tarefas, Agenda, Configurações)
-│   │   └── CarroAbas/               # Abas do Carro (Abastecimentos, Consumo, Manutenção, Documentos, Calculadoras)
-│   ├── Components/                  # Componentes reutilizáveis (gráficos, diálogos, toasts, ícones, conta)
-│   ├── Layout/                      # LayoutPrincipal.razor (menu lateral e rodapé da conta)
-│   ├── Models/                      # Modelos de dados (EstadoApp é a raiz dos dados da conta)
-│   ├── Services/                    # Regras de negócio, cálculos e serviços
-│   │   ├── ArmazenamentoService.cs  # Cache local da conta (para funcionar offline)
-│   │   ├── Alertas.cs               # Fonte única do "Precisa de atenção" e das notificações
-│   │   ├── AtualizacaoService.cs    # Atualização automática pelo GitHub Releases
-│   │   ├── SincronizacaoService.cs  # Sincronização com o Supabase (Data API + Storage)
-│   │   ├── ContaService.cs          # Login, sessão e conta
-│   │   ├── EntretenimentoBusca.cs   # Busca em TMDB, AniList, RAWG e Open Library
-│   │   └── ...                      # Cálculos de Carro, Dieta, Assinaturas, Tarefas, bandeja...
+│   │                                # Pages, Components, Models e Services têm uma subpasta por módulo
+│   │                                # (Agenda, Assinaturas, Carro, Dieta, Entretenimento, Tarefas...).
+│   │                                # As subpastas são só organização: os namespaces continuam
+│   │                                # CrankoHub.Pages, CrankoHub.Services etc.
+│   ├── Pages/                       # Telas .razor, uma pasta por módulo
+│   │   ├── Carro/                   # Carro.razor, ModoCarro.razor
+│   │   │   └── Abas/                # Abas do Carro (Abastecimentos, Consumo, Manutenção, Documentos, Calculadoras)
+│   │   └── Conta/                   # Minha Conta e Configurações
+│   ├── Components/                  # Componentes reutilizáveis
+│   │   ├── Comum/                   # Ícones, diálogos, toasts, botões do topo, anexos, Delta
+│   │   ├── Graficos/                # GraficoLinha, GraficoBarras e Legenda
+│   │   ├── Conta/                   # Tela de login, rodapé da conta, linhas de permissão
+│   │   └── <Módulo>/                # Peças de um módulo só (ex.: Carro/MarcadorCombustivel)
+│   ├── Layout/                      # LayoutPrincipal.razor (menu lateral e rodapé da conta) e LayoutCarro.razor
+│   ├── Models/                      # Modelos de dados, por módulo
+│   │   └── Comum/                   # EstadoApp (raiz dos dados da conta), Configuracoes, Modulo, Anexo, Graficos...
+│   ├── Services/                    # Regras de negócio, cálculos e serviços, por módulo
+│   │   ├── Comum/                   # Formatação, alertas, avisos, toasts, navegação
+│   │   ├── Dados/                   # Cache local, sincronização e conta no Supabase
+│   │   ├── Windows/                 # Só do Windows (bandeja, diálogos, atualização, iniciar com o Windows, cofre)
+│   │   ├── Anexos/                  # Compactação e rascunho dos anexos
+│   │   ├── Carro/                   # Cálculos do carro, FIPE, Carros na Web
+│   │   │   └── ModoCarro/           # Rota, radares, Google Maps, visor da central, Bluetooth
+│   │   └── <Módulo>/                # Cálculos de Agenda, Assinaturas, Dieta, Tarefas, Entretenimento
 │   ├── Linux/                       # Projeto Linux (Photino.Blazor), que reaproveita os arquivos acima
 │   │   ├── Plataforma/              # Partes exclusivas do Linux (diálogos GTK, notify-send, autostart...)
 │   │   ├── Program.cs               # Ponto de entrada do app Linux

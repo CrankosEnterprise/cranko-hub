@@ -1,6 +1,6 @@
 'use strict';
 
-// Layout do Modo Carro (Pages/ModoCarro.razor): a barra entre o mapa e o painel, que se arrasta com o dedo para mudar
+// Layout do Modo Carro (Pages/Carro/ModoCarro.razor): a barra entre o mapa e o painel, que se arrasta com o dedo para mudar
 // o tamanho, e o aviso ao mapa (modoCarro ou modoCarroGoogle) quando a área dele muda de tamanho.
 // Durante o arraste só a variável CSS muda (--mc-painel na paisagem, --mc-painel-r no retrato); ao soltar, o C# grava
 // o valor (PainelMudou). Toque duplo na barra volta ao tamanho padrão (PainelPadrao).

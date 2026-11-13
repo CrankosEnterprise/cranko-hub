@@ -18,7 +18,7 @@ namespace CrankoHub.Services;
 /// sem pedir o foco de áudio (o Spotify não pausa), e o reinicia quando o Spotify começa a tocar ou troca de música.
 /// </para>
 /// Liga sozinho durante a rota (<see cref="Configuracoes.VisorCentral"/>, com o Bluetooth de áudio conectado) e no teste com log
-/// (<see cref="Iniciar"/>; log em visor-log.txt na pasta do app e no logcat "CrankoHub.Visor"). Mesma API de Services/VisorCarroService.cs.
+/// (<see cref="Iniciar"/>; log em visor-log.txt na pasta do app e no logcat "CrankoHub.Visor"). Mesma API de Services/Carro/ModoCarro/VisorCarroService.cs.
 /// </summary>
 public sealed class VisorCarroService(ModoCarroService modo, RotaService rota, ArmazenamentoService store)
 {

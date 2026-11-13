@@ -1,0 +1,86 @@
+@namespace CrankoHub.Components
+@* Conta no rodapé da barra lateral: o nome abre um menu com Informações (página da Conta), a sincronização e Sair (o login é a TelaLogin) *@
+@implements IDisposable
+@inject ContaService Conta
+@inject SincronizacaoService Sincronizacao
+@inject IDialogoService Dialogo
+@inject NavigationManager Nav
+
+<div class="conta" @onkeydown="AoTeclar">
+    @if (Conta.Logado)
+    {
+        @if (_menu)
+        {
+            <div class="conta-fundo" @onclick="() => _menu = false"></div>
+            <div class="conta-menu" role="menu">
+                <p class="conta-status @(Sincronizacao.Problema is not null ? "problema" : "")">@StatusCompleto</p>
+                <button class="conta-opcao" type="button" role="menuitem" title="Ver os dados da conta e o que está guardado nela" @onclick="AbrirInformacoes">@Icones.Info<span>Informações</span></button>
+                <button class="conta-opcao" type="button" role="menuitem" disabled="@Sincronizacao.Sincronizando" @onclick="SincronizarAgora">@Icones.Sincronizar<span>Sincronizar agora</span></button>
+                <button class="conta-opcao perigo" type="button" role="menuitem" @onclick="Sair">@Icones.Sair<span>Sair</span></button>
+            </div>
+        }
+        <button class="conta-btn" type="button" aria-haspopup="menu" aria-expanded="@_menu" @onclick="() => _menu = !_menu">
+            <span class="conta-avatar">@Inicial</span>
+            <span class="conta-texto"><b>@Conta.Usuario</b><small>@StatusCurto</small></span>
+        </button>
+    }
+</div>
+
+@code {
+    private bool _menu;
+
+    private string Inicial => Conta.Usuario is { Length: > 0 } u ? u[..1].ToUpperInvariant() : "?";
+
+    // Linha curta embaixo do nome
+    private string StatusCurto =>
+        Conta.Offline ? "Sem conexão" :
+        Sincronizacao.Problema is not null ? "Não sincronizado" :
+        Sincronizacao.Sincronizando ? "Sincronizando…" :
+        Sincronizacao.Ultima is DateTime u ? $"Sincronizado às {u:HH:mm}" : "Preparando…";
+
+    // Explicação completa, no topo do menu
+    private string StatusCompleto =>
+        Sincronizacao.Problema ?? (Sincronizacao.Sincronizando ? "Sincronizando…" :
+            Sincronizacao.Ultima is DateTime u ? $"Sincronizado às {u:HH:mm}. As mudanças vão sozinhas para os outros aparelhos." : "Preparando a sincronização…");
+
+    // A sessão é renovada em segundo plano ao abrir o app e a sincronização muda o status: redesenha
+    private void Mudou() => InvokeAsync(StateHasChanged);
+
+    protected override void OnInitialized()
+    {
+        Conta.Mudou += Mudou;
+        Sincronizacao.Mudou += Mudou;
+    }
+
+    public void Dispose()
+    {
+        Conta.Mudou -= Mudou;
+        Sincronizacao.Mudou -= Mudou;
+    }
+
+    private void AoTeclar(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _menu = false;
+    }
+
+    private void AbrirInformacoes()
+    {
+        _menu = false;
+        Nav.NavigateTo("conta");
+    }
+
+    private async Task SincronizarAgora()
+    {
+        _menu = false;
+        await Sincronizacao.Sincronizar();
+    }
+
+    private async Task Sair()
+    {
+        _menu = false;
+        if (!await Dialogo.Confirmar("Sair da conta?\nAs mudanças pendentes são enviadas antes. O app reinicia na tela de login. Os dados continuam na conta.")) return;
+        await Sincronizacao.Sincronizar();
+        await Conta.Sair();
+        AtualizacaoService.Reiniciar();
+    }
+}

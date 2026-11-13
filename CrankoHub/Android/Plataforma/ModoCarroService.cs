@@ -12,7 +12,7 @@ namespace CrankoHub.Services;
 
 /// <summary>
 /// Modo Carro no Android: GPS para o mapa, o que está tocando no Spotify (pela "Transmissão do status do dispositivo",
-/// sem permissão especial) e os atalhos. Mesma API de Services/ModoCarroService.cs.
+/// sem permissão especial) e os atalhos. Mesma API de Services/Carro/ModoCarro/ModoCarroService.cs.
 /// </summary>
 public sealed class ModoCarroService(HttpClient http)
 {

@@ -45,7 +45,7 @@
     <Compile Include="..\Models\**\*.cs" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Components\**\*.cs" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Services\**\*.cs" Link="Services\%(RecursiveDir)%(Filename)%(Extension)"
-             Exclude="..\Services\BandejaService.cs;..\Services\DialogoService.cs;..\Services\InicializacaoWindows.cs;..\Services\AtualizacaoService.cs;..\Services\CofreSessao.cs" />
+             Exclude="..\Services\Windows\**" />
 
     <Content Include="..\Main.razor;..\_Imports.razor" Link="%(Filename)%(Extension)" CopyToOutputDirectory="Never" />
     <Content Include="..\Pages\**\*.razor" Link="Pages\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="Never" />

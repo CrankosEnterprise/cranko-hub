@@ -1,0 +1,99 @@
+@namespace CrankoHub.Components
+@* Lista de anexos de um formulário: adicionar (compacta na hora), abrir no programa padrão, remover e, se a seção pedir, a categoria de cada um *@
+@inject IDialogoService Dialogo
+@inject AnexosService Anexos
+@inject ToastService Toast
+
+<div class="field full">
+    <span>@Titulo</span>
+    <ul class="anexos">
+        @foreach (var a in Rascunho.Lista)
+        {
+            <li @key="a.Id">
+                @Icones.Anexo
+                <span class="anexo-info">
+                    <span class="anexo-nome" title="@a.Nome">@a.Nome</span>
+                    <span class="anexo-tam">@AnexosService.TamanhoTexto(a)</span>
+                </span>
+                @if (Categorias is { Count: > 0 })
+                {
+                    <select class="select anexo-cat" aria-label="Tipo do anexo" @bind="a.Categoria">
+                        <option value="">Outro</option>
+                        @foreach (var c in Categorias)
+                        {
+                            <option value="@c.Chave">@c.Nome</option>
+                        }
+                    </select>
+                }
+                <button class="btn sm" type="button" disabled="@(_abrindo == a.Id)" @onclick="() => Abrir(a)">@(_abrindo == a.Id ? "Abrindo…" : "Abrir")</button>
+                <button class="remover" type="button" title="Remover anexo" @onclick="() => Rascunho.Remover(a)">@Icones.Excluir</button>
+            </li>
+        }
+    </ul>
+    <div class="anexos-acoes">
+        <button class="btn sm" type="button" disabled="@_compactando" @onclick="Adicionar">
+            @(_compactando ? "Compactando…" : TextoBotao)
+        </button>
+        <span class="muted">@Dica</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public RascunhoAnexos Rascunho { get; set; } = default!;
+
+    [Parameter] public string Titulo { get; set; } = "Anexos";
+
+    [Parameter] public string TextoBotao { get; set; } = "Adicionar arquivo";
+
+    /// <summary>Extensões aceitas (ex.: ".pdf", ".jpg"); null = qualquer arquivo.</summary>
+    [Parameter] public string[]? Extensoes { get; set; }
+
+    /// <summary>Se a seção classifica os anexos (ex.: Orçamento / Nota fiscal), um seletor por anexo.</summary>
+    [Parameter] public IReadOnlyList<CategoriaAnexo>? Categorias { get; set; }
+
+    /// <summary>Categoria já marcada nos arquivos novos.</summary>
+    [Parameter] public string? CategoriaInicial { get; set; }
+
+    [Parameter] public string Dica { get; set; } = $"Até {AnexosService.Tamanho(AnexosService.TamanhoMaximo)} cada. Imagens viram WebP; o resto é compactado sem perda.";
+
+    private bool _compactando;
+    private string? _abrindo;
+
+    private async Task Adicionar()
+    {
+        var caminhos = await Dialogo.AbrirArquivos(Extensoes);
+        if (caminhos.Length == 0) return;
+        _compactando = true;
+        StateHasChanged();
+        try
+        {
+            foreach (var caminho in caminhos)
+            {
+                if (Extensoes is not null && !Extensoes.Contains(Path.GetExtension(caminho).ToLowerInvariant()))
+                {
+                    Toast.Erro($"\"{Path.GetFileName(caminho)}\" não é de um tipo aceito aqui.");
+                    continue;
+                }
+                try
+                {
+                    var a = await AnexosService.Importar(caminho);
+                    if (!Rascunho.Aberto) { AnexosService.Excluir(a.Arquivo); return; } // o formulário fechou enquanto compactava
+                    a.Categoria = CategoriaInicial;
+                    Rascunho.Adicionar(a);
+                    StateHasChanged();
+                }
+                catch (AnexoErro ex) { Toast.Erro(ex.Message); }
+            }
+        }
+        finally { _compactando = false; }
+    }
+
+    private async Task Abrir(Anexo a)
+    {
+        _abrindo = a.Id;
+        try { await Dialogo.AbrirNoSistema(await Anexos.PrepararParaAbrir(a)); }
+        catch (AnexoErro ex) { Toast.Erro(ex.Message); }
+        catch (Exception) { Toast.Erro("Não foi possível abrir o arquivo."); }
+        finally { _abrindo = null; }
+    }
+}

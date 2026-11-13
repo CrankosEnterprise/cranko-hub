@@ -47,7 +47,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.120" />
-    <!-- Reduz as capas do Entretenimento (Services/CapasService.cs) -->
+    <!-- Reduz as capas do Entretenimento (Services/Entretenimento/CapasService.cs) -->
     <PackageReference Include="SkiaSharp" Version="4.154.0" />
   </ItemGroup>
 

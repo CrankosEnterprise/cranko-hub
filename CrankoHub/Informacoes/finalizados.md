@@ -78,7 +78,7 @@ O cache da conta fica em `~/.local/share/CrankoHub/contas/<user_id>/`.
 **Situação:** o repositório é público, mas por enquanto só o dono testa essa integração. A estrutura já nasce pronta para vários usuários, cada um vendo só os próprios dados.
 
 **Onde estamos (03/11/2026):**
-- ✅ Projeto criado no Supabase, URL e publishable key em `Services/SupabaseConfig.cs`.
+- ✅ Projeto criado no Supabase, URL e publishable key em `Services/Dados/SupabaseConfig.cs`.
 - ✅ SQL da fase 1 rodado; cadastro desligado no painel; usuário admin criado à mão.
 - ✅ Testado por `curl` só com a publishable key: cadastro recusado (`signup_disabled`), as 11 tabelas negam leitura e gravação sem login (`permission denied`), senha errada recusada.
 - ✅ Código das fases 2 (login), 3 (sincronização) e 4 (primeiro login/migração) compilando no Windows e no Linux. O .exe de teste foi gerado com `dotnet publish CrankoHub.csproj -c Release -o <pasta>`.
@@ -155,15 +155,15 @@ RLS e permissões, em todas as tabelas:
 
 ### Fase 2: Login ✅
 
-- **`Services/SupabaseConfig.cs`:** URL, publishable key e domínio interno dos usuários como constantes. Com a URL vazia, o rodapé da conta não aparece e nada é chamado.
-- **`Services/SupabaseCliente.cs`:** `HttpClient` próprio que envia `apikey` e `Authorization: Bearer <token do usuário>`. Nunca envia a publishable key no `Authorization`, porque o Supabase tenta ler como JWT e rejeita. Renova o token sozinho; `Enviar(...)` já serve para a Data API da fase 3.
-- **`Services/ContaService.cs`:** entrar (usuário → e-mail interno), sair, restaurar a sessão ao abrir e evento `Mudou`. Sessão recusada pelo servidor (senha trocada, revogada) sai sozinha; sem internet continua logado ("sem conexão agora").
-- **Sessão:** só o refresh token, nunca a senha. Windows: DPAPI em `Services/CofreSessao.cs` (`sessao.bin`). Linux: `Linux/Plataforma/CofreSessao.cs`, arquivo `sessao` com permissão 600.
+- **`Services/Dados/SupabaseConfig.cs`:** URL, publishable key e domínio interno dos usuários como constantes. Com a URL vazia, o rodapé da conta não aparece e nada é chamado.
+- **`Services/Dados/SupabaseCliente.cs`:** `HttpClient` próprio que envia `apikey` e `Authorization: Bearer <token do usuário>`. Nunca envia a publishable key no `Authorization`, porque o Supabase tenta ler como JWT e rejeita. Renova o token sozinho; `Enviar(...)` já serve para a Data API da fase 3.
+- **`Services/Dados/ContaService.cs`:** entrar (usuário → e-mail interno), sair, restaurar a sessão ao abrir e evento `Mudou`. Sessão recusada pelo servidor (senha trocada, revogada) sai sozinha; sem internet continua logado ("sem conexão agora").
+- **Sessão:** só o refresh token, nunca a senha. Windows: DPAPI em `Services/Windows/CofreSessao.cs` (`sessao.bin`). Linux: `Linux/Plataforma/CofreSessao.cs`, arquivo `sessao` com permissão 600.
 - **`ConfigLocal`:** `ContaUsuario` e `ContaId`, por computador.
-- **`Components/ContaRodape.razor`** (no rodapé da barra lateral, em `Layout/LayoutPrincipal.razor`): deslogado mostra **Entrar**, que abre uma janela com usuário/senha (sem criar conta); logado mostra a inicial, o nome e o status curto da sincronização, e o clique abre um menu com o status completo, Informações (página da Conta, `Pages/MinhaConta.razor`), "Sincronizar agora" e Sair. Entrar e sair reiniciam o app (`AtualizacaoService.Reiniciar()`), para trocar para a pasta da conta e voltar (fase 4). O card "Conta" saiu das Configurações.
+- **`Components/Conta/ContaRodape.razor`** (no rodapé da barra lateral, em `Layout/LayoutPrincipal.razor`): deslogado mostra **Entrar**, que abre uma janela com usuário/senha (sem criar conta); logado mostra a inicial, o nome e o status curto da sincronização, e o clique abre um menu com o status completo, Informações (página da Conta, `Pages/Conta/MinhaConta.razor`), "Sincronizar agora" e Sair. Entrar e sair reiniciam o app (`AtualizacaoService.Reiniciar()`), para trocar para a pasta da conta e voltar (fase 4). O card "Conta" saiu das Configurações.
 - **`GarantirSessao()`:** usado pela sincronização; renova o token quando precisa e, se o servidor recusar, sai da conta.
 
-### Fase 3: Sincronização (`Services/SincronizacaoService.cs`) ✅
+### Fase 3: Sincronização (`Services/Dados/SincronizacaoService.cs`) ✅
 
 - **Gatilho:** `ArmazenamentoService.Salvar()` dispara um evento novo, com espera de 3 s para agrupar edições. Também roda ao abrir, ao voltar a internet e a cada 5 min.
 - **Envio:** compara cada coleção com `base.json` (última versão confirmada), item a item pelo `Id`.
@@ -207,13 +207,13 @@ A coluna `entretenimento.capa` continua levando só o nome do arquivo. A imagem 
 
 ### Arquivos principais
 
-- **Novos:** `supabase/migrations/0001_esquema_inicial.sql`, `Services/SupabaseConfig.cs`, `Services/SupabaseCliente.cs`, `Services/ContaService.cs`, `Services/SincronizacaoService.cs`, `Services/CofreSessao.cs`, `Linux/Plataforma/CofreSessao.cs`.
-- **Alterados:** `Services/ArmazenamentoService.cs` (`PorConta`, `PastaDaConta`, `PrepararPastaDaConta`, evento `Salvou`, `Substituir`, `NormalizarESalvar`), `Services/ConfigLocal.cs`, `Pages/Configuracoes.razor`, `Layout/LayoutPrincipal.razor` (`NaTela`, `RecebeuDaConta`, rodapé com a conta), `App.xaml.cs`, `Linux/Program.cs`, `Linux/CrankoHub.Linux.csproj`.
-- **Fase 5:** `supabase/migrations/0002_capas.sql` (novo), `Services/CapasService.cs` (`Reduzir`, `TipoMime`), `Services/SupabaseCliente.cs` (Storage), `Services/SincronizacaoService.cs` (`Capas`), pacote `SkiaSharp` nos dois `.csproj`.
+- **Novos:** `supabase/migrations/0001_esquema_inicial.sql`, `Services/Dados/SupabaseConfig.cs`, `Services/Dados/SupabaseCliente.cs`, `Services/Dados/ContaService.cs`, `Services/Dados/SincronizacaoService.cs`, `Services/Windows/CofreSessao.cs`, `Linux/Plataforma/CofreSessao.cs`.
+- **Alterados:** `Services/Dados/ArmazenamentoService.cs` (`PorConta`, `PastaDaConta`, `PrepararPastaDaConta`, evento `Salvou`, `Substituir`, `NormalizarESalvar`), `Services/Dados/ConfigLocal.cs`, `Pages/Conta/Configuracoes.razor`, `Layout/LayoutPrincipal.razor` (`NaTela`, `RecebeuDaConta`, rodapé com a conta), `App.xaml.cs`, `Linux/Program.cs`, `Linux/CrankoHub.Linux.csproj`.
+- **Fase 5:** `supabase/migrations/0002_capas.sql` (novo), `Services/Entretenimento/CapasService.cs` (`Reduzir`, `TipoMime`), `Services/Dados/SupabaseCliente.cs` (Storage), `Services/Dados/SincronizacaoService.cs` (`Capas`), pacote `SkiaSharp` nos dois `.csproj`.
 
 ### O que fazer no painel do Supabase ✅ (feito)
 
-1. Copiar a **Project URL** e a **publishable key** (Connect ou Settings > API Keys) para `Services/SupabaseConfig.cs`.
+1. Copiar a **Project URL** e a **publishable key** (Connect ou Settings > API Keys) para `Services/Dados/SupabaseConfig.cs`.
 2. Rodar `supabase/migrations/0001_esquema_inicial.sql` no **SQL Editor** e conferir o **Security Advisor** (nenhuma tabela sem RLS).
 3. Authentication → Sign In / Providers: **desligar "Allow new users to sign up"** (é isso que impede outras pessoas de criarem conta) e deixar "Confirm email" desligado.
 4. Authentication → Users → **Add user**: o e-mail interno do usuário, a senha e "Auto Confirm User".
@@ -225,7 +225,7 @@ A coluna `entretenimento.capa` continua levando só o nome do arquivo. A imagem 
 
 1. ✅ `dotnet build` do `cranko-hub.slnx` (Windows e Linux) sem erros.
 2. **RLS:** ✅ chamadas sem login não leem nem gravam nada (testado por `curl`). Falta: com duas contas, a conta B não lê nem altera dados da conta A.
-3. **Migração:** logar com os dados de exemplo e conferir no painel as contagens contra a página Conta (`Pages/MinhaConta.razor`).
+3. **Migração:** logar com os dados de exemplo e conferir no painel as contagens contra a página Conta (`Pages/Conta/MinhaConta.razor`).
 4. **Dois PCs (ou duas pastas de teste):** criar, editar e excluir em A e ver em B sem reiniciar.
 5. **Conflito:** editar registros diferentes em A e B ao mesmo tempo; as duas mudanças ficam.
 6. **Offline:** editar sem internet, reconectar e confirmar o envio.
@@ -242,7 +242,7 @@ A coluna `entretenimento.capa` continua levando só o nome do arquivo. A imagem 
 
 O app é de uso pessoal e só uma conta existe no Supabase, então o modo sem conta saiu.
 
-- **Tela de login** (`Components/TelaLogin.razor`): sem conta conectada, o `Main.razor` mostra só ela, em tela cheia. Se o servidor recusar a sessão (senha trocada, sessão revogada), ela volta sozinha. Depois de entrar, o app reinicia para abrir na pasta da conta.
+- **Tela de login** (`Components/Conta/TelaLogin.razor`): sem conta conectada, o `Main.razor` mostra só ela, em tela cheia. Se o servidor recusar a sessão (senha trocada, sessão revogada), ela volta sozinha. Depois de entrar, o app reinicia para abrir na pasta da conta.
 - **Cache invisível:** continua o `dados.json` + `base.json` em `contas/<user_id>/`, só para abrir sem internet e enviar as mudanças depois. Sem conta, `ArmazenamentoService.Salvar` não grava nada. Um aparelho novo começa vazio e a primeira sincronização traz tudo.
 - **Removido:** modo sem conta, pasta sincronizada (item 8), backup automático (`BackupService`), exportar/importar backup, dados de exemplo, "Apagar tudo" e o alerta de backup. Os diálogos de salvar/abrir backup e de escolher pasta saíram do `IDialogoService` nas três plataformas.
 - **Configurações:** a aba "Dados e backup" virou **Conta** (usuário, status da sincronização, "Sincronizar agora", "Sair" e as contagens). O link `configuracoes?aba=dados` continua abrindo essa aba.
@@ -253,18 +253,18 @@ O app é de uso pessoal e só uma conta existe no Supabase, então o modo sem co
 
 Calendário estilo Google Agenda, só do CrankoHub (dados no Supabase e sincronizados como os outros módulos, sem login do Google).
 
-- **Página** `Pages/Agenda.razor` (`/agenda`, módulo `Modulo.Agenda`, cor `#30b0c7`):
+- **Página** `Pages/Agenda/Agenda.razor` (`/agenda`, módulo `Modulo.Agenda`, cor `#30b0c7`):
   - visões **Dia**, **Semana** (começa no domingo) e **Mês**, com Hoje, ◀ ▶ e título do período; a visão fica guardada no aparelho (`Agenda.Visao`). No celular, abre no Dia;
   - lateral com **minicalendário** (ponto nos dias com evento) e **Minhas agendas** (caixa colorida para mostrar/ocultar, editar nome e cor, excluir com os eventos) + "Tarefas com prazo";
   - grade de 24 h (48 px por hora) que abre perto da hora atual (ou às 7h), linha vermelha do "agora" e eventos que se sobrepõem lado a lado (`AgendaCalculos.Blocos`);
   - faixa de **dia inteiro** com os eventos de dia inteiro (e os de 24 h ou mais) e as **tarefas com prazo** (check conclui; o clique abre `tarefas?quadro=X&card=Y`, que abre o editor do card);
   - no Mês, até 3 itens por dia e "+N mais"; clicar no número abre o dia.
-- **Criar e mudar:** clique num horário vazio (meia em meia hora) ou na faixa de dia inteiro; **arrastar** move (15 em 15 min, também para outro dia) e a **alça de baixo** muda a duração (`wwwroot/js/agenda.js`, módulo ES importado pelo `Components/AgendaInterop.cs`, seguindo as skills do dotnet/skills). No toque, o arrasto começa depois de segurar o evento.
+- **Criar e mudar:** clique num horário vazio (meia em meia hora) ou na faixa de dia inteiro; **arrastar** move (15 em 15 min, também para outro dia) e a **alça de baixo** muda a duração (`wwwroot/js/agenda.js`, módulo ES importado pelo `Components/Agenda/AgendaInterop.cs`, seguindo as skills do dotnet/skills). No toque, o arrasto começa depois de segurar o evento.
 - **Editor:** título, agenda, dia inteiro, início/fim (mudar o início leva o fim junto), repetição (todo dia / toda semana em dias escolhidos / todo mês / todo ano, a cada N, até uma data), lembrete, local e descrição.
 - **Repetição** (`AgendaCalculos.Ocorrencias`/`Datas`): as ocorrências são calculadas na hora (nada é gerado no banco). Num evento que repete, editar, excluir ou arrastar pergunta **"Só este evento"** (vira um evento avulso e a data entra em `excecoes`) ou **"Todos os eventos"**. Mensal no dia 31 pula os meses curtos e anual em 29/02 só acontece em ano bissexto, como no Google.
 - **Lembretes:** `AvisosService` confere a cada 30 s e notifica uma vez por ocorrência (chave `agenda:<id>:<horário>` em `AvisosEnviados`, guardada com a data da ocorrência). No dia inteiro, o lembrete conta a partir das 9h. Ainda avisa até 15 min depois do início, se o app abriu atrasado. Clicar abre `agenda?dia=...&visao=dia`.
 - **Início:** card "Agenda de hoje" (o que ainda vem hoje e os totais de hoje, amanhã e 7 dias), ao lado do de Tarefas. **Conta:** contagem de eventos.
-- **Dados:** `Models/Agenda.cs` (`DadosAgenda`, `AgendaCor`, `EventoAgenda`) em `EstadoApp.Agenda`. A agenda criada sozinha tem o **id fixo `principal`** ("Pessoal"), para dois aparelhos não criarem duas. Horários no relógio local, sem fuso (`timestamp` no banco).
+- **Dados:** `Models/Agenda/Agenda.cs` (`DadosAgenda`, `AgendaCor`, `EventoAgenda`) em `EstadoApp.Agenda`. A agenda criada sozinha tem o **id fixo `principal`** ("Pessoal"), para dois aparelhos não criarem duas. Horários no relógio local, sem fuso (`timestamp` no banco).
 - **Supabase:** `supabase/migrations/0003_agenda.sql` (tabelas `agendas` e `eventos`, mesmo padrão do 0001). Enquanto a migration não roda, a sincronização deixa essas duas tabelas de fora e avisa no card da Conta (`SincronizacaoService.VerificarTabelasNovas`).
 
 **Ajustes depois do primeiro uso (06/11/2026)**
@@ -282,14 +282,14 @@ Calendário estilo Google Agenda, só do CrankoHub (dados no Supabase e sincroni
 ## 15. Anexos nas tarefas e na manutenção ✅ (feito em 11/11/2026; falta rodar as migrations e testar entre aparelhos)
 
 - No editor da tarefa, seção **Anexos**: **Adicionar arquivo** (qualquer tipo, vários de uma vez, até **20 MB** cada), **Abrir** (no programa padrão do sistema) e remover. No card do quadro aparece o badge **📎 N**.
-- **Compactação ao anexar** (`Services/AnexosService.cs`), para ocupar o mínimo no aparelho e no servidor:
+- **Compactação ao anexar** (`Services/Anexos/AnexosService.cs`), para ocupar o mínimo no aparelho e no servidor:
   - **Imagem** (jpg, png, webp, bmp, gif estático): lado maior de até **1920 px**, em **WebP qualidade 80**, com a rotação do EXIF aplicada. Só troca se ficar menor. Ao abrir, sai como `nome.webp`.
   - **Outros arquivos**: **Brotli nível 11** (janela 24), sem perda. Antes, uma amostra de 1 MB em nível 5 mostra se vale a pena: arquivos que já vêm compactados (zip, mp4, docx...) ficam como estão, sem esperar o nível 11 à toa. Só usa o Brotli se economizar pelo menos 3%.
   - O tamanho aparece como "original → guardado" (ex.: "3,2 MB → 240 KB").
 - **Onde fica:** o arquivo compactado fica na pasta `anexos/` da conta e no bucket privado **`anexos`** do Storage (`<user_id>/<arquivo>`). A linha do card guarda só os dados (coluna `anexos jsonb`: nome, tipo, tamanhos, arquivo, formato).
 - **Sincronização** (`SincronizacaoService.Anexos`): quem anexou envia o arquivo; os outros aparelhos **só baixam ao abrir** e depois guardam. Um anexo que nenhum card usa mais sai do bucket e da pasta local. Arquivos de um formulário cancelado são apagados na hora.
 - **Manutenção do Carro:** no formulário do serviço, **Orçamento e nota fiscal**: anexar **PDF ou foto** (jpg, png, webp), com um seletor por arquivo (**Orçamento**, **Nota fiscal** ou Outro; os novos já vêm como Nota fiscal). No histórico, cada anexo vira um botãozinho na coluna "O que foi feito" que abre o arquivo direto. Excluir o serviço (ou o veículo) apaga os arquivos.
-- **Código compartilhado:** `Components/CampoAnexos.razor` (lista, adicionar, abrir, remover, categoria) e `Services/RascunhoAnexos.cs` (anexos do formulário até salvar ou cancelar), usados pelas Tarefas e pela Manutenção. O modelo é `Models/Anexo.cs` (`Anexo`, com `Categoria` opcional).
+- **Código compartilhado:** `Components/Comum/CampoAnexos.razor` (lista, adicionar, abrir, remover, categoria) e `Services/Anexos/RascunhoAnexos.cs` (anexos do formulário até salvar ou cancelar), usados pelas Tarefas e pela Manutenção. O modelo é `Models/Comum/Anexo.cs` (`Anexo`, com `Categoria` opcional).
 - **Migrations:** `supabase/migrations/0009_tarefas_anexos.sql` (coluna nos cards + bucket de 20 MB + políticas só do dono) e `0010_manutencao_anexos.sql` (coluna `anexos` em `manutencoes`, mesmo bucket). Enquanto não rodarem, os anexos ficam só no aparelho e o card da Conta avisa.
 
 **Como testar**
@@ -303,7 +303,7 @@ Calendário estilo Google Agenda, só do CrankoHub (dados no Supabase e sincroni
 Para carro sem computador de bordo e abastecimento sem encher o tanque, o consumo sai do **ponteiro do painel**.
 
 - **Formulário do abastecimento:** "Litros" virou **Litros colocados** (o que a bomba marcou, base do R$/L). Novo campo **Litros gastos desde o anterior** (opcional: vazio = igual aos colocados, como antes). Ao lado ficam o botão **⛽ Marcador** e o interruptor **Enchi o tanque**.
-- **Marcador** (`Components/MarcadorCombustivel.razor`): janela com um mostrador igual ao do painel (arco com 1/1, 1/2 e reserva). O ponteiro é marcado **antes de abastecer**, em **oitavos**: tocar/arrastar, −/+ ou setas do teclado. Feito todo em Razor/SVG, sem JS.
+- **Marcador** (`Components/Carro/MarcadorCombustivel.razor`): janela com um mostrador igual ao do painel (arco com 1/1, 1/2 e reserva). O ponteiro é marcado **antes de abastecer**, em **oitavos**: tocar/arrastar, −/+ ou setas do teclado. Feito todo em Razor/SVG, sem JS.
 - **Conta** (`CarroCalculos.NivelDepois`/`GastoPeloMarcador`): nível depois do anterior = tanque cheio se marcou "Enchi o tanque", senão ponteiro do anterior + litros colocados (no máximo o tanque); **gasto = nível depois do anterior − ponteiro de agora**. Ex.: tanque 44 L, anterior em 1/4 + 30 L → 41 L; hoje em 1/2 (22 L) → gasto ≈ 19 L.
 - **Tamanho do tanque** (`FichaVeiculo.TanqueLitros`): se o veículo não tem, o marcador pede na hora e salva na ficha.
 - Sem base (primeiro abastecimento, ou o anterior sem ponteiro e sem tanque cheio), ou com o ponteiro acima do esperado ou mais de 60 km/l: avisa e guarda **só o ponteiro**, que vira a base do próximo.
@@ -322,7 +322,7 @@ Séries, animes e animações em série trazem as temporadas e os episódios, e 
 - **Detalhe do item:** seção **Temporadas e episódios** com progresso ("12 de 24 episódios"), o **próximo episódio** com "Marcar como visto", e uma lista por temporada (abre e fecha) com caixinha em cada episódio e "Marcar todos"/"Desmarcar". Abre na temporada do próximo episódio.
 - **Status automático:** o primeiro episódio visto passa de "Quero ver" para "Em andamento"; o último passa para "Concluído" (com a data de hoje); desmarcar um episódio de uma série concluída volta para "Em andamento" (a nota fica guardada).
 - **Estante:** itens em andamento mostram uma barrinha de progresso na capa e o próximo episódio ("T2E15").
-- **Fontes** (`Services/EntretenimentoEpisodios.cs`, parte do `EntretenimentoBusca`):
+- **Fontes** (`Services/Entretenimento/EntretenimentoEpisodios.cs`, parte do `EntretenimentoBusca`):
   - Com chave do TMDB: `tv/{id}` + temporadas em lote (`append_to_response`), nomes em português. A temporada 0 (especiais) fica de fora.
   - Sem chave: TVmaze (nomes em inglês), pelo ID da Wikidata (P8600) ou pelo título + ano.
   - Animes: AniList, seguindo as "sequências" em formato de série (cada uma vira uma temporada). Nomes pelo Jikan (MyAnimeList); se ele falhar, ficam só os números.

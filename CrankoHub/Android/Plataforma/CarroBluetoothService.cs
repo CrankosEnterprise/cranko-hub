@@ -21,7 +21,7 @@ namespace CrankoHub.Services;
 /// </list>
 /// Os avisos chegam pelo <see cref="ReceptorBluetooth"/> (no manifesto: funciona com o app fechado). No MIUI, só com o
 /// "Início automático" ligado. Tudo que o Android precisa liberar aparece em <see cref="Permissoes"/>, com o botão para ativar.
-/// Mesma API de Services/CarroBluetoothService.cs.
+/// Mesma API de Services/Carro/ModoCarro/CarroBluetoothService.cs.
 /// </summary>
 public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroService modo, NavegacaoService nav)
 {

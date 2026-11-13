@@ -1,0 +1,56 @@
+@namespace CrankoHub.Pages.CarroAbas
+@* Aba "Calculadoras" do Carro: custo de viagem, usando os dados do veículo quando houver *@
+@inject ArmazenamentoService Store
+
+@{
+    var list = CarroCalculos.DoVeiculo(Store.Dados.Carro, Veiculo.Id);
+    var st = CarroCalculos.Estatisticas(list);
+}
+
+<section class="card">
+    <div class="card-head"><div><h2>Custo de viagem</h2><p>Quanto vai gastar de combustível num trajeto.</p></div></div>
+    @{
+        var dist = Pf(_cDistancia);
+        var cons = Pf(_cConsumo);
+        var preco = Pf(_cPreco);
+    }
+    <div class="form-grid">
+        <label class="field"><span>Distância (km)</span><input inputmode="decimal" placeholder="ex.: 350" @bind="_cDistancia" @bind:event="oninput"></label>
+        <label class="field"><span>Consumo (km/l)</span><input inputmode="decimal" placeholder="ex.: 11,5" @bind="_cConsumo" @bind:event="oninput"></label>
+        <label class="field"><span>Preço do litro (R$)</span><input inputmode="decimal" placeholder="ex.: 6,09" @bind="_cPreco" @bind:event="oninput"></label>
+        <label class="check"><input type="checkbox" @bind="_cIdaVolta"> Ida e volta</label>
+    </div>
+    <div class="calc-result">
+        @if (dist > 0 && cons > 0)
+        {
+            var total = dist.Value * (_cIdaVolta ? 2 : 1);
+            var litros = total / cons.Value;
+            <span class="calc-big">@(preco > 0 ? Money(litros * preco) : Num(litros, 1) + " litros")</span>
+            <span><b>@Num(total, 0) km</b> no total · <b>@Num(litros, 1) L</b> de combustível@(preco > 0 ? $" a {Money(preco)}/L" : "")</span>
+            @if (st.Media > 0 && st.CustoKm > 0)
+            {
+                <span class="muted">Pelo seu histórico (@Money(st.CustoKm)/km): @Money(total * st.CustoKm)</span>
+            }
+        }
+        else
+        {
+            <span>Informe a distância e o consumo.</span>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Veiculo Veiculo { get; set; } = default!;
+
+    private string _cDistancia = "", _cConsumo = "", _cPreco = "";
+    private bool _cIdaVolta;
+
+    // Sugere valores a partir do histórico do veículo
+    protected override void OnInitialized()
+    {
+        var list = CarroCalculos.DoVeiculo(Store.Dados.Carro, Veiculo.Id);
+        var last = list.LastOrDefault();
+        _cConsumo = InVal(CarroCalculos.Estatisticas(list).Media, 1);
+        _cPreco = InVal(last is null ? null : CarroCalculos.UltimoPreco(list, last.Combustivel), 2);
+    }
+}

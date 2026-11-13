@@ -1,6 +1,6 @@
 'use strict';
 
-// Mapa do Modo Carro (Pages/ModoCarro.razor): MapLibre GL + tiles do OpenFreeMap (OpenStreetMap, sem chave).
+// Mapa do Modo Carro (Pages/Carro/ModoCarro.razor): MapLibre GL + tiles do OpenFreeMap (OpenStreetMap, sem chave).
 // A posição vem do GPS pelo C# (ModoCarroService.Posicao) e chega aqui em posicao(...).
 window.modoCarro = (() => {
   const ESTILO = 'https://tiles.openfreemap.org/styles/dark';
