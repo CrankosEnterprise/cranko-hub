@@ -146,14 +146,6 @@
                     <span class="as-cartao-valor">@Money(a.Valor)<small>@Sufixo(a.Ciclo)</small></span>
                 </button>
             }
-            @if (!_mostrarPausadas && todas.Count == 0)
-            {
-                <button type="button" class="as-cartao novo" @onclick="AbrirNova">
-                    <span class="as-novo-mais">@Icones.Mais</span>
-                    <b>Nova assinatura</b>
-                    <span class="as-cartao-sub">@(todas.Count == 0 ? "Comece pelo streaming ou pela academia" : "Adicionar outro serviço")</span>
-                </button>
-            }
         </div>
 
         <section class="card">
