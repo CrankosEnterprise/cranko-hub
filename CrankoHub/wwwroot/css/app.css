@@ -859,9 +859,11 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
 .tv-filtros .tv-ativo { color: var(--c); font-weight: 650; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 55%, transparent); }
 .tv-limpar { width: 32px; height: 32px; }
 @media (max-width: 760px) {
-  .tv-filtros { flex: 1 1 100%; margin-left: 0; }
-  .tv-filtros input { flex: 1 1 auto; width: auto; }
-  .tv-filtros select { flex: 0 1 auto; min-width: 0; }
+  /* Busca numa linha inteira; prioridade, etiqueta e limpar dividem a de baixo sem passar da largura do card */
+  .tv-filtros { flex: 1 1 100%; min-width: 0; max-width: 100%; margin-left: 0; flex-wrap: wrap; }
+  .tv-filtros input { flex: 1 1 100%; width: 100%; }
+  .tv-filtros select { flex: 1 1 0; width: 0; min-width: 0; text-overflow: ellipsis; }
+  .tv-filtros .tv-limpar { flex: 0 0 auto; }
 }
 /* Aba Hoje em partes */
 .tv-parte + .tv-parte { margin-top: 22px; padding-top: 18px; }
