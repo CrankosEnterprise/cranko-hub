@@ -32,95 +32,189 @@
     var lista = estante.ToList();
 }
 
+@{
+    var cor = Modulo.CorDe(Store.Dados.Config, Modulo.Entretenimento);
+    var emAndamento = todos.Where(e => e.Status == "andamento").OrderByDescending(e => e.Data ?? DateOnly.MinValue).ThenBy(e => e.Titulo).ToList();
+
+    // Concluídos mês a mês (últimos 12 meses, até o atual)
+    var inicioMes = new DateOnly(hoje.Year, hoje.Month, 1);
+    var porMes = Enumerable.Range(0, 12).Select(i => inicioMes.AddMonths(i - 11)).Select(m =>
+    {
+        var n = concluidos.Count(e => e.Data is DateOnly dt && dt.Year == m.Year && dt.Month == m.Month);
+        var rotulo = MesLabel(m.Year, m.Month);
+        return new BarraDado(rotulo.Split('/')[0], n, $"{rotulo} · {n} {Plural(n, "concluído", "concluídos")}");
+    }).ToList();
+    var noAnoAnterior = concluidos.Count(e => e.Data is DateOnly dt && dt.Year == hoje.Year - 1 && dt.DayOfYear <= hoje.DayOfYear);
+}
+
+@* Cabeçalho no padrão do Carro e das Assinaturas: quanto já foi concluído no ano é o título *@
+<CabecalhoPagina Sobre="@($"{todos.Count} {Plural(todos.Count, "item", "itens")} na estante · {concluidos.Count} {Plural(concluidos.Count, "concluído", "concluídos")} no total")"
+                 Titulo="@($"{noAno} {Plural(noAno, "concluído", "concluídos")} em {hoje.Year}")" />
+
 <AcoesTopo>
     <button class="btn primary" type="button" title="Adicionar" aria-label="Adicionar" @onclick="AbrirBusca">@Icones.Mais<span class="rotulo">Adicionar</span></button>
     @* Configurações só do Entretenimento (as gerais do app ficam em Configurações, no menu) *@
     <button class="icon-btn" type="button" title="Configurações do Entretenimento" aria-label="Configurações do Entretenimento" @onclick="AbrirConfig">@Icones.Engrenagem</button>
 </AcoesTopo>
 
-<section class="kpis">
-    <div class="kpi"><span class="kpi-label">Na estante</span>
-        <span class="kpi-value">@todos.Count</span>
-        <span class="kpi-sub">@concluidos.Count @Plural(concluidos.Count, "concluído", "concluídos")</span></div>
-    <div class="kpi"><span class="kpi-label">Em @hoje.Year</span>
-        <span class="kpi-value">@noAno</span>
-        <span class="kpi-sub">@Plural(noAno, "concluído este ano", "concluídos este ano")</span></div>
-    <div class="kpi"><span class="kpi-label">Nota média</span>
-        <span class="kpi-value">@(notas.Count > 0 ? Num(notas.Average(), 1) + " ★" : Vazio)</span>
-        <span class="kpi-sub">@notas.Count @Plural(notas.Count, "avaliado", "avaliados")</span></div>
-    <div class="kpi"><span class="kpi-label">Em andamento</span>
-        <span class="kpi-value">@andamento</span>
-        <span class="kpi-sub">@quero na lista de desejos</span></div>
-</section>
+@*
+    Visão do Entretenimento (mesmo desenho da Visão geral do Carro): bloco grande com os números e os concluídos
+    mês a mês, coluna com o que está em andamento e as categorias, e a estante embaixo, na largura toda.
+*@
+<div class="carro-visao ent-visao">
+    <section class="card cv-hero brilho" style="--c:@cor">
+        <div class="cv-numeros">
+            <div>
+                <span class="rot">Em @hoje.Year</span>
+                <div class="cv-v">@noAno<small>@Plural(noAno, "concluído", "concluídos")</small></div>
+                @if (noAnoAnterior > 0 || noAno > 0)
+                {
+                    <span class="cv-delta @(noAno >= noAnoAnterior ? "bom" : "ruim")">@(noAno >= noAnoAnterior ? "↑" : "↓") @Math.Abs(noAno - noAnoAnterior) vs. @(hoje.Year - 1) até hoje</span>
+                }
+                else
+                {
+                    <span class="rot">nenhum concluído ainda</span>
+                }
+            </div>
+            <div>
+                <span class="rot">Em andamento</span>
+                <div class="cv-v">@andamento</div>
+                <span class="rot">@(andamento > 0 ? "vendo, lendo ou jogando" : "nada começado")</span>
+            </div>
+            <div>
+                <span class="rot">Nota média</span>
+                <div class="cv-v">@(notas.Count > 0 ? Num(notas.Average(), 1) : Vazio)<small>★</small></div>
+                <span class="rot">@notas.Count @Plural(notas.Count, "avaliado", "avaliados")</span>
+            </div>
+            <div>
+                <span class="rot">Lista de desejos</span>
+                <div class="cv-v">@quero</div>
+                <span class="rot">@Plural(quero, "item para depois", "itens para depois")</span>
+            </div>
+        </div>
+        <div class="ev-graf">
+            <div class="b-cab ev-graf-cab">Concluídos por mês<span class="b-dir">@porMes.Sum(b => b.Value) nos últimos 12 meses</span></div>
+            <GraficoBarras RealcarUltimo="true" Dados="porMes" Nome="Concluídos" Altura="190" Cor="@cor"
+                           FormatoY="new FormatoNumero(0)" Formato="new FormatoNumero(0)"
+                           MsgVazia="O que você terminar aparece aqui, mês a mês." />
+        </div>
+    </section>
 
-<section class="card">
-    <div class="estante-filtros">
-        <div class="chips">
-            <button type="button" class="chip @(_filtroCategoria == "todas" ? "active" : "")" @onclick='() => _filtroCategoria = "todas"'>Tudo</button>
+    <div class="cv-lado">
+        <section class="card brilho" style="--c:@cor">
+            <div class="b-cab"><span class="b-ic">@Icones.Relogio</span>Continuar de onde parou<span class="b-dir">@emAndamento.Count</span></div>
+            @if (emAndamento.Count > 0)
+            {
+                @foreach (var e in emAndamento.Take(4))
+                {
+                    var total = e.TotalEpisodios();
+                    var prox = e.ProximoEpisodio();
+                    <button type="button" class="cv-lemb ev-continuar" @key="e.Id" @onclick="() => AbrirDetalhe(e)">
+                        <span class="cv-lemb-linha"><span class="ev-titulo">@e.Titulo</span>
+                            <b>@(prox is (var pt, var pe) ? CodigoEp(pt, pe) : Maiuscula(CategoriaEntretenimento.Buscar(e.Categoria).Singular))</b></span>
+                        @if (total > 0)
+                        {
+                            <span class="cv-barra" title="@e.EpisodiosAssistidos() de @total episódios"><i style="width:@(Math.Max(2, Pct(e.EpisodiosAssistidos(), total)))%"></i></span>
+                        }
+                    </button>
+                }
+            }
+            else
+            {
+                <p class="b-vazio">Nada em andamento. Comece algo da sua lista de desejos.</p>
+            }
+        </section>
+
+        <section class="card cv-docs">
+            <div class="b-cab"><span class="b-ic" style="--c:#34C759">@Icones.Dados</span>Por categoria<span class="b-dir">@todos.Count no total</span></div>
             @foreach (var c in CategoriaEntretenimento.Todas)
             {
-                var n = todos.Count(e => e.Categoria == c.Chave);
-                <button type="button" class="chip @(_filtroCategoria == c.Chave ? "active" : "")" @onclick="() => _filtroCategoria = c.Chave">@c.Nome@(n > 0 ? $" · {n}" : "")</button>
-            }
-        </div>
-        <div class="estante-busca">
-            <input class="select" type="search" placeholder="Buscar título ou autor..." @bind="_filtroTexto" @bind:event="oninput">
-            <select class="select" @bind="_filtroStatus">
-                <option value="todos">Todos os status</option>
-                @foreach (var s in StatusEntretenimento.Todos)
-                {
-                    <option value="@s.Chave">@s.Nome</option>
-                }
-            </select>
-            <select class="select" @bind="_ordem">
-                <option value="recentes">Mais recentes</option>
-                <option value="nota">Maior nota</option>
-                <option value="ano">Lançamento</option>
-                <option value="titulo">Título (A–Z)</option>
-            </select>
-        </div>
-    </div>
-
-    @if (lista.Count == 0)
-    {
-        <div class="chart-empty">@(todos.Count == 0 ? "Sua estante está vazia. Clique em \"+ Adicionar\" para colocar o primeiro item." : "Nada encontrado com esses filtros.")</div>
-    }
-    else
-    {
-        <div class="estante">
-            @foreach (var e in lista)
-            {
-                <button type="button" class="capa-item" @key="e.Id" @onclick="() => AbrirDetalhe(e)">
-                    <Capa Item="e" />
-                    @if (e.Status == "andamento" && e.TotalEpisodios() is > 0 and var totalEp)
-                    {
-                        var vistosEp = e.EpisodiosAssistidos();
-                        <span class="capa-progresso" title="@vistosEp de @totalEp episódios"><span style="width:@(Pct(vistosEp, totalEp))%"></span></span>
-                    }
-                    <span class="capa-titulo">@e.Titulo</span>
-                    <span class="capa-sub">
-                        @if (e.Status == "concluido" && e.Nota is not null)
-                        {
-                            <Estrelas Valor="e.Nota" />
-                        }
-                        else if (e.Status == "andamento" && e.ProximoEpisodio() is (var pt, var pe))
-                        {
-                            <span class="badge good" title="Próximo episódio">@CodigoEp(pt, pe)</span>
-                        }
-                        else if (e.Status != "concluido")
-                        {
-                            <span class="badge @(e.Status == "andamento" ? "good" : "")">@StatusEntretenimento.Buscar(e.Status).Nome</span>
-                        }
-                        else
-                        {
-                            @(e.Ano?.ToString() ?? CategoriaEntretenimento.Buscar(e.Categoria).Singular)
-                        }
-                    </span>
+                var doTipo = todos.Where(e => e.Categoria == c.Chave).ToList();
+                if (doTipo.Count == 0) continue;
+                var feitos = doTipo.Count(e => e.Status == "concluido");
+                <button type="button" class="cv-doc ev-cat @(_filtroCategoria == c.Chave ? "ativa" : "")" @onclick="() => AlternarCategoria(c.Chave)"
+                        title="Mostrar só @c.Nome.ToLowerInvariant() na estante">
+                    <span>@c.Nome</span>
+                    <b>@doTipo.Count · @feitos @Plural(feitos, "concluído", "concluídos")</b>
                 </button>
             }
+            @if (todos.Count == 0)
+            {
+                <p class="b-vazio">Filmes, séries, animes, jogos e livros aparecem aqui.</p>
+            }
+        </section>
+    </div>
+
+    <section class="card ev-estante">
+        <div class="b-cab"><span class="b-ic" style="--c:@cor">@Icones.Layout</span>Estante<span class="b-dir">@lista.Count @Plural(lista.Count, "item", "itens")</span></div>
+        <div class="estante-filtros">
+            <div class="chips">
+                <button type="button" class="chip @(_filtroCategoria == "todas" ? "active" : "")" @onclick='() => _filtroCategoria = "todas"'>Tudo</button>
+                @foreach (var c in CategoriaEntretenimento.Todas)
+                {
+                    var n = todos.Count(e => e.Categoria == c.Chave);
+                    <button type="button" class="chip @(_filtroCategoria == c.Chave ? "active" : "")" @onclick="() => _filtroCategoria = c.Chave">@c.Nome@(n > 0 ? $" · {n}" : "")</button>
+                }
+            </div>
+            <div class="estante-busca">
+                <input class="select" type="search" placeholder="Buscar título ou autor..." @bind="_filtroTexto" @bind:event="oninput">
+                <select class="select" @bind="_filtroStatus">
+                    <option value="todos">Todos os status</option>
+                    @foreach (var s in StatusEntretenimento.Todos)
+                    {
+                        <option value="@s.Chave">@s.Nome</option>
+                    }
+                </select>
+                <select class="select" @bind="_ordem">
+                    <option value="recentes">Mais recentes</option>
+                    <option value="nota">Maior nota</option>
+                    <option value="ano">Lançamento</option>
+                    <option value="titulo">Título (A–Z)</option>
+                </select>
+            </div>
         </div>
-    }
-</section>
+
+        @if (lista.Count == 0)
+        {
+            <p class="b-vazio">@(todos.Count == 0 ? "Sua estante está vazia. Clique em \"Adicionar\" no topo para colocar o primeiro item." : "Nada encontrado com esses filtros.")</p>
+        }
+        else
+        {
+            <div class="estante">
+                @foreach (var e in lista)
+                {
+                    <button type="button" class="capa-item" @key="e.Id" @onclick="() => AbrirDetalhe(e)">
+                        <Capa Item="e" />
+                        @if (e.Status == "andamento" && e.TotalEpisodios() is > 0 and var totalEp)
+                        {
+                            var vistosEp = e.EpisodiosAssistidos();
+                            <span class="capa-progresso" title="@vistosEp de @totalEp episódios"><span style="width:@(Pct(vistosEp, totalEp))%"></span></span>
+                        }
+                        <span class="capa-titulo">@e.Titulo</span>
+                        <span class="capa-sub">
+                            @if (e.Status == "concluido" && e.Nota is not null)
+                            {
+                                <Estrelas Valor="e.Nota" />
+                            }
+                            else if (e.Status == "andamento" && e.ProximoEpisodio() is (var pt, var pe))
+                            {
+                                <span class="badge good" title="Próximo episódio">@CodigoEp(pt, pe)</span>
+                            }
+                            else if (e.Status != "concluido")
+                            {
+                                <span class="badge @(e.Status == "andamento" ? "good" : "")">@StatusEntretenimento.Buscar(e.Status).Nome</span>
+                            }
+                            else
+                            {
+                                @(e.Ano?.ToString() ?? CategoriaEntretenimento.Buscar(e.Categoria).Singular)
+                            }
+                        </span>
+                    </button>
+                }
+            </div>
+        }
+    </section>
+</div>
 
 @* ---- Adicionar: busca nas APIs ---- *@
 @if (_modo == Modo.Buscar)
@@ -554,6 +648,9 @@
     private List<ItemEntretenimento> Lista => Store.Dados.Entretenimento;
 
     private static string Inicial(string titulo) => titulo.Length > 0 ? titulo[..1].ToUpperInvariant() : "?";
+
+    // Clicar na categoria da coluna filtra a estante; clicar de novo volta para Tudo
+    private static void AlternarCategoria(string chave) => _filtroCategoria = _filtroCategoria == chave ? "todas" : chave;
 
     private static string Maiuscula(string s) => s.Length > 0 ? char.ToUpperInvariant(s[0]) + s[1..] : s;
 
