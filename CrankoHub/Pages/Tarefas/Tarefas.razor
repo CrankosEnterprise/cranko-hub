@@ -284,47 +284,46 @@
                 var antigas = ultima ? daColuna.Count(Antiga) : 0;
                 var cards = ultima && _ocultarAntigos ? daColuna.Where(c => !Antiga(c)).ToList() : daColuna;
                 var recolhida = Recolhida(col.Id);
-                if (recolhida)
-                {
-                    @* Minimizada: a coluna fica no lugar, vazia e apagada, com cara de bloqueada; ainda recebe cards arrastados (vão para o fim) *@
-                    <div class="coluna recolhida" @key="col.Id" data-coluna="@col.Id">
-                        <div class="coluna-head">
-                            <button type="button" class="coluna-seta" title="Expandir coluna" aria-label="Expandir a coluna @col.Nome" aria-expanded="false" @onclick="() => AlternarRecolhida(col.Id)">@SetaColuna(false)</button>
-                            <b>@col.Nome</b>
-                            <span class="tab-count">@cards.Count</span>
-                        </div>
-                        <div class="coluna-cards">
+                @* Um elemento só para a coluna (aberta ou minimizada): com dois blocos e o mesmo @key, o Blazor reaproveitava
+                   o elemento ao minimizar e perdia o class da coluna *@
+                <div class="coluna @(recolhida ? "recolhida" : "")" @key="col.Id" data-coluna="@col.Id">
+                    <div class="coluna-head">
+                        <button type="button" class="coluna-seta" title="@(recolhida ? "Expandir coluna" : "Minimizar coluna")" aria-label="@(recolhida ? "Expandir" : "Minimizar") a coluna @col.Nome"
+                                aria-expanded="@(recolhida ? "false" : "true")" @onclick="() => AlternarRecolhida(col.Id)">@SetaColuna(!recolhida)</button>
+                        <b>@col.Nome</b>
+                        <span class="tab-count">@cards.Count</span>
+                        @if (!recolhida)
+                        {
+                            <span class="coluna-acoes">
+                                <button type="button" title="Renomear coluna" @onclick="() => RenomearColuna(col)">@Icones.Editar</button>
+                                @if (quadro.Colunas.Count > 1)
+                                {
+                                    <button type="button" title="Excluir coluna" @onclick="() => ExcluirColuna(quadro, col)">@Icones.Excluir</button>
+                                }
+                            </span>
+                        }
+                    </div>
+                    <div class="coluna-cards">
+                        @if (recolhida)
+                        {
+                            @* Minimizada: vazia e apagada, com cara de bloqueada; ainda recebe cards arrastados (vão para o fim) *@
                             <button type="button" class="coluna-bloqueada" title="Expandir coluna" @onclick="() => AlternarRecolhida(col.Id)">
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
                                 <span>Coluna minimizada</span>
                                 <small>@(cards.Count == 0 ? "Nenhuma tarefa" : $"{cards.Count} {Plural(cards.Count, "tarefa escondida", "tarefas escondidas")}") · clique para mostrar</small>
                             </button>
-                        </div>
-                    </div>
-                    continue;
-                }
-                <div class="coluna" @key="col.Id" data-coluna="@col.Id">
-                    <div class="coluna-head">
-                        <button type="button" class="coluna-seta" title="Minimizar coluna" aria-label="Minimizar a coluna @col.Nome" aria-expanded="true" @onclick="() => AlternarRecolhida(col.Id)">@SetaColuna(true)</button>
-                        <b>@col.Nome</b>
-                        <span class="tab-count">@cards.Count</span>
-                        <span class="coluna-acoes">
-                            <button type="button" title="Renomear coluna" @onclick="() => RenomearColuna(col)">@Icones.Editar</button>
-                            @if (quadro.Colunas.Count > 1)
-                            {
-                                <button type="button" title="Excluir coluna" @onclick="() => ExcluirColuna(quadro, col)">@Icones.Excluir</button>
-                            }
-                        </span>
-                    </div>
-                    <div class="coluna-cards">
-                        @foreach (var c in cards)
+                        }
+                        else
                         {
-                            <div class="card-arrastavel" @key="c.Id" data-id="@c.Id">
-                                @CardView(c, false)
-                            </div>
+                            @foreach (var c in cards)
+                            {
+                                <div class="card-arrastavel" @key="c.Id" data-id="@c.Id">
+                                    @CardView(c, false)
+                                </div>
+                            }
                         }
                     </div>
-                    @if (_rapidoColuna == col.Id)
+                    @if (!recolhida && _rapidoColuna == col.Id)
                     {
                         @* Adicionar rápido: digita o título e Enter; o campo continua aberto para a próxima. Esc fecha. *@
                         <div class="coluna-rapido">
@@ -337,11 +336,11 @@
                             </div>
                         </div>
                     }
-                    else
+                    else if (!recolhida)
                     {
                         <button type="button" class="coluna-add" @onclick="() => AbrirRapido(col.Id)">+ Adicionar tarefa</button>
                     }
-                    @if (antigas > 0)
+                    @if (!recolhida && antigas > 0)
                     {
                         <button type="button" class="coluna-rodape" @onclick="() => _ocultarAntigos = !_ocultarAntigos">
                             @(_ocultarAntigos
