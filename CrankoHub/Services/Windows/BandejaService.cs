@@ -38,7 +38,11 @@ public sealed class BandejaService : IDisposable
         Item(menu, "Sair", () => AoSair?.Invoke());
 
         using var stream = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/icone.ico")).Stream;
-        _iconeOriginal = new System.Drawing.Icon(stream);
+        var bytesIcone = new MemoryStream();
+        stream.CopyTo(bytesIcone);
+        bytesIcone.Position = 0;
+        _iconeOriginal = new System.Drawing.Icon(bytesIcone);
+        try { RegistrarIdentidade(bytesIcone.ToArray()); } catch { } // sem isso o aviso só fica com o ícone do .exe
         _icone = new Forms.NotifyIcon
         {
             Icon = _iconeOriginal,
@@ -49,6 +53,39 @@ public sealed class BandejaService : IDisposable
         _icone.DoubleClick += (_, _) => AoAbrir?.Invoke(null);
         _icone.BalloonTipClicked += (_, _) => AoAbrir?.Invoke(_linkDoBalao);
     }
+
+    private const string IdApp = "CrankoHub";
+
+    /// <summary>
+    /// Dá ao processo uma identidade própria (AppUserModelID) com nome e ícone registrados em HKCU.
+    /// As notificações usam esse ícone no lugar do ícone do .exe, que o Windows guarda em cache pelo caminho do
+    /// arquivo (e por isso continuava mostrando o logo antigo). O PNG leva um hash no nome: logo novo, arquivo novo,
+    /// cache novo.
+    /// </summary>
+    private static void RegistrarIdentidade(byte[] ico)
+    {
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(ico))[..10].ToLowerInvariant();
+        var pasta = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CrankoHub");
+        Directory.CreateDirectory(pasta);
+        var png = Path.Combine(pasta, $"icone-notificacao-{hash}.png");
+        if (!File.Exists(png))
+        {
+            foreach (var antigo in Directory.GetFiles(pasta, "icone-notificacao-*.png"))
+                try { File.Delete(antigo); } catch { }
+            using var maior = new System.Drawing.Icon(new MemoryStream(ico), 256, 256);
+            using var bmp = maior.ToBitmap();
+            bmp.Save(png, System.Drawing.Imaging.ImageFormat.Png);
+        }
+        using (var chave = Microsoft.Win32.Registry.CurrentUser.CreateSubKey($@"Software\Classes\AppUserModelId\{IdApp}"))
+        {
+            chave.SetValue("DisplayName", "CrankoHub");
+            chave.SetValue("IconUri", png);
+        }
+        SetCurrentProcessExplicitAppUserModelID(IdApp);
+    }
+
+    [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int SetCurrentProcessExplicitAppUserModelID(string id);
 
     /// <summary>Pinta o menu da bandeja com a cor de destaque ("#RRGGBB"). O ícone fica sempre o original,
     /// com o H no lilás da marca (layout "Fusão": o logo não muda com a cor de destaque).</summary>
