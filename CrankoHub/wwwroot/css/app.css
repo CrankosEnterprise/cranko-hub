@@ -954,6 +954,13 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
   .carro-visao { grid-template-columns: minmax(0, 1fr); }
   .cv-lado { grid-row: auto; grid-column: 1; }
   .ent-cartoes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .as-mes { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+}
+@container conteudo (max-width: 560px) {
+  .as-mes { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+  .as-dia { height: 38px; padding: 4px 6px; }
+  .as-pontos { left: 6px; bottom: 5px; gap: 2px; }
+  .as-pontos i { width: 6px; height: 6px; }
 }
 
 /* Card do Início com botões dentro (ex.: Agenda Hoje/Semana/Mês) */
