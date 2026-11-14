@@ -13,14 +13,15 @@ public sealed record RadarSp(string Id, double Lat, double Lon, int? Kmh, double
 /// <summary>De onde vêm os radares: os oficiais primeiro, e o OpenStreetMap preenche o resto do estado.</summary>
 public static class FontesRadar
 {
-    public const string Der = "DER", Cet = "CET", Osm = "OSM";
+    public const string Der = "DER", Cet = "CET", Pardal = "PARDAL", Osm = "OSM";
 
-    public static readonly IReadOnlyList<string> Todas = [Der, Cet, Osm];
+    public static readonly IReadOnlyList<string> Todas = [Der, Cet, Pardal, Osm];
 
     public static string Nome(string fonte) => fonte switch
     {
         Der => "DER (rodovias)",
         Cet => "CET (capital)",
+        Pardal => "Inmetro e rodovias federais",
         _ => "OpenStreetMap (outras cidades)",
     };
 }

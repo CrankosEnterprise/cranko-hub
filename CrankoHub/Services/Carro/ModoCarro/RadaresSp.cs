@@ -14,15 +14,20 @@ namespace CrankoHub.Services;
 /// <item><b>DER-SP</b>: rodovias estaduais, inclusive as de concessão. É o <c>radares.xml</c> que a página "Pesquisa de
 /// Radares" do DER carrega, com coordenadas, velocidade regulamentada e sentido.</item>
 /// <item><b>CET-SP</b>: capital. É o CSV do repositório oficial da CET no GitHub (<c>cetsp-dados/dados-fiscalizacao-eletronica</c>).</item>
-/// <item><b>OpenStreetMap</b> (<c>highway=speed_camera</c>, pelo Overpass): o resto do estado (outras cidades). O radar
-/// do OSM a menos de <see cref="Duplicado"/> metros de um oficial sai.</item>
+/// <item><b>Pardal</b> (<c>murkiriel/pardal</c>, de terceiros, ODbL, atualizado toda semana): só o que nenhuma das outras
+/// fontes tem, ou seja, os radares <b>municipais do cadastro do Inmetro</b> (Campinas, Piracicaba, Limeira...), com a posição
+/// tirada do endereço, e os das <b>rodovias federais</b> (ANTT, DNIT, PRF).</item>
+/// <item><b>OpenStreetMap</b> (<c>highway=speed_camera</c>, pelo Overpass): o resto do estado.</item>
 /// </list>
+/// Dentro da cidade de São Paulo vale só a CET (<see cref="CapitalSp"/>): o OSM e o Inmetro podem ter radares já desligados.
+/// Fora dela, o radar do OSM que repete um oficial sai (ver <see cref="Juntar"/>).
 /// Cada fonte tem a própria lista e data, e todas ficam no aparelho (radares-sp.json). Atualiza no máximo 1x por semana;
 /// se uma fonte falhar, fica a lista anterior dela.
 /// </summary>
 public sealed partial class RadaresSp
 {
     private const string UrlDer = "https://dersp.der.sp.gov.br/Upload/XML/radares.xml";
+    private const string UrlPardal = "https://raw.githubusercontent.com/murkiriel/pardal/main/estados/SP/radares.csv";
     private const string UrlCet = "https://raw.githubusercontent.com/cetsp-dados/dados-fiscalizacao-eletronica/main/Base_Locais_Fiscalizados.csv";
 
     private static readonly string[] ServidoresOsm =
@@ -41,8 +46,11 @@ public sealed partial class RadaresSp
     /// <summary>Até onde procura um radar à frente (a maior distância de aviso da engrenagem).</summary>
     public const double Alcance = 2000;
 
-    /// <summary>Um radar do OSM a menos disso de um oficial é o mesmo radar.</summary>
+    /// <summary>Um radar a menos disso de um oficial é o mesmo radar.</summary>
     private const double Duplicado = 60;
+
+    /// <summary>Nas rodovias (DER), o mesmo radar às vezes está marcado até ~250 m longe no OSM: com a mesma velocidade, é repetido.</summary>
+    private const double DuplicadoRodovia = 250;
 
     // Cliente próprio: a consulta do Overpass demora mais que o timeout do HttpClient do app, e ele recusa sem User-Agent
     private static readonly HttpClient Http = CriarHttp();
@@ -175,6 +183,7 @@ public sealed partial class RadaresSp
             {
                 FontesRadar.Der => LerDer(await Http.GetStreamAsync(UrlDer)),
                 FontesRadar.Cet => LerCet(await Http.GetStringAsync(UrlCet)),
+                FontesRadar.Pardal => LerPardal(await Http.GetStringAsync(UrlPardal)),
                 _ => await BaixarOsm(),
             };
         }
@@ -231,7 +240,7 @@ public sealed partial class RadaresSp
     internal static List<RadarSp> LerCet(string csv)
     {
         var lista = new List<RadarSp>();
-        var linhas = csv.TrimStart('﻿').Split('\n');
+        var linhas = csv.TrimStart((char)0xFEFF).Split('\n');
         if (linhas.Length < 2) return lista;
         var cabecalho = LinhaCsv(linhas[0]).Select(c => c.Trim().ToUpperInvariant()).ToList();
         int Coluna(string nome) => cabecalho.FindIndex(c => c.StartsWith(nome, StringComparison.Ordinal));
@@ -250,6 +259,37 @@ public sealed partial class RadaresSp
             if (!velocidade) continue;
             if (Numero(Campo(la)) is not { } lat || Numero(Campo(lo)) is not { } lon || lat == 0 || lon == 0) continue;
             lista.Add(new RadarSp($"cet:{Campo(cod)}:{lista.Count}", lat, lon, PrimeiraVelocidade(Campo(vel)), null, FontesRadar.Cet));
+        }
+        return lista;
+    }
+
+    /// <summary>
+    /// Pardal: só os ativos que vêm do Inmetro, da ANTT, do DNIT ou da PRF e de nenhuma das fontes que já baixamos direto
+    /// (DER-SP, CET-SP, OSM). Fica de fora o avanço de sinal (RED_LIGHT). O <c>direction_deg</c> é o rumo do trânsito,
+    /// calculado pela geometria da via.
+    /// </summary>
+    internal static List<RadarSp> LerPardal(string csv)
+    {
+        var lista = new List<RadarSp>();
+        var linhas = csv.TrimStart((char)0xFEFF).Split('\n');
+        if (linhas.Length < 2) return lista;
+        var cabecalho = LinhaCsv(linhas[0]).Select(c => c.Trim()).ToList();
+        int la = cabecalho.IndexOf("lat"), lo = cabecalho.IndexOf("lng"), tipo = cabecalho.IndexOf("kind"), lim = cabecalho.IndexOf("limit_kmh"),
+            fonte = cabecalho.IndexOf("source"), ativo = cabecalho.IndexOf("active"), dir = cabecalho.IndexOf("direction_deg");
+        if (la < 0 || lo < 0 || fonte < 0) return lista;
+
+        foreach (var linha in linhas.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(linha)) continue;
+            var c = LinhaCsv(linha);
+            string Campo(int i) => i >= 0 && i < c.Count ? c[i].Trim() : "";
+            var origem = Campo(fonte);
+            if (Campo(ativo) is not ("1" or "true" or "True") || Campo(tipo) == "RED_LIGHT") continue;
+            if (origem.Contains("DER-SP") || origem.Contains("CET-SP") || origem.Contains("OSM")) continue;
+            if (!(origem.Contains("INMETRO") || origem.Contains("ANTT") || origem.Contains("DNIT") || origem.Contains("PRF"))) continue;
+            if (Numero(Campo(la)) is not { } lat || Numero(Campo(lo)) is not { } lon || lat == 0 || lon == 0) continue;
+            lista.Add(new RadarSp($"pardal:{lista.Count}:{lat:0.00000},{lon:0.00000}", lat, lon, PrimeiraVelocidade(Campo(lim)), null,
+                FontesRadar.Pardal, false, Numero(Campo(dir))));
         }
         return lista;
     }
@@ -286,24 +326,46 @@ public sealed partial class RadaresSp
         return null;
     }
 
-    /// <summary>Os oficiais inteiros + os do OSM que não estão a menos de <see cref="Duplicado"/> m de um oficial.</summary>
+    /// <summary>
+    /// Junta as fontes:
+    /// <list type="bullet">
+    /// <item>DER e CET entram inteiros.</item>
+    /// <item>Pardal: só fora da capital, e sem os que estão a menos de <see cref="Duplicado"/> m de um oficial.</item>
+    /// <item>OSM: só fora da capital, e sem os que estão a menos de <see cref="Duplicado"/> m de qualquer outro. Também sai o
+    /// que estiver a até <see cref="DuplicadoRodovia"/> m de um do DER com a mesma velocidade (ou sem velocidade): é o mesmo
+    /// radar marcado em outro ponto da rodovia.</item>
+    /// </list>
+    /// </summary>
     private void Juntar()
     {
         var dados = _dados!;
         List<RadarSp> De(string f) => dados.Fontes.TryGetValue(f, out var x) ? x.Radares : [];
-        var oficiais = De(FontesRadar.Der).Concat(De(FontesRadar.Cet)).ToList();
+        var der = De(FontesRadar.Der);
+        var oficiais = der.Concat(De(FontesRadar.Cet)).ToList();
+        var porOficiais = Grade(oficiais);
+        var pardal = De(FontesRadar.Pardal).Where(p => !CapitalSp.Contem(p.Lat, p.Lon) && !Perto(porOficiais, p, Duplicado, null)).ToList();
 
-        // Grade de ~0,01° (~1 km) para não comparar cada radar do OSM com todos os oficiais
-        var grade = oficiais.ToLookup(r => (Math.Floor(r.Lat * 100), Math.Floor(r.Lon * 100)));
-        bool Repetido(RadarSp o)
-        {
-            var (gl, go) = (Math.Floor(o.Lat * 100), Math.Floor(o.Lon * 100));
-            for (var i = -1; i <= 1; i++)
-                for (var j = -1; j <= 1; j++)
-                    if (grade[(gl + i, go + j)].Any(r => Distancia(o.Lat, o.Lon, r.Lat, r.Lon) < Duplicado)) return true;
-            return false;
-        }
-        _juntos = [.. oficiais, .. De(FontesRadar.Osm).Where(o => !Repetido(o))];
+        var porTodos = Grade([.. oficiais, .. pardal]);
+        var porDer = Grade(der);
+        var osm = De(FontesRadar.Osm).Where(o => !CapitalSp.Contem(o.Lat, o.Lon)
+            && !Perto(porTodos, o, Duplicado, null)
+            && !Perto(porDer, o, DuplicadoRodovia, r => o.Kmh is null || r.Kmh is null || o.Kmh == r.Kmh));
+        _juntos = [.. oficiais, .. pardal, .. osm];
+    }
+
+    /// <summary>Grade de ~0,01° (~1 km) para não comparar cada radar com todos os outros.</summary>
+    private static ILookup<(double, double), RadarSp> Grade(IEnumerable<RadarSp> radares) =>
+        radares.ToLookup(r => (Math.Floor(r.Lat * 100), Math.Floor(r.Lon * 100)));
+
+    /// <summary>Algum radar da grade a menos de <paramref name="metros"/> (e que passe no <paramref name="igual"/>, se houver).</summary>
+    private static bool Perto(ILookup<(double, double), RadarSp> grade, RadarSp o, double metros, Func<RadarSp, bool>? igual)
+    {
+        var (gl, go) = (Math.Floor(o.Lat * 100), Math.Floor(o.Lon * 100));
+        for (var i = -1; i <= 1; i++)
+            for (var j = -1; j <= 1; j++)
+                foreach (var r in grade[(gl + i, go + j)])
+                    if (Distancia(o.Lat, o.Lon, r.Lat, r.Lon) < metros && (igual is null || igual(r))) return true;
+        return false;
     }
 
     // ===== Texto =====
