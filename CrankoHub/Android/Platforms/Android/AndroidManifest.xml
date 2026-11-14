@@ -14,9 +14,9 @@
 	<!-- Modo Carro, Bluetooth do carro (CarroBluetoothService): reconhecer a central e listar os pareados -->
 	<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
 	<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-	<!-- Barra da música por cima do Maps/Waze (BarraCarroService) e abrir o Modo Carro sozinho quando o carro conecta -->
+	<!-- Aviso de radar por cima do Maps/Waze (RadarCarroService) e abrir o Modo Carro sozinho quando o carro conecta -->
 	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-	<!-- A barra roda num serviço em primeiro plano ("Modo Carro ativo"); com a localização, guarda onde estacionou com o app atrás do Maps -->
+	<!-- O aviso roda num serviço em primeiro plano ("Modo Carro ativo"); com a localização, segue o GPS (radares e onde estacionou) com o app atrás do Maps -->
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
@@ -24,10 +24,9 @@
 	<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 	<!-- O Android não atrasar o aviso do Bluetooth do carro (pedido nas Configurações) -->
 	<uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-	<!-- Modo Carro: abrir Waze, Maps e Spotify (visibilidade de pacotes no Android 11+) -->
+	<!-- Modo Carro: abrir Waze e Maps (visibilidade de pacotes no Android 11+) -->
 	<queries>
 		<package android:name="com.waze" />
 		<package android:name="com.google.android.apps.maps" />
-		<package android:name="com.spotify.music" />
 	</queries>
 </manifest>

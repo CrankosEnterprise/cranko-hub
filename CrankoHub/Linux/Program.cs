@@ -49,6 +49,7 @@ servicos.AddSingleton<CarrosNaWeb>();
 servicos.AddSingleton<SupabaseCliente>();
 servicos.AddSingleton<ContaService>();
 servicos.AddSingleton<SincronizacaoService>();
+servicos.AddSingleton<RadaresSp>();
 servicos.AddSingleton<ModoCarroService>();
 servicos.AddSingleton<BuscaLugares>();
 servicos.AddSingleton<CarroBluetoothService>();

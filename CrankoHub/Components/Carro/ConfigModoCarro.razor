@@ -1,9 +1,10 @@
 @namespace CrankoHub.Components
-@* Configurações do Carro (engrenagem no topo da página Carro, só no celular): a barra da música do Modo Carro,
+@* Configurações do Carro (engrenagem no topo da página Carro, só no celular): o aviso de radar do Modo Carro,
    o Bluetooth do carro e "onde estacionei". As permissões do Android ficam em Configurações → Modo Carro. *@
 @implements IDisposable
 @inject ArmazenamentoService Store
 @inject CarroBluetoothService Bluetooth
+@inject RadaresSp Radares
 @inject ToastService Toast
 
 @{
@@ -25,11 +26,23 @@
         }
 
         <section class="cfg-carro-bloco">
-            <h3>Barra da música</h3>
-            <p class="muted">Fica por cima do Google Maps ou do Waze enquanto o Modo Carro está ativo.</p>
-            <div class="chips" role="radiogroup" aria-label="Posição da barra da música">
-                <button type="button" role="radio" aria-checked="@cfg.BarraCarroEmCima" class="chip @(cfg.BarraCarroEmCima ? "active" : "")" @onclick="() => MudarBarra(true)">Em cima</button>
-                <button type="button" role="radio" aria-checked="@(!cfg.BarraCarroEmCima)" class="chip @(!cfg.BarraCarroEmCima ? "active" : "")" @onclick="() => MudarBarra(false)">Embaixo</button>
+            <h3>Aviso de radar</h3>
+            <p class="muted">Com o Modo Carro ativo, aparece por cima do Google Maps ou do Waze quando há um radar a até 1 km à frente: a velocidade dele e quantos metros faltam. Fica vermelho se você estiver acima do limite.</p>
+            <span class="lc-rotulo">Posição na borda esquerda</span>
+            <div class="chips" role="radiogroup" aria-label="Posição do aviso de radar">
+                @foreach (var (valor, rotulo) in Posicoes)
+                {
+                    var ativa = PosicoesAvisoRadar.Valida(cfg.AvisoRadarPosicao) == valor;
+                    <button type="button" role="radio" aria-checked="@ativa" class="chip @(ativa ? "active" : "")" @onclick="() => MudarPosicao(valor)">@rotulo</button>
+                }
+            </div>
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@cfg.AvisoRadarSom" @onchange="@(e => Mudar(e, v => cfg.AvisoRadarSom = v))"> <span>Bipe quando aparece um radar <span class="muted">· não pausa a música</span></span></label>
+            </div>
+            <div class="lc-linha">
+                <span><b>@(Radares.Total > 0 ? $"{Radares.Total:N0} radares no estado de SP" : "Radares ainda não baixados")</b>
+                    <span class="muted">· @(Radares.Baixando ? "baixando…" : Radares.Atualizado is { } quando ? $"atualizado em {quando:dd/MM}" : "baixa ao entrar no Modo Carro") · OpenStreetMap</span></span>
+                <button type="button" class="btn" disabled="@Radares.Baixando" @onclick="AtualizarRadares">Atualizar agora</button>
             </div>
         </section>
 
@@ -85,7 +98,7 @@
                 <PermissaoLinha Permissao="ps" AoAtivar="Bluetooth.Ativar" />
             }
             <div class="opcoes">
-                <label class="check"><input type="checkbox" checked="@cfg.SairAoDesconectar" @onchange="@(e => Mudar(e, v => cfg.SairAoDesconectar = v))"> <span>Sair do Modo Carro ao desligar o carro <span class="muted">· tira a barra da música</span></span></label>
+                <label class="check"><input type="checkbox" checked="@cfg.SairAoDesconectar" @onchange="@(e => Mudar(e, v => cfg.SairAoDesconectar = v))"> <span>Sair do Modo Carro ao desligar o carro <span class="muted">· tira o aviso de radar</span></span></label>
             </div>
         </section>
 
@@ -125,12 +138,23 @@
     private static readonly (string Valor, string Rotulo)[] AcoesAoConectar =
         [(AcoesConexao.Nada, "Nada"), (AcoesConexao.Notificar, "Notificação"), (AcoesConexao.Abrir, "Abrir direto")];
 
+    private static readonly (string Valor, string Rotulo)[] Posicoes =
+        [(PosicoesAvisoRadar.Cima, "Em cima"), (PosicoesAvisoRadar.Meio, "No meio"), (PosicoesAvisoRadar.Baixo, "Embaixo")];
+
     // As permissões mudam fora do app (telas do Android) e o carro estacionado chega pelo Bluetooth
-    protected override void OnInitialized() => Bluetooth.Mudou += Redesenhar;
+    protected override void OnInitialized()
+    {
+        Bluetooth.Mudou += Redesenhar;
+        Radares.Mudou += Redesenhar;
+    }
 
     private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Bluetooth.Mudou -= Redesenhar;
+    public void Dispose()
+    {
+        Bluetooth.Mudou -= Redesenhar;
+        Radares.Mudou -= Redesenhar;
+    }
 
     private Task Fechar() => AoFechar.InvokeAsync();
 
@@ -140,10 +164,17 @@
 
     private static bool MesmoEndereco(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
-    private void MudarBarra(bool emCima)
+    private void MudarPosicao(string posicao)
     {
-        Store.Dados.Config.BarraCarroEmCima = emCima;
+        Store.Dados.Config.AvisoRadarPosicao = posicao;
         Store.Salvar();
+    }
+
+    private async Task AtualizarRadares()
+    {
+        await Radares.Atualizar(forcar: true);
+        if (Radares.Atualizado is { } quando && DateTime.Now - quando < TimeSpan.FromMinutes(1)) Toast.Ok($"{Radares.Total:N0} radares atualizados.");
+        else Toast.Erro("Não foi possível baixar os radares agora. Os que já estavam continuam valendo.");
     }
 
     private void MarcarCarro(AparelhoBluetooth aparelho, bool marcado)

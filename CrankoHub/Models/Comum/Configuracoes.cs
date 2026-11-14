@@ -54,8 +54,11 @@ public class Configuracoes
     /// <summary>Modo Carro: app de navegação escolhido por último (ver <see cref="AppsCarro.Navegacao"/>).</summary>
     public string AppNavegacaoCarro { get; set; } = AppsCarro.Maps;
 
-    /// <summary>Modo Carro: a barra da música fica em cima por cima do Maps/Waze (senão, embaixo). Engrenagem do Carro.</summary>
-    public bool BarraCarroEmCima { get; set; }
+    /// <summary>Modo Carro: onde fica o aviso de radar por cima do Maps/Waze, na borda esquerda (ver <see cref="PosicoesAvisoRadar"/>). Engrenagem do Carro.</summary>
+    public string AvisoRadarPosicao { get; set; } = PosicoesAvisoRadar.Meio;
+
+    /// <summary>Modo Carro: bipe curto quando aparece um radar novo à frente.</summary>
+    public bool AvisoRadarSom { get; set; } = true;
 
     /// <summary>Modo Carro: aparelhos Bluetooth marcados como "o meu carro" (centrais). Fones e caixinhas não entram.</summary>
     public List<CarroPareado> CarrosBluetooth { get; set; } = [];

@@ -1,8 +1,20 @@
 namespace CrankoHub.Models;
 
-/// <summary>O que está tocando agora, em qualquer player (lido pelo acesso às notificações).</summary>
-/// <param name="App">Nome do app que está tocando (Spotify, YouTube Music...).</param>
-public sealed record MusicaAtual(string? Titulo, string? Artista, bool Tocando, string? App);
+/// <summary>Radar fixo do estado de São Paulo (OpenStreetMap, <c>highway=speed_camera</c>).</summary>
+/// <param name="Kmh">Velocidade fiscalizada (tag <c>maxspeed</c>), ou null quando o OSM não informa.</param>
+/// <param name="Direcao">Para onde o radar olha, em graus (0 = norte), quando o OSM informa em número.</param>
+public sealed record RadarSp(long Id, double Lat, double Lon, int? Kmh, double? Direcao);
+
+/// <summary>O radar mais perto à frente do carro e quantos metros faltam.</summary>
+public sealed record RadarProximo(RadarSp Radar, double Metros);
+
+/// <summary>Onde o aviso de radar fica na borda esquerda da tela, por cima do Maps/Waze.</summary>
+public static class PosicoesAvisoRadar
+{
+    public const string Cima = "cima", Meio = "meio", Baixo = "baixo";
+
+    public static string Valida(string? posicao) => posicao is Cima or Baixo ? posicao : Meio;
+}
 
 /// <summary>Posição do GPS (para a busca de destino preferir lugares perto).</summary>
 public sealed record PosicaoCarro(double Latitude, double Longitude);
@@ -11,12 +23,11 @@ public sealed record PosicaoCarro(double Latitude, double Longitude);
 /// <param name="Detalhe">Rua, bairro e cidade, para diferenciar resultados com o mesmo nome.</param>
 public sealed record LugarBusca(string Nome, string? Detalhe, double Latitude, double Longitude);
 
-/// <summary>Apps que o Modo Carro abre. A navegação fica com o Maps ou o Waze; o CrankoHub só põe a barra da música por cima.</summary>
+/// <summary>Apps que o Modo Carro abre. A navegação fica com o Maps ou o Waze; o CrankoHub só põe o aviso de radar por cima.</summary>
 public static class AppsCarro
 {
     public const string Waze = "waze";
     public const string Maps = "maps";
-    public const string Spotify = "spotify";
 
     /// <summary>Os apps de navegação, na ordem da tela do Modo Carro.</summary>
     public static readonly IReadOnlyList<string> Navegacao = [Maps, Waze];
@@ -25,7 +36,6 @@ public static class AppsCarro
     {
         Waze => "com.waze",
         Maps => "com.google.android.apps.maps",
-        Spotify => "com.spotify.music",
         _ => null,
     };
 
@@ -33,7 +43,6 @@ public static class AppsCarro
     {
         Waze => "Waze",
         Maps => "Google Maps",
-        Spotify => "Spotify",
         _ => app ?? "",
     };
 
@@ -69,5 +78,5 @@ public sealed record PermissaoCarro(string Id, string Nome, string Motivo, bool?
 public static class PermissoesCarro
 {
     public const string Localizacao = "localizacao", LocalizacaoSempre = "localizacao-sempre", Bluetooth = "bluetooth",
-        Notificacoes = "notificacoes", Sobrepor = "sobrepor", Musica = "musica", Bateria = "bateria", MiuiInicio = "miui-inicio", MiuiPopup = "miui-popup";
+        Notificacoes = "notificacoes", Sobrepor = "sobrepor", Bateria = "bateria", MiuiInicio = "miui-inicio", MiuiPopup = "miui-popup";
 }

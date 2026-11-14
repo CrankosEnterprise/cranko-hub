@@ -77,16 +77,14 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
         var temCarro = cfg.CarrosBluetooth.Count > 0;
         var lista = new List<PermissaoCarro>
         {
-            new(PermissoesCarro.Sobrepor, "Sobrepor a outros apps", "Mostrar a barra da música por cima do Maps e do Waze (e abrir o Modo Carro sozinho, na opção \"Abrir direto\").",
+            new(PermissoesCarro.Sobrepor, "Sobrepor a outros apps", "Mostrar o aviso de radar por cima do Maps e do Waze (e abrir o Modo Carro sozinho, na opção \"Abrir direto\").",
                 PodeSobrepor, true),
-            new(PermissoesCarro.Musica, "Acesso às notificações", "Ver a música que está tocando (Spotify, YouTube Music, Deezer...) e controlar pela barra. O CrankoHub não lê as suas notificações. Se o Android disser \"Configuração restrita\": Informações do app → ⋮ → Permitir configurações restritas, e tente de novo. Sem ele, só o Spotify aparece (com a \"Transmissão do status do dispositivo\" ligada no Spotify).",
-                ModoCarroService.TemAcessoMusica, true),
             new(PermissoesCarro.Notificacoes, "Notificações", "\"Modo Carro ativo\" (com o botão Sair), \"Modo Carro pronto\" ao ligar o carro e \"Carro estacionado\" ao desligar.", TemNotificacoes, true),
-            new(PermissoesCarro.Localizacao, "Localização", "Onde o carro estacionou e a busca de destino perto de você.", TemLocalizacao, cfg.LembrarEstacionado),
+            new(PermissoesCarro.Localizacao, "Localização", "Saber dos radares à frente no Modo Carro, onde o carro estacionou e a busca de destino perto de você.", TemLocalizacao, true),
             new(PermissoesCarro.Bluetooth, "Dispositivos próximos (Bluetooth)", "Reconhecer a central do carro e listar os aparelhos pareados.", TemBluetooth, true),
             new(PermissoesCarro.LocalizacaoSempre, "Localização o tempo todo", "Guardar onde estacionou mesmo sem o Modo Carro ativo.", TemLocalizacaoSempre,
                 cfg.LembrarEstacionado && cfg.EstacionadoComAppFechado),
-            new(PermissoesCarro.Bateria, "Sem restrição de bateria", "O Android não atrasa o aviso de que o carro conectou ou desconectou, nem fecha a barra da música.", SemRestricaoBateria, temCarro),
+            new(PermissoesCarro.Bateria, "Sem restrição de bateria", "O Android não atrasa o aviso de que o carro conectou ou desconectou, nem fecha o aviso de radar.", SemRestricaoBateria, temCarro),
         };
         if (EhXiaomi)
         {
@@ -124,13 +122,6 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
                         else
                             AbrirDetalhesApp();
                     }
-                    break;
-                case PermissoesCarro.Musica:
-                    // Android 11+: direto no interruptor do CrankoHub; antes, a lista de apps com acesso
-                    var detalhe = new Intent("android.settings.NOTIFICATION_LISTENER_DETAIL_SETTINGS")
-                        .PutExtra("android.provider.extra.NOTIFICATION_LISTENER_COMPONENT_NAME", ModoCarroService.Ouvinte.FlattenToString());
-                    if (!(OperatingSystem.IsAndroidVersionAtLeast(30) && Abrir(detalhe)))
-                        Abrir(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
                     break;
                 case PermissoesCarro.Sobrepor:
                     Abrir(new Intent(Settings.ActionManageOverlayPermission, global::Android.Net.Uri.Parse($"package:{Pacote}")));
@@ -316,7 +307,7 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
             BandejaService.Cancelar(IdPronto);
         });
 
-        // Guarda onde estacionou antes de sair: com o Modo Carro ativo, o serviço da barra ainda libera o GPS
+        // Guarda onde estacionou antes de sair: com o Modo Carro ativo, o serviço do aviso de radar ainda libera o GPS
         try
         {
             if (cfg.LembrarEstacionado) await GuardarEstacionado();
@@ -347,7 +338,7 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
     }
 
     /// <summary>
-    /// Onde o carro ficou, pelo GPS, mas só se o Android deixa: com o app na tela, com o Modo Carro ativo (o serviço da barra
+    /// Onde o carro ficou, pelo GPS, mas só se o Android deixa: com o app na tela, com o Modo Carro ativo (o serviço do aviso de radar
     /// tem o tipo "localização"), ou com a localização "o tempo todo" e a opção ligada.
     /// </summary>
     private async Task<(double Latitude, double Longitude)?> PosicaoDoCarro()

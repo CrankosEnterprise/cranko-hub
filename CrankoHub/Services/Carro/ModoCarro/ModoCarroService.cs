@@ -10,11 +10,11 @@ public sealed class ModoCarroService
 {
     public bool Disponivel => false;
 
-    /// <summary>O Modo Carro está ativo: a barra da música fica por cima do Maps/Waze até sair.</summary>
+    /// <summary>O Modo Carro está ativo: o aviso de radar fica por cima do Maps/Waze até sair.</summary>
     public bool Ativo => false;
 
-    /// <summary>O que está tocando agora (qualquer player), ou null.</summary>
-    public MusicaAtual? Musica => null;
+    /// <summary>Radar à frente agora (null = nenhum perto).</summary>
+    public RadarProximo? Radar => null;
 
 #pragma warning disable CS0067 // só a versão Android avisa mudanças
     public event Action? Mudou;
@@ -24,20 +24,14 @@ public sealed class ModoCarroService
     public bool AbrirApp(string app) => false;
 
     /// <summary>
-    /// Liga o Modo Carro (barra da música por cima) e abre o Maps ou o Waze já navegando até <paramref name="destino"/>
+    /// Liga o Modo Carro (aviso de radar por cima) e abre o Maps ou o Waze já navegando até <paramref name="destino"/>
     /// (null = só abre o app). false = o app não está instalado.
     /// </summary>
     public bool Navegar(string app, LugarBusca? destino) => false;
 
-    /// <summary>Desliga o Modo Carro: tira a barra e a notificação.</summary>
+    /// <summary>Desliga o Modo Carro: tira o aviso e a notificação.</summary>
     public void Sair() { }
 
     /// <summary>Última posição conhecida do GPS (sem esperar), para a busca preferir lugares perto. null sem permissão.</summary>
     public Task<PosicaoCarro?> PosicaoRapida() => Task.FromResult<PosicaoCarro?>(null);
-
-    public void TocarPausar() { }
-
-    public void Proxima() { }
-
-    public void Anterior() { }
 }

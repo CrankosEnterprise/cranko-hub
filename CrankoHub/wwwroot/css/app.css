@@ -1703,7 +1703,7 @@ select option, select optgroup { background-color: var(--surface); color: var(--
 
 /* ===== Modo Carro (Pages/Carro/ModoCarro.razor, Layout/LayoutCarro.razor) =====
    Tela rápida, sempre escura e com botões grandes: escolher o Google Maps ou o Waze e o destino. A navegação fica no app
-   escolhido; por cima dele vai a barra nativa da música (Android/Plataforma/BarraCarroService.cs). */
+   escolhido; por cima dele vai o aviso nativo de radar (Android/Plataforma/RadarCarroService.cs). */
 .layout-carro { position: fixed; inset: 0; overflow: auto; background: #000; }
 .modo-carro {
   --mc-card: #161618; --mc-card-2: #232327; --mc-linha: rgba(255, 255, 255, .08);
@@ -1727,7 +1727,7 @@ select option, select optgroup { background-color: var(--surface); color: var(--
 .mc-card { background: var(--mc-card); border-radius: 22px; padding: 16px; box-shadow: inset 0 0 0 1px var(--mc-linha); min-width: 0; }
 .mc-card > p { margin-top: 8px; }
 
-/* Faltam permissões para a barra (Components/Conta/PermissaoLinha.razor no fundo escuro) */
+/* Faltam permissões para o aviso de radar (Components/Conta/PermissaoLinha.razor no fundo escuro) */
 .mc-faltam { display: flex; flex-direction: column; gap: 4px; }
 .mc-faltam .mc-permissao-texto, .mc-faltam .mc-permissao-texto b { color: var(--mc-texto); }
 .mc-faltam .mc-permissao-texto span { color: var(--mc-texto-2); }

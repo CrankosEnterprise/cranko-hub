@@ -2,7 +2,7 @@
 @page "/carro/modo"
 @layout LayoutCarro
 @* Modo Carro: tela rápida para escolher o app (Google Maps ou Waze) e o destino. Ao escolher, o CrankoHub abre o app já
-   navegando e liga a barra da música por cima dele (Android/Plataforma/BarraCarroService.cs) até sair do Modo Carro.
+   navegando e liga o aviso de radar por cima dele (Android/Plataforma/RadarCarroService.cs) até sair do Modo Carro.
    Só funciona no Android (ModoCarroService); no Windows/Linux a página explica isso. *@
 @implements IDisposable
 @inject ModoCarroService Modo
@@ -31,16 +31,16 @@
     {
         <section class="mc-card">
             <h2>Só no celular</h2>
-            <p class="mc-texto-2">O Modo Carro põe a música por cima do Google Maps ou do Waze do Android. Abra o CrankoHub no celular para usar.</p>
+            <p class="mc-texto-2">O Modo Carro avisa dos radares por cima do Google Maps ou do Waze do Android. Abra o CrankoHub no celular para usar.</p>
         </section>
     }
     else
     {
-        var faltam = Bluetooth.Permissoes().Where(p => p.Id is PermissoesCarro.Sobrepor or PermissoesCarro.Musica && p.Ativada == false).ToList();
+        var faltam = Bluetooth.Permissoes().Where(p => p.Id is PermissoesCarro.Sobrepor or PermissoesCarro.Localizacao && p.Ativada == false).ToList();
         @if (faltam.Count > 0)
         {
             <section class="mc-card mc-faltam">
-                <h2>Falta liberar para a barra da música</h2>
+                <h2>Falta liberar para o aviso de radar</h2>
                 @foreach (var p in faltam)
                 {
                     <PermissaoLinha @key="p.Id" Permissao="p" AoAtivar="Bluetooth.Ativar" Lista="true" />
@@ -182,7 +182,7 @@
         _erro = null;
     }
 
-    /// <summary>Abre o Maps/Waze navegando até o lugar (null = só abre o app) e liga a barra da música.</summary>
+    /// <summary>Abre o Maps/Waze navegando até o lugar (null = só abre o app) e liga o aviso de radar.</summary>
     private void Ir(LugarBusca? lugar)
     {
         var app = AppsCarro.NavegacaoValida(Store.Dados.Config.AppNavegacaoCarro);
