@@ -68,13 +68,13 @@
 <div class="grid-2">
     <section class="card">
         <div class="card-head"><div><h2>Gasto mensal com combustível</h2><p>Total pago nos últimos 12 meses.</p></div></div>
-        <GraficoBarras Dados="CarroCalculos.Mensal(list, a => a.Valor ?? 0)" Nome="Combustível" Altura="230"
+        <GraficoBarras RealcarUltimo="true" Dados="CarroCalculos.Mensal(list, a => a.Valor ?? 0)" Nome="Combustível" Altura="230"
                        FormatoY="@(new FormatoNumero(0, Prefixo: "R$ "))" Formato="FormatoNumero.Real"
                        MsgVazia="Sem gastos nos últimos 12 meses." />
     </section>
     <section class="card">
         <div class="card-head"><div><h2>Km rodados por mês</h2><p>Quanto você dirigiu nos últimos 12 meses.</p></div></div>
-        <GraficoBarras Dados="CarroCalculos.Mensal(list, a => a.Km)" Nome="Km rodados" Altura="230"
+        <GraficoBarras RealcarUltimo="true" Dados="CarroCalculos.Mensal(list, a => a.Km)" Nome="Km rodados" Altura="230"
                        FormatoY="new FormatoNumero(0)" Formato="@(new FormatoNumero(0, " km"))"
                        MsgVazia="Sem km registrados nos últimos 12 meses." />
     </section>

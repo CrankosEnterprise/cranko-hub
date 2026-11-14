@@ -306,6 +306,15 @@
                     </label>
                     <span class="muted">@corAtual.Nome</span>
                 </div>
+                @if (!Android)
+                {
+                    @* Só do computador (local.json): no celular o menu é sempre a barra de abas embaixo *@
+                    <span>Menu</span>
+                    <div class="chips" role="group" aria-label="Posição do menu">
+                        <button type="button" class="chip @(!ConfigLocal.Atual.MenuLateral ? "active" : "")" aria-pressed="@(!ConfigLocal.Atual.MenuLateral)" @onclick="() => MudarMenu(false)">No topo</button>
+                        <button type="button" class="chip @(ConfigLocal.Atual.MenuLateral ? "active" : "")" aria-pressed="@ConfigLocal.Atual.MenuLateral" @onclick="() => MudarMenu(true)">Na lateral</button>
+                    </div>
+                }
             </div>
         </section>
         break;
@@ -383,6 +392,14 @@
     }
 
     private static readonly (string? Valor, string Rotulo)[] Temas = [("light", "Claro"), ("dark", "Escuro"), (null, "Automático")];
+
+    // Menu das áreas: cápsula no topo ou barra lateral (só neste computador)
+    private void MudarMenu(bool lateral)
+    {
+        ConfigLocal.Atual.MenuLateral = lateral;
+        ConfigLocal.Atual.Salvar();
+        ConfigLocal.AvisarMudanca();
+    }
 
     private async Task MudarTema(string? tema)
     {

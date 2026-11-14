@@ -271,7 +271,7 @@
 
         <section class="card">
             <div class="card-head"><div><h2>Gasto mensal com o carro</h2><p>Combustível + manutenção nos últimos 12 meses.</p></div></div>
-            <GraficoBarras Dados="gastosMensais" Nome="Gasto" Altura="230"
+            <GraficoBarras RealcarUltimo="true" Dados="gastosMensais" Nome="Gasto" Altura="230"
                            FormatoY="@(new FormatoNumero(0, Prefixo: "R$ "))" Formato="FormatoNumero.Real"
                            MsgVazia="Sem gastos nos últimos 12 meses." />
         </section>

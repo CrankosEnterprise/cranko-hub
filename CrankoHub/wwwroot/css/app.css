@@ -202,13 +202,17 @@ html.inativa .semaforo:not(:hover) button { background: #c9cbd0; box-shadow: ins
 
 .marca { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; min-width: 0; }
 .logo {
-  display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 8px; overflow: hidden;
-  box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .18), 0 3px 10px -2px rgba(6, 11, 29, .45);
+  position: relative; display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 9px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(10, 16, 48, .18), 0 4px 14px -4px rgba(16, 28, 80, .55);
 }
+/* Brilho de vidro na borda de cima */
+.logo::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .22), inset 0 1px 0 rgba(255, 255, 255, .18); }
+:root[data-theme="dark"] .logo { box-shadow: 0 0 0 1px rgba(169, 184, 255, .22), 0 6px 18px -6px rgba(110, 134, 255, .55); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo { box-shadow: 0 0 0 1px rgba(169, 184, 255, .22), 0 6px 18px -6px rgba(110, 134, 255, .55); } }
 .logo svg { width: 100%; height: 100%; display: block; }
-/* O H do logo acompanha a cor de destaque; o resto do desenho é fixo */
-.logo .lm-h { stroke: color-mix(in srgb, var(--accent) 70%, #fff); }
-.logo .lm-h-lado { stroke: color-mix(in srgb, var(--accent) 55%, #000); }
+/* O H do logo é sempre o lilás da marca (o mesmo do ícone do app), qualquer que seja a cor de destaque */
+.logo .lm-h { stroke: #a9b8ff; }
+.logo .lm-h-lado { stroke: #4a5aa8; }
 .marca-palavra { font-size: 12.5px; font-weight: 300; letter-spacing: .26em; white-space: nowrap; }
 .marca-palavra b { font-weight: 800; }
 
@@ -317,6 +321,42 @@ html.inativa .semaforo:not(:hover) button { background: #c9cbd0; box-shadow: ins
 :root[data-theme="dark"] .palco { background: radial-gradient(1000px 420px at 50% -12%, rgba(27, 42, 94, .45), transparent), var(--bg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .palco { background: radial-gradient(1000px 420px at 50% -12%, rgba(27, 42, 94, .45), transparent), var(--bg); } }
 .maximizada .palco { margin: 0; border-radius: 0; }
+
+
+/* Menu na lateral (Configurações → Aparência → Menu "Na lateral"), como o conceito "Atelier":
+   lista com o pontinho da cor de cada área; o item aberto vira uma "pílula" branca (claro) ou acesa na cor (escuro) */
+.app.com-lateral { flex-direction: row; }
+.lateral { flex: none; width: 236px; display: flex; flex-direction: column; padding: 16px 12px 10px; min-height: 0; -webkit-user-select: none; user-select: none; }
+.lateral .semaforo { padding: 2px 6px 24px; }
+.lateral .marca { padding: 0 8px 22px; }
+.nav-lateral { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; scrollbar-width: none; }
+.nav-grupo { padding: 16px 10px 6px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.nav-lateral a {
+  display: flex; align-items: center; gap: 11px; padding: 7px 10px; border-radius: 9px;
+  color: var(--text-2); font-size: 13.5px; font-weight: 550; text-decoration: none; transition: background .15s, color .15s;
+}
+.nav-lateral a svg { width: 17px; height: 17px; stroke-width: 1.8; }
+.nav-lateral a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-lateral .ponto { flex: none; width: 7px; height: 7px; margin: 0 5px; border-radius: 50%; background: var(--c); }
+.nav-lateral a:hover { background: var(--sidebar-hover); color: var(--text); }
+.nav-lateral a.active { background: var(--surface); color: var(--text); font-weight: 700; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 0 0 .5px rgba(0, 0, 0, .05); }
+:root[data-theme="dark"] .nav-lateral a.active {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c, var(--accent)) 26%, transparent), color-mix(in srgb, var(--c, var(--accent)) 6%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, var(--accent)) 30%, rgba(255, 255, 255, .06));
+}
+:root[data-theme="dark"] .nav-lateral .ponto { box-shadow: 0 0 8px var(--c); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .nav-lateral a.active {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--c, var(--accent)) 26%, transparent), color-mix(in srgb, var(--c, var(--accent)) 6%, transparent));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, var(--accent)) 30%, rgba(255, 255, 255, .06));
+  }
+  :root:not([data-theme="light"]) .nav-lateral .ponto { box-shadow: 0 0 8px var(--c); }
+}
+.lateral-pe { display: flex; align-items: center; gap: 4px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.lateral-pe .conta { flex: 1; min-width: 0; }
+.app.com-lateral .palco { margin: 8px 8px 8px 0; }
+.app.com-lateral.maximizada .palco { margin: 0; }
+.app.com-lateral .content { padding-top: 30px; }
 
 /* Bordas invisíveis para redimensionar a janela sem moldura (wwwroot/js/interop.js) */
 .borda-janela { position: fixed; z-index: 300; }
@@ -479,18 +519,27 @@ td.obs { white-space: normal; min-width: 160px; color: var(--text-2); }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .chart { position: relative; width: 100%; }
 .chart svg { display: block; overflow: visible; touch-action: pan-y; }
+/* Estilo "Fusão": grade quase invisível, linha suave com área em degradê, anel no último valor, barras arredondadas.
+   --area-topo: força do degradê da área; --barra-fraca: barras que não são o mês atual. No escuro a linha brilha. */
+:root { --area-topo: .22; --barra-fraca: .22; --pt-fundo: var(--surface); }
+:root[data-theme="dark"] { --area-topo: .42; --barra-fraca: .3; --pt-fundo: #0e1424; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --area-topo: .42; --barra-fraca: .3; --pt-fundo: #0e1424; } }
 .chart .grid { stroke: var(--grid); stroke-width: 1; }
-.chart .baseline { stroke: var(--axis); stroke-width: 1; }
-.chart .axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.chart .ref { stroke: var(--text-2); stroke-width: 1.5; stroke-dasharray: 5 4; }
-.chart .ref-label { fill: var(--text-2); font-size: 11px; font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
-.chart .series-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.chart .series-area { opacity: .1; }
-.chart .mark { stroke: var(--surface); stroke-width: 2; }
-.chart .crosshair { stroke: var(--axis); stroke-width: 1; }
-.chart .hover-dot { stroke: var(--surface); stroke-width: 2.5; }
+.chart .baseline { stroke: var(--border); stroke-width: 1; }
+.chart .axis { fill: var(--muted); font-size: 10.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.chart .axis.atual { fill: var(--text); font-weight: 700; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 5; }
+.chart .ref-label { fill: var(--text-2); font-size: 10.5px; font-weight: 650; paint-order: stroke; stroke: var(--pt-fundo); stroke-width: 4px; }
+.chart .series-line { fill: none; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .series-area { opacity: 1; }
+.chart .mark { stroke: var(--pt-fundo); stroke-width: 1.5; }
+.chart .end-dot { fill: var(--pt-fundo); stroke-width: 2.2; }
+.chart .crosshair { stroke: var(--axis); stroke-width: 1; stroke-dasharray: 3 4; }
+.chart .hover-dot { stroke: var(--pt-fundo); stroke-width: 2.5; }
 .chart .bar { transition: opacity .15s; }
-.chart.hovering .bar:not(.on) { opacity: .4; }
+.chart.hovering .bar:not(.on) { opacity: .45; }
+:root[data-theme="dark"] .chart .series-line, :root[data-theme="dark"] .chart .bar.atual { filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 60%, transparent)); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.chart .series-line, .chart .bar.atual) { filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 60%, transparent)); } }
 .chart-tip {
   position: absolute; pointer-events: none; z-index: 5;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
@@ -540,7 +589,7 @@ a.fa-item:hover { background: var(--sidebar-hover); }
 .bloco.alto { grid-row: span 2; }
 .bloco.largo { grid-column: span 2; }
 a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent), 0 18px 40px -22px color-mix(in srgb, var(--c) 60%, transparent); }
-.b-cab { display: flex; align-items: center; gap: 9px; color: var(--text-2); font-size: 13px; font-weight: 650; min-width: 0; margin-bottom: 10px; text-decoration: none; }
+.b-cab { display: flex; align-items: center; gap: 9px; color: var(--text-2); font-size: 13px; font-weight: 650; min-width: 0; margin-bottom: 10px; white-space: nowrap; text-decoration: none; }
 .b-cab-link:hover { color: var(--text); }
 .b-dir { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .b-ic { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 9px; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
@@ -585,10 +634,15 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
 .b-capa-titulo { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .atividade .b-ic { width: 30px; height: 30px; }
 
-@media (max-width: 1100px) {
+/* As colunas seguem a largura do conteúdo (menu no topo ou na lateral), não a da janela */
+.content { container: conteudo / inline-size; }
+@container conteudo (max-width: 1180px) {
+  .mosaico { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container conteudo (max-width: 860px) {
   .mosaico { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 700px) {
+@container conteudo (max-width: 600px) {
   .mosaico { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; }
   .bloco.alto { grid-row: auto; }
   .bloco.largo { grid-column: auto; }

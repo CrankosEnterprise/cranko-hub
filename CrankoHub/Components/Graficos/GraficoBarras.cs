@@ -13,6 +13,9 @@ public class GraficoBarras : GraficoBase
 
     [Parameter] public string Cor { get; set; } = "var(--series-1)";
 
+    /// <summary>Séries mensais: a última barra (o mês atual) fica cheia e as outras esmaecidas.</summary>
+    [Parameter] public bool RealcarUltimo { get; set; }
+
     [Parameter] public FormatoNumero? Formato { get; set; }
 
     [Parameter] public FormatoNumero? FormatoY { get; set; }
@@ -25,6 +28,7 @@ public class GraficoBarras : GraficoBase
         name = Nome,
         height = Altura,
         color = Cor,
+        highlightLast = RealcarUltimo,
         fmt = Formato,
         yFmt = FormatoY,
         emptyMsg = MsgVazia,

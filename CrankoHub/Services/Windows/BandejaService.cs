@@ -50,49 +50,9 @@ public sealed class BandejaService : IDisposable
         _icone.BalloonTipClicked += (_, _) => AoAbrir?.Invoke(_linkDoBalao);
     }
 
-    /// <summary>Pinta o menu, o ícone da bandeja e o ícone da janela com a cor de destaque ("#RRGGBB").</summary>
-    public void AplicarCor(string hex)
-    {
-        var cor = System.Drawing.ColorTranslator.FromHtml(hex);
-        _renderer.Destaque = cor;
-
-        var anterior = _icone.Icon;
-        _icone.Icon = Colorir(_iconeOriginal, cor);
-        if (anterior != _iconeOriginal) anterior?.Dispose();
-
-        if (Application.Current.MainWindow is { } janela)
-            janela.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
-                _icone.Icon.Handle, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
-    }
-
-    /// <summary>Troca o matiz do H do ícone (roxo, ~241°) pelo da cor escolhida, mantendo luz e sombra.
-    /// O fundo azul-noite (~223°) e o C branco ficam como estão.</summary>
-    private static System.Drawing.Icon Colorir(System.Drawing.Icon original, System.Drawing.Color cor)
-    {
-        using var bmp = new System.Drawing.Icon(original, 256, 256).ToBitmap();
-        float matiz = cor.GetHue(), saturacao = cor.GetSaturation();
-        for (int y = 0; y < bmp.Height; y++)
-            for (int x = 0; x < bmp.Width; x++)
-            {
-                var p = bmp.GetPixel(x, y);
-                if (p.A == 0 || p.GetSaturation() < 0.2f || p.GetHue() is < 233f or > 250f) continue;
-                var nova = DeHsl(matiz, Math.Min(1f, saturacao * p.GetSaturation() / 0.8f + 0.1f), p.GetBrightness());
-                bmp.SetPixel(x, y, System.Drawing.Color.FromArgb(p.A, nova));
-            }
-        var hIcon = bmp.GetHicon();
-        return (System.Drawing.Icon)System.Drawing.Icon.FromHandle(hIcon).Clone();
-    }
-
-    private static System.Drawing.Color DeHsl(float h, float s, float l)
-    {
-        float c = (1 - Math.Abs(2 * l - 1)) * s, hh = h / 60f, x = c * (1 - Math.Abs(hh % 2 - 1)), m = l - c / 2;
-        var (r, g, b) = hh switch
-        {
-            < 1 => (c, x, 0f), < 2 => (x, c, 0f), < 3 => (0f, c, x),
-            < 4 => (0f, x, c), < 5 => (x, 0f, c), _ => (c, 0f, x),
-        };
-        return System.Drawing.Color.FromArgb((int)((r + m) * 255), (int)((g + m) * 255), (int)((b + m) * 255));
-    }
+    /// <summary>Pinta o menu da bandeja com a cor de destaque ("#RRGGBB"). O ícone fica sempre o original,
+    /// com o H no lilás da marca (layout "Fusão": o logo não muda com a cor de destaque).</summary>
+    public void AplicarCor(string hex) => _renderer.Destaque = System.Drawing.ColorTranslator.FromHtml(hex);
 
     [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int atributo, ref int valor, int tamanho);

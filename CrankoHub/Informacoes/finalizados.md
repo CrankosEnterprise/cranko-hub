@@ -387,3 +387,8 @@ Reestruturação visual para uma cara mais premium. Saiu de 4 conceitos em `Rede
 1. ✅ `dotnet build` (Windows) sem erros nem avisos.
 2. ✅ Todas as páginas nos dois temas; trocar de página várias vezes sem erro; arrastar, redimensionar, maximizar e restaurar a janela com o mouse.
 3. ⏳ Linux (moldura do sistema, sem semáforo) e Android (barra de abas embaixo, área segura).
+
+**Ajustes depois da primeira versão (13/11/2026)**
+- **Gráficos no estilo dos protótipos** (`wwwroot/js/charts.js`): linha em curva suave que não "passa do ponto" (cúbica monotônica), área com degradê da cor até sumir, grade quase invisível, anel no último valor, pontinhos só com até 24 registros e rótulo da meta à esquerda. No escuro a linha brilha. O eixo Y não repete mais valores (84, 84, 85...): se o formato pedido repetir, usa as casas decimais do passo. Barras com cantos arredondados e degradê; com `RealcarUltimo` (gráficos mensais do Carro e da Manutenção) só o mês atual fica cheio e os outros esmaecidos. Intensidades em `--area-topo` e `--barra-fraca`.
+- **Logo:** continua o "C de módulos em 3D", mas o H fica sempre no lilás da marca (`#A9B8FF`), qualquer que seja a cor de destaque, com anel fino e brilho de vidro. O ícone da bandeja e da janela não é mais recolorido (`BandejaService.AplicarCor` só pinta o menu da bandeja).
+- **Menu na lateral** (Configurações → Aparência → Menu: "No topo" ou "Na lateral"), como o conceito A: semáforo e marca em cima, as áreas com o pontinho da cor de cada uma, "Sistema" com Configurações e, no pé, a conta e o tema. Fica só no computador (`ConfigLocal.MenuLateral`, em `local.json`) e não aparece no Android. O mosaico do Início passou a seguir a largura do conteúdo (4, 3, 2 ou 1 coluna), para caber com a lateral.

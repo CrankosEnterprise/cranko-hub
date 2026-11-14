@@ -67,7 +67,7 @@
 
 <section class="card">
         <div class="card-head"><div><h2>Gastos com manutenção</h2><p>@Money(total) no total · @list.Count @Plural(list.Count, "serviço", "serviços")</p></div></div>
-        <GraficoBarras Dados="ManutencaoCalculos.Mensal(list)" Nome="Manutenção" Altura="200" Cor="var(--series-2)"
+        <GraficoBarras RealcarUltimo="true" Dados="ManutencaoCalculos.Mensal(list)" Nome="Manutenção" Altura="200" Cor="var(--series-2)"
                        FormatoY="@(new FormatoNumero(0, Prefixo: "R$ "))" Formato="FormatoNumero.Real"
                        MsgVazia="Sem gastos com manutenção nos últimos 12 meses." />
         @if (porTipo.Count > 0)

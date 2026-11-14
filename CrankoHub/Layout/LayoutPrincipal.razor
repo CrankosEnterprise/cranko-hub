@@ -17,7 +17,7 @@
     No Windows a janela não tem moldura: a barra do topo arrasta a janela (data-arrastar, wwwroot/js/interop.js)
     e as bordas .borda-janela redimensionam. No celular o menu vira uma barra de abas fixa embaixo.
 *@
-<div class="app @(Janela.ControlesProprios ? "janela-propria" : "") @(Janela.Maximizada ? "maximizada" : "") @(NoInicio ? "no-inicio" : "")"
+<div class="app @(Janela.ControlesProprios ? "janela-propria" : "") @(Janela.Maximizada ? "maximizada" : "") @(NoInicio ? "no-inicio" : "") @(Lateral ? "com-lateral" : "")"
      style="@(ModuloAtual is { } atual ? $"--c-pagina:{atual.Cor}" : null)">
     @if (Janela.ControlesProprios && !Janela.Maximizada)
     {
@@ -27,39 +27,61 @@
         }
     }
 
-    <header class="topo" data-arrastar>
-        <div class="topo-esq">
-            @if (Janela.ControlesProprios)
-            {
-                <div class="semaforo">
-                    <button type="button" class="fechar" title="Fechar" aria-label="Fechar" @onclick='() => Janela.Pedir("fechar")'><svg viewBox="0 0 12 12"><path d="M3.5 3.5l5 5M8.5 3.5l-5 5" /></svg></button>
-                    <button type="button" class="minimizar" title="Minimizar" aria-label="Minimizar" @onclick='() => Janela.Pedir("minimizar")'><svg viewBox="0 0 12 12"><path d="M3 6h6" /></svg></button>
-                    <button type="button" class="maximizar" title="@(Janela.Maximizada ? "Restaurar" : "Maximizar")" aria-label="Maximizar" @onclick='() => Janela.Pedir("maximizar")'><svg viewBox="0 0 12 12"><path d="M6 3v6M3 6h6" /></svg></button>
-                </div>
-            }
-            <a class="marca" href="" title="Início">
-                <span class="logo">@Icones.Logo</span>
-                <span class="marca-palavra">CRANKO<b>HUB</b></span>
-            </a>
-        </div>
+    @if (Lateral)
+    {
+        @* Menu na lateral (Configurações → Aparência → Menu): semáforo e marca em cima, as áreas com o pontinho
+           da cor de cada uma, Configurações em "Sistema" e, no pé, a conta e o tema *@
+        <aside class="lateral" data-arrastar>
+            @Semaforo
+            @Marca
+            <nav class="nav-lateral" aria-label="Áreas">
+                <NavLink href="" Match="NavLinkMatch.All">@Icones.Inicio<span>Início</span></NavLink>
+                @if (Modulo.Visiveis(Store.Dados.Config).Any())
+                {
+                    <div class="nav-grupo">Áreas</div>
+                }
+                @foreach (var m in Modulo.Visiveis(Store.Dados.Config))
+                {
+                    <NavLink @key="m.Id" href="@m.Link" style="@($"--c:{m.Cor}")"><i class="ponto" aria-hidden="true"></i><span>@m.Nome</span></NavLink>
+                }
+                <div class="nav-grupo">Sistema</div>
+                <NavLink href="configuracoes">@Icones.Engrenagem<span>Configurações</span></NavLink>
+            </nav>
+            <div class="lateral-pe">
+                @if (ContaService.Configurado)
+                {
+                    <ContaRodape />
+                }
+                <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
+            </div>
+        </aside>
+    }
+    else
+    {
+        <header class="topo" data-arrastar>
+            <div class="topo-esq">
+                @Semaforo
+                @Marca
+            </div>
 
-        <nav class="menu" aria-label="Áreas">
-            <NavLink href="" Match="NavLinkMatch.All" style="--c:var(--accent)" title="Início">@Icones.Inicio<span>Início</span></NavLink>
-            @foreach (var m in Modulo.Visiveis(Store.Dados.Config))
-            {
-                <NavLink @key="m.Id" href="@m.Link" style="@($"--c:{m.Cor}")" title="@m.Nome">@m.Icone<span>@m.Nome</span></NavLink>
-            }
-        </nav>
+            <nav class="menu" aria-label="Áreas">
+                <NavLink href="" Match="NavLinkMatch.All" style="--c:#8ea2ff" title="Início">@Icones.Inicio<span>Início</span></NavLink>
+                @foreach (var m in Modulo.Visiveis(Store.Dados.Config))
+                {
+                    <NavLink @key="m.Id" href="@m.Link" style="@($"--c:{m.Cor}")" title="@m.Nome">@m.Icone<span>@m.Nome</span></NavLink>
+                }
+            </nav>
 
-        <div class="topo-dir">
-            <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
-            <NavLink class="icon-btn" href="configuracoes" title="Configurações" aria-label="Configurações">@Icones.Engrenagem</NavLink>
-            @if (ContaService.Configurado)
-            {
-                <ContaRodape Compacto="true" />
-            }
-        </div>
-    </header>
+            <div class="topo-dir">
+                <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
+                <NavLink class="icon-btn" href="configuracoes" title="Configurações" aria-label="Configurações">@Icones.Engrenagem</NavLink>
+                @if (ContaService.Configurado)
+                {
+                    <ContaRodape Compacto="true" />
+                }
+            </div>
+        </header>
+    }
 
     @* O palco é quem rola. O cabeçalho fica fora do conteúdo com chave: o lugar dos botões (SectionOutlet) não pode
        ser recriado junto com a página, senão por um instante existiriam dois com o mesmo nome *@
@@ -93,6 +115,26 @@
 
     private static readonly string[] BordasJanela = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
 
+    // Menu na lateral (opção deste computador); no Android o menu é sempre a barra de abas embaixo
+    private static bool Lateral => ConfigLocal.Atual.MenuLateral && !OperatingSystem.IsAndroid();
+
+    // Semáforo (janela sem moldura, Windows) e marca: iguais no topo e na lateral
+    private RenderFragment Semaforo => @<text>
+        @if (Janela.ControlesProprios)
+        {
+            <div class="semaforo">
+                <button type="button" class="fechar" title="Fechar" aria-label="Fechar" @onclick='() => Janela.Pedir("fechar")'><svg viewBox="0 0 12 12"><path d="M3.5 3.5l5 5M8.5 3.5l-5 5" /></svg></button>
+                <button type="button" class="minimizar" title="Minimizar" aria-label="Minimizar" @onclick='() => Janela.Pedir("minimizar")'><svg viewBox="0 0 12 12"><path d="M3 6h6" /></svg></button>
+                <button type="button" class="maximizar" title="@(Janela.Maximizada ? "Restaurar" : "Maximizar")" aria-label="Maximizar" @onclick='() => Janela.Pedir("maximizar")'><svg viewBox="0 0 12 12"><path d="M6 3v6M3 6h6" /></svg></button>
+            </div>
+        }
+    </text>;
+
+    private RenderFragment Marca => @<a class="marca" href="" title="Início">
+        <span class="logo">@Icones.Logo</span>
+        <span class="marca-palavra">CRANKO<b>HUB</b></span>
+    </a>;
+
     // O Início tem o cabeçalho próprio (saudação e resumo do dia)
     private bool NoInicio => _caminho == "";
 
@@ -120,6 +162,7 @@
         Navegacao.AoNavegar += AbrirPagina;
         Store.ModulosMudaram += AtualizarMenu;
         Janela.Mudou += AtualizarMenu;
+        ConfigLocal.Mudou += AtualizarMenu;
         Sincronizacao.NaTela = acao => InvokeAsync(acao);
         Sincronizacao.Recebeu += RecebeuDaConta;
     }
@@ -188,6 +231,7 @@
         Navegacao.AoNavegar -= AbrirPagina;
         Store.ModulosMudaram -= AtualizarMenu;
         Janela.Mudou -= AtualizarMenu;
+        ConfigLocal.Mudou -= AtualizarMenu;
         Sincronizacao.Recebeu -= RecebeuDaConta;
         Sincronizacao.NaTela = null;
         _ponte?.Dispose();

@@ -6,7 +6,7 @@ namespace CrankoHub.Components;
 public static class Icones
 {
     // Mesmo desenho do ícone do app (Assets/icone.ico, Linux/icone.png): C de módulos brancos em 3D com o H no meio.
-    // Aqui o H segue a cor de destaque (classes lm-h / lm-h-lado no app.css).
+    // O H fica sempre no lilás da marca (classes lm-h / lm-h-lado no app.css), qualquer que seja a cor de destaque.
     private const string LogoSegmentos = """<path d="M362.1 149.9A150 150 0 0 0 215.3 111.6"/><path d="M193.2 119.8A150 150 0 0 0 106.5 244.2"/><path d="M106.5 267.8A150 150 0 0 0 193.2 392.2"/><path d="M215.3 400.4A150 150 0 0 0 362.1 362.1"/>""";
     private const string LogoH = "M214 200V304M298 200V304M214 252H298";
     public static readonly MarkupString Logo = new($$"""<svg viewBox="0 0 512 512" class="logo-marca"><defs><radialGradient id="logo-fundo" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="#1b2f63"/><stop offset="1" stop-color="#060b1d"/></radialGradient></defs><rect width="512" height="512" rx="115" fill="url(#logo-fundo)" stroke="none"/><g fill="none" stroke-width="56" stroke-linecap="butt" transform="translate(-3 -10)"><g stroke="#7d89b0" transform="translate(5 16)">{{LogoSegmentos}}</g><g stroke="#a9b6dc" transform="translate(2.5 8)">{{LogoSegmentos}}</g><g stroke="#f1f4ff">{{LogoSegmentos}}</g><path class="lm-h-lado" d="{{LogoH}}" stroke-width="42" stroke-linecap="round" transform="translate(4 13)"/><path class="lm-h" d="{{LogoH}}" stroke-width="42" stroke-linecap="round"/></g></svg>""");

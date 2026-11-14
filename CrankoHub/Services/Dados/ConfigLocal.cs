@@ -26,6 +26,17 @@ public class ConfigLocal
     /// <summary>Id (user_id) da conta conectada no Supabase.</summary>
     public string? ContaId { get; set; }
 
+    /// <summary>
+    /// Menu das áreas na barra lateral (como o conceito "Atelier") em vez da cápsula no topo.
+    /// É do aparelho: no celular o menu é sempre a barra de abas embaixo.
+    /// </summary>
+    public bool MenuLateral { get; set; }
+
+    /// <summary>Alguma opção de tela mudou (ex.: a posição do menu): o layout se redesenha.</summary>
+    public static event Action? Mudou;
+
+    public static void AvisarMudanca() => Mudou?.Invoke();
+
     public void Salvar()
     {
         Directory.CreateDirectory(Pasta);

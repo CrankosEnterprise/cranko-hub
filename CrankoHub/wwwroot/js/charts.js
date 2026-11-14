@@ -101,6 +101,53 @@ const Charts = (() => {
 
   const empty = (root, msg) => { root.innerHTML = `<div class="chart-empty">${U.esc(msg)}</div>`; };
 
+  // Ids únicos para os degradês de cada gráfico
+  let seq = 0;
+  const novoId = () => `cg${++seq}`;
+
+  // Degradê vertical de uma cor (aceita var(--x)): de cima (op1) para baixo (op2)
+  function degrade(svg, cor, op1, op2) {
+    const id = novoId();
+    const defs = el('defs', {}, svg);
+    const g = el('linearGradient', { id, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    el('stop', { offset: 0, style: `stop-color:${cor};stop-opacity:${op1}` }, g);
+    el('stop', { offset: 1, style: `stop-color:${cor};stop-opacity:${op2}` }, g);
+    return `url(#${id})`;
+  }
+
+  // Curva suave que passa pelos pontos sem "passar do ponto" entre eles (cúbica monotônica, Fritsch–Carlson)
+  function curva(pts) {
+    const n = pts.length;
+    if (n < 3) return pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
+    const d = [], t = new Array(n);
+    for (let i = 0; i < n - 1; i++) {
+      const dx = pts[i + 1][0] - pts[i][0];
+      d[i] = dx ? (pts[i + 1][1] - pts[i][1]) / dx : 0;
+    }
+    t[0] = d[0]; t[n - 1] = d[n - 2];
+    for (let i = 1; i < n - 1; i++) t[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (let i = 0; i < n - 1; i++) {
+      if (!d[i]) { t[i] = t[i + 1] = 0; continue; }
+      const a = t[i] / d[i], b = t[i + 1] / d[i], s = a * a + b * b;
+      if (s > 9) { const k = 3 / Math.sqrt(s); t[i] = k * a * d[i]; t[i + 1] = k * b * d[i]; }
+    }
+    let p = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < n - 1; i++) {
+      const h = (pts[i + 1][0] - pts[i][0]) / 3;
+      p += `C${(pts[i][0] + h).toFixed(1)},${(pts[i][1] + t[i] * h).toFixed(1)} ${(pts[i + 1][0] - h).toFixed(1)},${(pts[i + 1][1] - t[i + 1] * h).toFixed(1)} ${pts[i + 1][0].toFixed(1)},${pts[i + 1][1].toFixed(1)}`;
+    }
+    return p;
+  }
+
+  // Rótulos do eixo Y: se o formato pedido repetir valores (ex.: 84, 84, 85), usa as casas decimais do passo
+  function rotulosY(ticks, yFmt) {
+    const r = ticks.map(yFmt);
+    if (new Set(r).size === r.length || ticks.length < 2) return r;
+    const passo = Math.abs(ticks[1] - ticks[0]);
+    const casas = Math.min(3, Math.max(0, -Math.floor(Math.log10(passo))));
+    return ticks.map(v => U.num(v, casas));
+  }
+
   /**
    * Gráfico de linhas no tempo.
    * series: [{ name, color, points: [{x: timestamp, y, note?}], markers?, area? }]
@@ -117,48 +164,55 @@ const Charts = (() => {
       const all = series.flatMap(s => s.points);
       if (!all.length) return empty(root, emptyMsg);
 
-      const H = height, m = { t: 16, r: 16, b: 28, l: 50 };
+      const H = height, m = { t: 18, r: 14, b: 28, l: 46 };
       const iw = W - m.l - m.r, ih = H - m.t - m.b;
       const xs = all.map(p => p.x);
       let x0 = Math.min(...xs), x1 = Math.max(...xs);
       if (x0 === x1) { x0 -= 3 * U.DAY; x1 += 3 * U.DAY; }
       const ys = all.map(p => p.y).concat(refs.map(r => r.y));
       const y0 = Math.min(...ys), y1 = Math.max(...ys);
-      const pad = (y1 - y0) * 0.1 || Math.max(Math.abs(y1) * 0.05, 1);
-      const n = nice(y0 - pad, y1 + pad, 5);
+      const pad = (y1 - y0) * 0.12 || Math.max(Math.abs(y1) * 0.05, 1);
+      const n = nice(y0 - pad, y1 + pad, 4);
 
       const X = v => m.l + (v - x0) / (x1 - x0) * iw;
       const Y = v => m.t + (1 - (v - n.lo) / (n.hi - n.lo)) * ih;
 
       const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': opts.label || 'Gráfico de linhas' }, root);
 
-      n.ticks.forEach(t => {
+      // Grade fraquinha e rótulos discretos
+      const rotulos = rotulosY(n.ticks, yFmt);
+      n.ticks.forEach((t, i) => {
         el('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: 'grid' }, svg);
-        text(svg, m.l - 8, Y(t) + 4, yFmt(t), 'axis', 'end');
+        text(svg, m.l - 10, Y(t) + 4, rotulos[i], 'axis', 'end');
       });
       const nx = Math.max(2, Math.min(6, Math.floor(iw / 90)));
       for (let i = 0; i < nx; i++) {
         const v = x0 + (x1 - x0) * i / (nx - 1);
-        text(svg, X(v), H - 8, xFmt(v), 'axis', i === 0 ? 'start' : i === nx - 1 ? 'end' : 'middle');
+        text(svg, X(v), H - 6, xFmt(v), 'axis', i === 0 ? 'start' : i === nx - 1 ? 'end' : 'middle');
       }
 
+      // Linhas suaves; área com degradê da cor até sumir; pontinhos só com poucos dados; anel no último valor
       const sorted = series.map(s => ({ ...s, points: [...s.points].sort((a, b) => a.x - b.x) }));
       sorted.forEach(s => {
         if (!s.points.length) return;
-        const d = s.points.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('');
+        const pts = s.points.map(p => [X(p.x), Y(p.y)]);
+        const d = curva(pts);
         if (s.area) {
-          const base = Y(n.lo).toFixed(1);
-          el('path', { d: `${d}L${X(s.points.at(-1).x).toFixed(1)},${base}L${X(s.points[0].x).toFixed(1)},${base}Z`, class: 'series-area', style: `fill:${s.color}` }, svg);
+          const base = (H - m.b).toFixed(1);
+          el('path', { d: `${d}L${pts.at(-1)[0].toFixed(1)},${base}L${pts[0][0].toFixed(1)},${base}Z`, class: 'series-area', fill: degrade(svg, s.color, 'var(--area-topo)', 0) }, svg);
         }
-        el('path', { d, class: 'series-line', style: `stroke:${s.color}` }, svg);
-        if (s.markers !== false && s.points.length <= 80) {
-          s.points.forEach(p => el('circle', { cx: X(p.x), cy: Y(p.y), r: 4, class: 'mark', style: `fill:${s.color}` }, svg));
+        el('path', { d, class: 'series-line', style: `stroke:${s.color};color:${s.color}` }, svg);
+        if (s.markers !== false && s.points.length <= 24) {
+          pts.slice(0, -1).forEach(p => el('circle', { cx: p[0], cy: p[1], r: 3, class: 'mark', style: `fill:${s.color}` }, svg));
         }
+        const fim = pts.at(-1);
+        el('circle', { cx: fim[0], cy: fim[1], r: 4.5, class: 'end-dot', style: `stroke:${s.color}` }, svg);
       });
 
       refs.forEach(r => {
         el('line', { x1: m.l, x2: W - m.r, y1: Y(r.y), y2: Y(r.y), class: 'ref' }, svg);
-        text(svg, W - m.r - 4, Y(r.y) - 6, r.label, 'ref-label', 'end');
+        // Rótulo à esquerda: à direita ele brigaria com o anel do último valor
+        text(svg, m.l + 4, Y(r.y) - 6, r.label, 'ref-label', 'start');
       });
 
       // Camada de hover: linha vertical + tooltip com todos os valores daquela data
@@ -210,33 +264,40 @@ const Charts = (() => {
    */
   function bar(container, opts) {
     const {
-      data, name = '', height = 240, color = 'var(--series-1)',
+      data, name = '', height = 240, color = 'var(--series-1)', highlightLast = false,
       yFmt = v => U.num(v, 0), fmt = v => U.num(v, 1), emptyMsg = 'Sem dados ainda.',
     } = opts;
 
     mount(container, (root, W) => {
       if (!data.length || data.every(d => !d.value)) return empty(root, emptyMsg);
 
-      const H = height, m = { t: 16, r: 8, b: 28, l: 50 };
+      const H = height, m = { t: 18, r: 8, b: 28, l: 46 };
       const iw = W - m.l - m.r, ih = H - m.t - m.b;
       const vals = data.map(d => d.value);
       const n = nice(Math.min(0, ...vals), Math.max(0, ...vals), 4);
       const Y = v => m.t + (1 - (v - n.lo) / (n.hi - n.lo)) * ih;
 
       const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': opts.label || 'Gráfico de barras' }, root);
-      n.ticks.forEach(t => {
+      const rotulos = rotulosY(n.ticks, yFmt);
+      n.ticks.forEach((t, i) => {
         el('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: 'grid' }, svg);
-        text(svg, m.l - 8, Y(t) + 4, yFmt(t), 'axis', 'end');
+        text(svg, m.l - 10, Y(t) + 4, rotulos[i], 'axis', 'end');
       });
 
+      // Barras com cantos arredondados e degradê. Com highlightLast (séries mensais), só a última (o mês atual)
+      // fica cheia e as outras esmaecidas, como no "Consumo por mês"
+      const cheia = degrade(svg, color, 1, 0.62);
+      const fraca = degrade(svg, color, 'var(--barra-fraca)', 'calc(var(--barra-fraca) * .6)');
       const bw = iw / data.length;
-      const barW = Math.max(3, Math.min(44, bw * 0.66));
+      const barW = Math.max(3, Math.min(48, bw * 0.7));
       const every = Math.max(1, Math.ceil(data.length / Math.max(1, Math.floor(iw / 54))));
       const bars = data.map((d, i) => {
         const x = m.l + i * bw + (bw - barW) / 2;
         const yTop = Y(Math.max(d.value, 0)), yBot = Y(Math.min(d.value, 0));
-        if ((data.length - 1 - i) % every === 0) text(svg, m.l + i * bw + bw / 2, H - 8, d.label, 'axis');
-        return el('path', { d: barPath(x, yTop, barW, yBot - yTop, 4, d.value >= 0), class: 'bar', style: `fill:${color}` }, svg);
+        const ultima = i === data.length - 1;
+        if ((data.length - 1 - i) % every === 0) text(svg, m.l + i * bw + bw / 2, H - 6, d.label, `axis${highlightLast && ultima ? ' atual' : ''}`);
+        const preenchimento = !highlightLast || ultima ? cheia : fraca;
+        return el('path', { d: barPath(x, yTop, barW, yBot - yTop, 6, d.value >= 0), class: `bar${highlightLast && ultima ? ' atual' : ''}`, fill: preenchimento, style: `color:${color}` }, svg);
       });
       el('line', { x1: m.l, x2: W - m.r, y1: Y(0), y2: Y(0), class: 'baseline' }, svg);
 
@@ -293,6 +354,7 @@ window.crankoCharts = {
       name: o.name || '',
       height: o.height || 240,
       color: o.color || 'var(--series-1)',
+      highlightLast: !!o.highlightLast,
       fmt: U.fmt(o.fmt, v => U.num(v, 1)),
       yFmt: U.fmt(o.yFmt, v => U.num(v, 0)),
       emptyMsg: o.emptyMsg || 'Sem dados ainda.',
