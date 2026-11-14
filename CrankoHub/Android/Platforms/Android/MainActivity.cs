@@ -22,12 +22,15 @@ public class MainActivity : MauiAppCompatActivity
     {
         base.OnResume();
         IPlatformApplication.Current?.Services.GetService<CarroBluetoothService>()?.Voltou();
+        // A barra da música do Modo Carro some enquanto o CrankoHub está na tela
+        IPlatformApplication.Current?.Services.GetService<ModoCarroService>()?.AppVisivel(true);
     }
 
     protected override void OnPause()
     {
         base.OnPause();
         IPlatformApplication.Current?.Services.GetService<CarroBluetoothService>()?.Saiu();
+        IPlatformApplication.Current?.Services.GetService<ModoCarroService>()?.AppVisivel(false);
     }
 
     // Toque numa notificação com o app já aberto

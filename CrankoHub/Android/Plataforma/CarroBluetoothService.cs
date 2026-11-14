@@ -13,7 +13,7 @@ using CrankoHub.Models;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Bluetooth do carro (Configurações → Modo Carro): reconhece a central marcada como "o meu carro" e
+/// Bluetooth do carro (engrenagem da página Carro; permissões em Configurações → Modo Carro): reconhece a central marcada como "o meu carro" e
 /// <list type="bullet">
 /// <item>ao conectar, avisa por notificação ou abre o Modo Carro (<see cref="Configuracoes.AoConectarCarro"/>);</item>
 /// <item>ao desconectar, sai do Modo Carro (<see cref="Configuracoes.SairAoDesconectar"/>) e guarda onde o carro ficou
@@ -23,7 +23,7 @@ namespace CrankoHub.Services;
 /// "Início automático" ligado. Tudo que o Android precisa liberar aparece em <see cref="Permissoes"/>, com o botão para ativar.
 /// Mesma API de Services/Carro/ModoCarro/CarroBluetoothService.cs.
 /// </summary>
-public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroService modo, NavegacaoService nav)
+public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroService modo)
 {
     private const string Tag = "CrankoHub.Bluetooth";
     private const string Maps = "com.google.android.apps.maps";
@@ -77,15 +77,16 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
         var temCarro = cfg.CarrosBluetooth.Count > 0;
         var lista = new List<PermissaoCarro>
         {
-            new(PermissoesCarro.Localizacao, "Localização", "Mapa, rota e onde o carro estacionou.", TemLocalizacao, true),
+            new(PermissoesCarro.Sobrepor, "Sobrepor a outros apps", "Mostrar a barra da música por cima do Maps e do Waze (e abrir o Modo Carro sozinho, na opção \"Abrir direto\").",
+                PodeSobrepor, true),
+            new(PermissoesCarro.Musica, "Acesso às notificações", "Ver a música que está tocando (Spotify, YouTube Music, Deezer...) e controlar pela barra. O CrankoHub não lê as suas notificações. Se o Android disser \"Configuração restrita\": Informações do app → ⋮ → Permitir configurações restritas, e tente de novo. Sem ele, só o Spotify aparece (com a \"Transmissão do status do dispositivo\" ligada no Spotify).",
+                ModoCarroService.TemAcessoMusica, true),
+            new(PermissoesCarro.Notificacoes, "Notificações", "\"Modo Carro ativo\" (com o botão Sair), \"Modo Carro pronto\" ao ligar o carro e \"Carro estacionado\" ao desligar.", TemNotificacoes, true),
+            new(PermissoesCarro.Localizacao, "Localização", "Onde o carro estacionou e a busca de destino perto de você.", TemLocalizacao, cfg.LembrarEstacionado),
             new(PermissoesCarro.Bluetooth, "Dispositivos próximos (Bluetooth)", "Reconhecer a central do carro e listar os aparelhos pareados.", TemBluetooth, true),
-            new(PermissoesCarro.Notificacoes, "Notificações", "\"Modo Carro pronto\" ao ligar o carro e \"Carro estacionado\" ao desligar.", TemNotificacoes,
-                temCarro && (cfg.AoConectarCarro != AcoesConexao.Nada || cfg.LembrarEstacionado)),
-            new(PermissoesCarro.Sobrepor, "Sobrepor a outros apps", "Abrir o Modo Carro sozinho quando o carro conecta (opção \"Abrir direto\").", PodeSobrepor,
-                cfg.AoConectarCarro == AcoesConexao.Abrir),
-            new(PermissoesCarro.LocalizacaoSempre, "Localização o tempo todo", "Guardar onde estacionou mesmo com o Modo Carro fechado.", TemLocalizacaoSempre,
+            new(PermissoesCarro.LocalizacaoSempre, "Localização o tempo todo", "Guardar onde estacionou mesmo sem o Modo Carro ativo.", TemLocalizacaoSempre,
                 cfg.LembrarEstacionado && cfg.EstacionadoComAppFechado),
-            new(PermissoesCarro.Bateria, "Sem restrição de bateria", "O Android não atrasa o aviso de que o carro conectou ou desconectou.", SemRestricaoBateria, temCarro),
+            new(PermissoesCarro.Bateria, "Sem restrição de bateria", "O Android não atrasa o aviso de que o carro conectou ou desconectou, nem fecha a barra da música.", SemRestricaoBateria, temCarro),
         };
         if (EhXiaomi)
         {
@@ -123,6 +124,13 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
                         else
                             AbrirDetalhesApp();
                     }
+                    break;
+                case PermissoesCarro.Musica:
+                    // Android 11+: direto no interruptor do CrankoHub; antes, a lista de apps com acesso
+                    var detalhe = new Intent("android.settings.NOTIFICATION_LISTENER_DETAIL_SETTINGS")
+                        .PutExtra("android.provider.extra.NOTIFICATION_LISTENER_COMPONENT_NAME", ModoCarroService.Ouvinte.FlattenToString());
+                    if (!(OperatingSystem.IsAndroidVersionAtLeast(30) && Abrir(detalhe)))
+                        Abrir(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
                     break;
                 case PermissoesCarro.Sobrepor:
                     Abrir(new Intent(Settings.ActionManageOverlayPermission, global::Android.Net.Uri.Parse($"package:{Pacote}")));
@@ -232,7 +240,7 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
             Mudou?.Invoke();
         }
 
-        if (modo.Dentro || cfg.AoConectarCarro == AcoesConexao.Nada) return;
+        if (modo.Ativo || cfg.AoConectarCarro == AcoesConexao.Nada) return;
 
         if (cfg.AoConectarCarro == AcoesConexao.Abrir && PodeSobrepor)
         {
@@ -259,7 +267,7 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
     private void AbrirModoCarro()
     {
         BandejaService.Cancelar(IdPronto);
-        if (modo.Dentro) return;
+        if (modo.Ativo) return;
         try
         {
             Ctx.StartActivity(IntentModoCarro());
@@ -306,13 +314,25 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
             if (_conectado == endereco) _conectado = null;
             PararDeEsperar();
             BandejaService.Cancelar(IdPronto);
-            if (modo.Dentro && cfg.SairAoDesconectar) nav.Navegar("carro");
         });
 
-        if (!cfg.LembrarEstacionado) return;
+        // Guarda onde estacionou antes de sair: com o Modo Carro ativo, o serviço da barra ainda libera o GPS
+        try
+        {
+            if (cfg.LembrarEstacionado) await GuardarEstacionado();
+        }
+        finally
+        {
+            if (cfg.SairAoDesconectar) await MainThread.InvokeOnMainThreadAsync(modo.Sair);
+        }
+    }
+
+    private async Task GuardarEstacionado()
+    {
+        var cfg = store.Dados.Config;
         if (await PosicaoDoCarro() is not { } p)
         {
-            Log.Info(Tag, "Estacionou: sem posição (Modo Carro fechado e sem a localização o tempo todo)");
+            Log.Info(Tag, "Estacionou: sem posição (Modo Carro desligado e sem a localização o tempo todo)");
             return;
         }
         var estacionado = new CarroEstacionado(p.Latitude, p.Longitude, DateTime.Now, await Endereco(p.Latitude, p.Longitude));
@@ -327,15 +347,13 @@ public sealed class CarroBluetoothService(ArmazenamentoService store, ModoCarroS
     }
 
     /// <summary>
-    /// Onde o carro ficou: a posição do Modo Carro (se é recente); senão, pede ao GPS, mas só se o Android deixa:
-    /// com o app na tela, ou com a localização "o tempo todo" e a opção ligada.
+    /// Onde o carro ficou, pelo GPS, mas só se o Android deixa: com o app na tela, com o Modo Carro ativo (o serviço da barra
+    /// tem o tipo "localização"), ou com a localização "o tempo todo" e a opção ligada.
     /// </summary>
     private async Task<(double Latitude, double Longitude)?> PosicaoDoCarro()
     {
-        if (modo.Posicao is { } p && DateTime.Now - modo.PosicaoEm < TimeSpan.FromMinutes(3)) return (p.Latitude, p.Longitude);
-
         var cfg = store.Dados.Config;
-        if (!TemLocalizacao || !(Visivel || cfg.EstacionadoComAppFechado && TemLocalizacaoSempre)) return null;
+        if (!TemLocalizacao || !(Visivel || modo.Ativo && modo.ComLocalizacao || cfg.EstacionadoComAppFechado && TemLocalizacaoSempre)) return null;
         try
         {
             var ultima = await MainThread.InvokeOnMainThreadAsync(() => Geolocation.Default.GetLastKnownLocationAsync());

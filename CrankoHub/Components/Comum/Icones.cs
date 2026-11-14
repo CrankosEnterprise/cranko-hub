@@ -29,32 +29,15 @@ public static class Icones
     public static readonly MarkupString Editar = new("""<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>""");
     public static readonly MarkupString Excluir = new("""<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>""");
     public static readonly MarkupString Info = new("""<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/></svg>""");
-    public static readonly MarkupString Tocar = new("""<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>""");
     public static readonly MarkupString Pausar = new("""<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>""");
-    public static readonly MarkupString Proxima = new("""<svg viewBox="0 0 24 24"><path d="M5 5v14l10-7zM19 5v14"/></svg>""");
-    public static readonly MarkupString Anterior = new("""<svg viewBox="0 0 24 24"><path d="M19 5v14L9 12zM5 5v14"/></svg>""");
     public static readonly MarkupString Musica = new("""<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>""");
-    // Layout do Modo Carro: tela com uma área grande e um painel ao lado
+    // Tela com uma área grande e um painel ao lado
     public static readonly MarkupString Layout = new("""<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M14.5 4v16M14.5 10H21"/></svg>""");
     public static readonly MarkupString Painel = new("""<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16M5.8 8.5h1M5.8 11.5h1"/></svg>""");
-    public static readonly MarkupString Recolher = new("""<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>""");
     public static readonly MarkupString Navegacao =new("""<svg viewBox="0 0 24 24"><path d="M12 2.5 19.5 21 12 17l-7.5 4z"/></svg>""");
     public static readonly MarkupString Busca = new("""<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>""");
     public static readonly MarkupString Fechar = new("""<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>""");
     public static readonly MarkupString Anexo = new("""<svg viewBox="0 0 24 24"><path d="m20.5 11.5-8.3 8.3a5 5 0 0 1-7-7l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>""");
-
-    /// <summary>Seta da manobra da rota (chaves do <c>RotaService</c>).</summary>
-    public static MarkupString Manobra(string chave) => chave switch
-    {
-        "esquerda" => new("""<svg viewBox="0 0 24 24"><path d="M17 21v-8a4 4 0 0 0-4-4H5"/><path d="M9 5 5 9l4 4"/></svg>"""),
-        "direita" => new("""<svg viewBox="0 0 24 24"><path d="M7 21v-8a4 4 0 0 1 4-4h8"/><path d="m15 5 4 4-4 4"/></svg>"""),
-        "leve-esquerda" => new("""<svg viewBox="0 0 24 24"><path d="M15 21v-7L8 7"/><path d="M8 13V7h6"/></svg>"""),
-        "leve-direita" => new("""<svg viewBox="0 0 24 24"><path d="M9 21v-7l7-7"/><path d="M10 7h6v6"/></svg>"""),
-        "retorno" => new("""<svg viewBox="0 0 24 24"><path d="M17 21V9a4.5 4.5 0 0 0-9 0v7"/><path d="m4 12 4 4 4-4"/></svg>"""),
-        "rotatoria" => new("""<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4.5"/><path d="M12 21v-7.5M15.2 5.8 19 2M15 2h4v4"/></svg>"""),
-        "chegada" => new("""<svg viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4.5L17 13H6"/></svg>"""),
-        _ => new("""<svg viewBox="0 0 24 24"><path d="M12 21V4"/><path d="m6 10 6-6 6 6"/></svg>"""),
-    };
 
     public static readonly MarkupString Seta =new("""<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>""");
     public static readonly MarkupString Balanca = new("""<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9a5 5 0 0 1 8 0l-2.5 2.5"/><circle cx="12" cy="12.5" r=".8"/></svg>""");

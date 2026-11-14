@@ -93,8 +93,7 @@ public partial class App : Application
         servicos.AddSingleton<ContaService>();
         servicos.AddSingleton<SincronizacaoService>();
         servicos.AddSingleton<ModoCarroService>();
-        servicos.AddSingleton<RotaService>();
-        servicos.AddSingleton<VisorCarroService>();
+        servicos.AddSingleton<BuscaLugares>();
         servicos.AddSingleton<CarroBluetoothService>();
         return servicos.BuildServiceProvider();
     }

@@ -35,15 +35,6 @@ public class Configuracoes
     /// <summary>Chave da API do RAWG (jogos).</summary>
     public string? ChaveRawg { get; set; }
 
-    /// <summary>
-    /// Chave do Google Maps Platform (Maps JavaScript, Places New e Routes). Com ela, o Modo Carro usa mapa, busca e rotas
-    /// do Google; sem ela, OpenStreetMap/Photon/Valhalla. Fica só no aparelho (não vai para a conta).
-    /// </summary>
-    public string? ChaveGoogleMaps { get; set; }
-
-    /// <summary>ID do mapa do Google (vetorial, com inclinação e rotação). Sem ele, usa o DEMO_MAP_ID.</summary>
-    public string? MapaIdGoogle { get; set; }
-
     /// <summary>Módulos escondidos do menu, do Início e dos avisos (os dados continuam salvos).</summary>
     public List<string> ModulosOcultos { get; set; } = [];
 
@@ -57,35 +48,14 @@ public class Configuracoes
 
     public DateOnly? UltimaVerificacaoAtualizacao { get; set; }
 
-    /// <summary>Modo Carro: últimos destinos das rotas (fica no aparelho).</summary>
+    /// <summary>Modo Carro: últimos destinos escolhidos (fica no aparelho).</summary>
     public List<LugarBusca> DestinosRecentes { get; set; } = [];
 
-    /// <summary>Modo Carro: avisos por voz na navegação (manobras, pedágios, radares e limite). Opcional, ligado em Configurações → Aplicativo.</summary>
-    public bool VozModoCarro { get; set; }
+    /// <summary>Modo Carro: app de navegação escolhido por último (ver <see cref="AppsCarro.Navegacao"/>).</summary>
+    public string AppNavegacaoCarro { get; set; } = AppsCarro.Maps;
 
-    /// <summary>Modo Carro: calcular as rotas evitando pedágios.</summary>
-    public bool EvitarPedagios { get; set; }
-
-    /// <summary>Modo Carro: mostrar a próxima curva no visor da central (pelo Bluetooth) durante a rota.</summary>
-    public bool VisorCentral { get; set; } = true;
-
-    /// <summary>Modo Carro: mostrar o botão "Testar visor da central" (diagnóstico com log).</summary>
-    public bool TesteVisor { get; set; } = true;
-
-    /// <summary>Modo Carro: layout da tela (ver <see cref="LayoutsCarro"/>).</summary>
-    public string LayoutCarro { get; set; } = LayoutsCarro.Lateral;
-
-    /// <summary>
-    /// Modo Carro: tamanho escolhido do painel (% da largura na paisagem, da altura no retrato), por layout.
-    /// Chave: o layout, com "-r" no retrato (ver <see cref="LayoutsCarro.Chave"/>). Sem valor = o padrão do layout.
-    /// </summary>
-    public Dictionary<string, int> TamanhoPainelCarro { get; set; } = [];
-
-    /// <summary>Modo Carro: painel do lado esquerdo na paisagem (em cima no retrato), em vez de à direita (embaixo).</summary>
-    public bool PainelCarroEsquerda { get; set; }
-
-    /// <summary>Modo Carro: layouts em que os atalhos (Spotify, Maps, Waze) ficam escondidos.</summary>
-    public List<string> AtalhosOcultosCarro { get; set; } = [];
+    /// <summary>Modo Carro: a barra da música fica em cima por cima do Maps/Waze (senão, embaixo). Engrenagem do Carro.</summary>
+    public bool BarraCarroEmCima { get; set; }
 
     /// <summary>Modo Carro: aparelhos Bluetooth marcados como "o meu carro" (centrais). Fones e caixinhas não entram.</summary>
     public List<CarroPareado> CarrosBluetooth { get; set; } = [];
@@ -93,13 +63,13 @@ public class Configuracoes
     /// <summary>Modo Carro: o que fazer ao conectar no Bluetooth do carro (ver <see cref="AcoesConexao"/>).</summary>
     public string AoConectarCarro { get; set; } = AcoesConexao.Notificar;
 
-    /// <summary>Modo Carro: sair do Modo Carro quando o Bluetooth do carro desconecta (a rota continua guardada).</summary>
+    /// <summary>Modo Carro: sair do Modo Carro quando o Bluetooth do carro desconecta.</summary>
     public bool SairAoDesconectar { get; set; } = true;
 
     /// <summary>Modo Carro: guardar onde o carro ficou quando o Bluetooth dele desconecta.</summary>
     public bool LembrarEstacionado { get; set; } = true;
 
-    /// <summary>Modo Carro: guardar o estacionado mesmo com o Modo Carro fechado (precisa da localização "o tempo todo").</summary>
+    /// <summary>Modo Carro: guardar o estacionado mesmo sem o Modo Carro ativo (precisa da localização "o tempo todo").</summary>
     public bool EstacionadoComAppFechado { get; set; }
 
     /// <summary>Modo Carro: onde o carro ficou (null = não guardado, ou já voltou ao carro).</summary>

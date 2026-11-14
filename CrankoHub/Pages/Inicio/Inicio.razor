@@ -121,7 +121,7 @@
 
 @if (Modulo.Visivel(cfg, Modulo.Carro) && cfg.Estacionado is { } estacionado)
 {
-    @* Guardado quando o Bluetooth do carro desconectou (Configurações → Modo Carro → Onde estacionei) *@
+    @* Guardado quando o Bluetooth do carro desconectou (engrenagem do Carro → Onde estacionei) *@
     <section class="card estacionado brilho" style="--c:@Modulo.CorDe(cfg, Modulo.Carro)" aria-label="Carro estacionado">
         <span class="estacionado-icone" aria-hidden="true">@Icones.Carro</span>
         <div class="estacionado-texto">

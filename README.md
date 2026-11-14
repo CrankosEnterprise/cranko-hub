@@ -119,7 +119,7 @@ cranko-hub/
 │   │   ├── Windows/                 # Só do Windows (bandeja, diálogos, atualização, iniciar com o Windows, cofre)
 │   │   ├── Anexos/                  # Compactação e rascunho dos anexos
 │   │   ├── Carro/                   # Cálculos do carro, FIPE, Carros na Web
-│   │   │   └── ModoCarro/           # Rota, radares, Google Maps, visor da central, Bluetooth
+│   │   │   └── ModoCarro/           # Busca de destino, Modo Carro e Bluetooth (Android/Plataforma: barra da música)
 │   │   └── <Módulo>/                # Cálculos de Agenda, Assinaturas, Dieta, Tarefas, Entretenimento
 │   ├── Linux/                       # Projeto Linux (Photino.Blazor), que reaproveita os arquivos acima
 │   │   ├── Plataforma/              # Partes exclusivas do Linux (diálogos GTK, notify-send, autostart...)

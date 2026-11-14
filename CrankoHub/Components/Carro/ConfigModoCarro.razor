@@ -1,0 +1,175 @@
+@namespace CrankoHub.Components
+@* Configurações do Carro (engrenagem no topo da página Carro, só no celular): a barra da música do Modo Carro,
+   o Bluetooth do carro e "onde estacionei". As permissões do Android ficam em Configurações → Modo Carro. *@
+@implements IDisposable
+@inject ArmazenamentoService Store
+@inject CarroBluetoothService Bluetooth
+@inject ToastService Toast
+
+@{
+    var cfg = Store.Dados.Config;
+    var permissoes = Bluetooth.Permissoes();
+    var faltam = permissoes.Where(p => p.Necessaria && p.Ativada == false).ToList();
+}
+
+<div class="modal-backdrop" @onclick="Fechar">
+    <div class="card modal modal-medio" @onclick:stopPropagation="true">
+        <div><h2>@Icones.Engrenagem Configurações do Carro</h2><p class="muted">Valem só para esta seção. As do app ficam em Configurações, no menu.</p></div>
+
+        @if (faltam.Count > 0)
+        {
+            <div class="mc-cfg-alerta" role="status">
+                <b>Falta @(faltam.Count == 1 ? "ativar 1 permissão" : $"ativar {faltam.Count} permissões") do Modo Carro.</b>
+                <span>@string.Join(", ", faltam.Select(p => p.Nome)). Veja em <a href="configuracoes?aba=carro#permissoes-carro" @onclick="Fechar">Configurações → Modo Carro</a>.</span>
+            </div>
+        }
+
+        <section class="cfg-carro-bloco">
+            <h3>Barra da música</h3>
+            <p class="muted">Fica por cima do Google Maps ou do Waze enquanto o Modo Carro está ativo.</p>
+            <div class="chips" role="radiogroup" aria-label="Posição da barra da música">
+                <button type="button" role="radio" aria-checked="@cfg.BarraCarroEmCima" class="chip @(cfg.BarraCarroEmCima ? "active" : "")" @onclick="() => MudarBarra(true)">Em cima</button>
+                <button type="button" role="radio" aria-checked="@(!cfg.BarraCarroEmCima)" class="chip @(!cfg.BarraCarroEmCima ? "active" : "")" @onclick="() => MudarBarra(false)">Embaixo</button>
+            </div>
+        </section>
+
+        <section class="cfg-carro-bloco">
+            <h3>Bluetooth do carro</h3>
+            <p class="muted">Marque a central do carro: o CrankoHub percebe quando o celular conecta (carro ligado) e desconecta (carro desligado).</p>
+            @if (Pendente(permissoes, PermissoesCarro.Bluetooth) is { } pb)
+            {
+                <PermissaoLinha Permissao="pb" AoAtivar="Bluetooth.Ativar" />
+            }
+            else
+            {
+                var pareados = Bluetooth.Pareados();
+                var antigos = cfg.CarrosBluetooth.Where(c => pareados.All(p => !MesmoEndereco(p.Endereco, c.Endereco))).ToList();
+                <div class="opcoes" role="group" aria-label="Aparelhos Bluetooth pareados">
+                    @if (pareados.Count == 0 && antigos.Count == 0)
+                    {
+                        <p class="muted">Nenhum aparelho pareado. Pareie a central nas configurações de Bluetooth do Android e volte aqui.</p>
+                    }
+                    @foreach (var a in pareados)
+                    {
+                        var aparelho = a;
+                        var marcado = cfg.CarrosBluetooth.Any(c => MesmoEndereco(c.Endereco, aparelho.Endereco));
+                        <label class="check" @key="aparelho.Endereco"><input type="checkbox" checked="@marcado" @onchange="e => MarcarCarro(aparelho, e.Value is true)">
+                            <span><b>@aparelho.Nome</b> <span class="muted">· @(aparelho.Audio ? "som / central" : "outro aparelho")</span></span></label>
+                    }
+                    @foreach (var c in antigos)
+                    {
+                        var carro = c;
+                        <div class="lc-linha" @key="carro.Endereco">
+                            <span><b>@carro.Nome</b> <span class="muted">· não está mais pareado</span></span>
+                            <button type="button" class="btn" aria-label="Remover @carro.Nome" @onclick="() => RemoverCarro(carro)">Remover</button>
+                        </div>
+                    }
+                </div>
+            }
+
+            <span class="lc-rotulo">Ao ligar o carro</span>
+            <div class="chips" role="radiogroup" aria-label="Ao ligar o carro">
+                @foreach (var (valor, rotulo) in AcoesAoConectar)
+                {
+                    <button type="button" role="radio" aria-checked="@(cfg.AoConectarCarro == valor)" class="chip @(cfg.AoConectarCarro == valor ? "active" : "")" @onclick="() => MudarAoConectar(valor)">@rotulo</button>
+                }
+            </div>
+            <span class="muted">@(cfg.AoConectarCarro switch
+            {
+                AcoesConexao.Abrir => "Abre a tela do Modo Carro sozinha (escolher o destino). Com o celular bloqueado, espera você desbloquear.",
+                AcoesConexao.Notificar => "Aparece a notificação \"Modo Carro pronto\": toque para abrir.",
+                _ => "Não faz nada ao ligar o carro.",
+            })</span>
+            @if (cfg.AoConectarCarro == AcoesConexao.Abrir && Pendente(permissoes, PermissoesCarro.Sobrepor) is { } ps)
+            {
+                <PermissaoLinha Permissao="ps" AoAtivar="Bluetooth.Ativar" />
+            }
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@cfg.SairAoDesconectar" @onchange="@(e => Mudar(e, v => cfg.SairAoDesconectar = v))"> <span>Sair do Modo Carro ao desligar o carro <span class="muted">· tira a barra da música</span></span></label>
+            </div>
+        </section>
+
+        <section class="cfg-carro-bloco">
+            <h3>Onde estacionei</h3>
+            <p class="muted">Quando o Bluetooth do carro desconecta, o CrankoHub guarda onde o carro ficou: aparece numa notificação e no Início, com o caminho a pé no Google Maps.</p>
+            <div class="opcoes">
+                <label class="check"><input type="checkbox" checked="@cfg.LembrarEstacionado" @onchange="@(e => Mudar(e, v => cfg.LembrarEstacionado = v))"> <span>Lembrar onde estacionei <span class="muted">· usa o GPS com o Modo Carro ativo</span></span></label>
+                @if (cfg.LembrarEstacionado)
+                {
+                    <label class="check"><input type="checkbox" checked="@cfg.EstacionadoComAppFechado" @onchange="@(e => Mudar(e, v => cfg.EstacionadoComAppFechado = v))"> <span>Funcionar também sem o Modo Carro ativo <span class="muted">· precisa da localização "o tempo todo"</span></span></label>
+                }
+            </div>
+            @if (cfg.LembrarEstacionado && cfg.EstacionadoComAppFechado && Pendente(permissoes, PermissoesCarro.LocalizacaoSempre) is { } pl)
+            {
+                <PermissaoLinha Permissao="pl" AoAtivar="Bluetooth.Ativar" />
+            }
+            @if (cfg.Estacionado is { } est)
+            {
+                <div class="lc-linha">
+                    <span><b>Carro estacionado</b> <span class="muted">· @(est.Endereco ?? "endereço não encontrado") · @est.Quando.ToString("dd/MM HH:mm")</span></span>
+                    <button type="button" class="btn" @onclick="Bluetooth.ComoChegar">Como chegar</button>
+                    <button type="button" class="btn" @onclick="Bluetooth.EsquecerEstacionado">Esquecer</button>
+                </div>
+            }
+        </section>
+
+        <div class="form-actions">
+            <button class="btn primary" type="button" @onclick="Fechar">Fechar</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback AoFechar { get; set; }
+
+    private static readonly (string Valor, string Rotulo)[] AcoesAoConectar =
+        [(AcoesConexao.Nada, "Nada"), (AcoesConexao.Notificar, "Notificação"), (AcoesConexao.Abrir, "Abrir direto")];
+
+    // As permissões mudam fora do app (telas do Android) e o carro estacionado chega pelo Bluetooth
+    protected override void OnInitialized() => Bluetooth.Mudou += Redesenhar;
+
+    private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Bluetooth.Mudou -= Redesenhar;
+
+    private Task Fechar() => AoFechar.InvokeAsync();
+
+    /// <summary>A permissão, se ainda falta ativar (null = já ativada ou não dá para conferir).</summary>
+    private static PermissaoCarro? Pendente(IReadOnlyList<PermissaoCarro> lista, string id) =>
+        lista.FirstOrDefault(p => p.Id == id && p.Ativada == false);
+
+    private static bool MesmoEndereco(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+    private void MudarBarra(bool emCima)
+    {
+        Store.Dados.Config.BarraCarroEmCima = emCima;
+        Store.Salvar();
+    }
+
+    private void MarcarCarro(AparelhoBluetooth aparelho, bool marcado)
+    {
+        var carros = Store.Dados.Config.CarrosBluetooth;
+        carros.RemoveAll(c => MesmoEndereco(c.Endereco, aparelho.Endereco));
+        if (marcado) carros.Add(new CarroPareado(aparelho.Endereco, aparelho.Nome));
+        Store.Salvar();
+        if (marcado) Toast.Ok($"{aparelho.Nome} marcado como o seu carro.");
+    }
+
+    private void RemoverCarro(CarroPareado carro)
+    {
+        Store.Dados.Config.CarrosBluetooth.Remove(carro);
+        Store.Salvar();
+    }
+
+    private void MudarAoConectar(string valor)
+    {
+        Store.Dados.Config.AoConectarCarro = valor;
+        Store.Salvar();
+    }
+
+    private void Mudar(ChangeEventArgs e, Action<bool> aplicar)
+    {
+        aplicar(e.Value is true);
+        Store.Salvar();
+    }
+}

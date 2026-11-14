@@ -44,8 +44,15 @@
     @if (ModoCarro.Disponivel)
     {
         <a class="btn com-rotulo" href="carro/modo" title="Modo Carro" aria-label="Modo Carro">@Icones.Carro<span class="rotulo">Modo Carro</span></a>
+        @* Só no celular: o Modo Carro, o Bluetooth do carro e o estacionado (as permissões ficam em Configurações → Modo Carro) *@
+        <button class="icon-btn" type="button" title="Configurações do Carro" aria-label="Configurações do Carro" @onclick="() => _configAberta = true">@Icones.Engrenagem</button>
     }
 </AcoesTopo>
+
+@if (_configAberta)
+{
+    <ConfigModoCarro AoFechar="() => _configAberta = false" />
+}
 
 <nav class="tabs" role="tablist" aria-label="Seções do carro">
     @foreach (var (chave, rotulo) in Abas)
@@ -248,6 +255,8 @@
 
     // Aba aberta, mantida enquanto o app estiver aberto
     private static string _aba = "resumo";
+
+    private bool _configAberta;
 
     /// <summary>Permite abrir uma aba direto pelo link (ex.: carro?aba=manutencao).</summary>
     [SupplyParameterFromQuery(Name = "aba")] public string? AbaInicial { get; set; }
