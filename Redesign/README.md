@@ -8,6 +8,9 @@ Quatro direções visuais para o CrankoHub, com as mesmas telas (Início, Carro,
 | **B · Meia-noite** | Escuro em azul-marinho, trilho de ícones, mosaico de blocos, cada módulo brilha na sua cor | Semáforo do mac (menor) |
 | **C · Vitrine** | Claro e colorido, menu em cápsula no topo, cartões tingidos com a cor do módulo | Cápsula à direita (— ▢ ✕) |
 | **D · Cockpit** | Painel de instrumentos: grafite, mostradores, barras em segmentos, âmbar | Traço fino, estilo Windows |
+| **E · Fusão** | A + B + menu do C: tipografia e linhas do Atelier, mosaico e brilho do Meia-noite, menu central em cápsula. Claro e escuro | Semáforo do mac |
+
+A fusão tem os dois temas: `imagens/e-fusao-<tela>-claro.png` e `-escuro.png`, e a prancha `imagens/00-fusao.png`.
 
 - `imagens/00-visao-geral.png` — todos lado a lado
 - `imagens/<conceito>-<tela>.png` — cada tela em 3200×2000

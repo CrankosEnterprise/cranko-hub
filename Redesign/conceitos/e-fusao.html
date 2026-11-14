@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conceito E — Fusão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=block" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="dados.js"></script>
+<style>
+/* Conceito E — Fusão (A + B + menu do C)
+   A: Manrope, números grandes e leves, linhas finas, faixa de atenção, abas sublinhadas, tabela.
+   B: mosaico de blocos, brilho na cor do módulo, rosca e gráfico grande, tema escuro azul-marinho.
+   C: navegação em cápsula centralizada no topo (sem barra lateral).
+   Tema: <html data-theme="claro|escuro">. */
+:root, [data-theme="claro"] {
+  --cena: radial-gradient(1200px 700px at 20% 0%, #DCE1EC, transparent), linear-gradient(160deg, #C9CFDB, #AEB6C6);
+  --janela: #E9EBEF; --palco: #F6F7F9; --bloco: #FFFFFF; --bloco-2: #FFFFFF; --bloco-anel: #0000000f;
+  --tinta: #14161B; --suave: #5F6470; --fraco: #9EA3AD; --linha: #E5E7EC; --linha-forte: #D3D6DD;
+  --destaque: #24346F; --destaque-texto: #FFFFFF; --nav-fundo: #FFFFFF; --nav-sel: #14161B; --nav-sel-texto: #fff;
+  --brilho: 13%; --sombra-bloco: 0 1px 2px #0000000a, 0 8px 24px -16px #1a244033;
+  --atencao: #B25E00; --serio: #C0362C; --bom: #1F7A47; --trilha: #EDEFF3; --capsula: #F0F1F4;
+  --semaforo-anel: #0000001f;
+}
+[data-theme="escuro"] {
+  --cena: radial-gradient(900px 600px at 70% 10%, #2B3A78, transparent), radial-gradient(800px 600px at 10% 90%, #3A1E5C, transparent), #0B0F1E;
+  --janela: #070B16; --palco: #0A0F1D; --bloco: #0E1424; --bloco-2: #131B30; --bloco-anel: #ffffff10;
+  --tinta: #ECEFF8; --suave: #8D96B0; --fraco: #59627C; --linha: #ffffff10; --linha-forte: #ffffff1c;
+  --destaque: #A9B8FF; --destaque-texto: #0A1030; --nav-fundo: #ffffff08; --nav-sel: #ffffff14; --nav-sel-texto: #fff;
+  --brilho: 30%; --sombra-bloco: inset 0 1px 0 #ffffff0d;
+  --atencao: #FFB547; --serio: #FF6B5E; --bom: #4ADE9B; --trilha: #ffffff0f; --capsula: #ffffff0a;
+  --semaforo-anel: #ffffff1a;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { font: 14px/1.5 Manrope, system-ui, sans-serif; color: var(--tinta); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
+  background: var(--cena); display: grid; place-items: center; }
+svg.lucide { width: 17px; height: 17px; flex: none; }
+
+.janela { width: 1480px; height: 920px; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; background: var(--janela);
+  box-shadow: 0 0 0 .5px #0000002a, 0 40px 90px -30px #0a1028cc, 0 12px 30px -12px #0003; }
+[data-theme="escuro"] .janela { background: radial-gradient(700px 380px at 50% -10%, #1B2A5E77, transparent), var(--janela); box-shadow: 0 0 0 1px #ffffff14, 0 50px 120px -30px #000c, inset 0 1px 0 #ffffff12; }
+
+/* ---------- Topo: semáforo + marca | menu em cápsula central | busca, avisos, tema, conta ---------- */
+.topo { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 12px 18px 10px; }
+.esq { display: flex; align-items: center; gap: 22px; }
+.semaforo { display: flex; gap: 8px; }
+.semaforo i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px var(--semaforo-anel); }
+.semaforo i:nth-child(1) { background: #FF5F57 } .semaforo i:nth-child(2) { background: #FEBC2E } .semaforo i:nth-child(3) { background: #28C840 }
+.marca { display: flex; align-items: center; gap: 10px; }
+.marca-s { width: 28px; height: 28px; border-radius: 8px; background: radial-gradient(circle at 50% 30%, #2A3F7E, #0B1330); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 12px; box-shadow: 0 0 0 1px #ffffff1a; }
+.marca-s b { color: #A9B8FF; }
+.marca-p { font-size: 12.5px; letter-spacing: .26em; font-weight: 300; }
+.marca-p b { font-weight: 800; }
+.nav { display: flex; gap: 2px; padding: 4px; border-radius: 14px; background: var(--nav-fundo); box-shadow: 0 0 0 1px var(--linha), 0 1px 2px #0000000a; }
+[data-theme="escuro"] .nav { box-shadow: inset 0 0 0 1px var(--linha-forte); }
+.nav a { display: flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 10px; color: var(--suave); font-weight: 600; font-size: 13px; position: relative; }
+.nav a svg { width: 15px; height: 15px; }
+.nav a .pt { width: 6px; height: 6px; border-radius: 50%; background: var(--atencao); position: absolute; top: 6px; right: 6px; }
+.nav a.ativo { background: var(--nav-sel); color: var(--nav-sel-texto); box-shadow: 0 4px 12px -6px #0006; }
+.nav a.ativo svg { color: var(--c); }
+[data-theme="escuro"] .nav a.ativo { background: linear-gradient(160deg, color-mix(in srgb, var(--c) 40%, transparent), color-mix(in srgb, var(--c) 14%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, #fff2), 0 8px 22px -10px var(--c); }
+[data-theme="escuro"] .nav a.ativo svg { color: #fff; }
+.dir { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.busca { display: flex; align-items: center; gap: 8px; width: 210px; padding: 7px 11px; border-radius: 10px; background: var(--capsula); box-shadow: inset 0 0 0 1px var(--linha); color: var(--fraco); font-size: 12.5px; margin-right: 4px; }
+.busca kbd { margin-left: auto; font: 600 10.5px Manrope; color: var(--suave); padding: 1px 6px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--linha-forte); }
+.ib { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: var(--suave); position: relative; }
+.ib .n { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--serio); box-shadow: 0 0 0 2px var(--janela); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: conic-gradient(from 200deg, #A9B8FF, #C084FC, #A9B8FF); padding: 2px; margin-left: 4px; }
+.avatar span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: #1B2550; color: #fff; font-weight: 700; font-size: 12px; }
+
+/* ---------- Palco (A): a página rola dentro dele ---------- */
+.palco { flex: 1; margin: 0 8px 8px; border-radius: 12px; background: var(--palco); box-shadow: 0 0 0 .5px #00000012, 0 1px 3px #0000000a; padding: 26px 32px 28px; overflow: hidden; display: flex; flex-direction: column; }
+[data-theme="escuro"] .palco { background: transparent; box-shadow: none; padding-top: 18px; }
+
+/* Tipografia (A) */
+.data { color: var(--suave); font-size: 13px; }
+h1 { font-size: 38px; font-weight: 250; letter-spacing: -.035em; line-height: 1.1; margin-top: 2px; }
+.cab { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 22px; }
+.cab .resumo { color: var(--suave); font-size: 14px; margin-top: 6px; }
+.cab .resumo b { color: var(--tinta); font-weight: 600; }
+.acoes { display: flex; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; font: 650 13px Manrope; padding: 8px 15px; border-radius: 10px; border: 0; color: var(--tinta); background: var(--bloco); box-shadow: 0 0 0 1px var(--linha-forte), 0 1px 2px #0000000d; }
+[data-theme="escuro"] .btn { background: #ffffff0d; box-shadow: inset 0 0 0 1px var(--linha-forte); }
+.btn.prim { background: var(--tinta); color: var(--palco); box-shadow: 0 1px 2px #0003, inset 0 1px 0 #ffffff1f; }
+[data-theme="escuro"] .btn.prim { color: #0A1030; background: linear-gradient(180deg, #C7D2FF, #9AABFF); box-shadow: 0 8px 24px -8px #8EA2FFaa, inset 0 1px 0 #fff8; }
+.num { font-size: 50px; font-weight: 200; letter-spacing: -.045em; line-height: 1; }
+.num small { font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--suave); margin-left: 4px; }
+.rot { color: var(--suave); font-size: 12.5px; }
+.delta { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--bom); }
+.delta svg { width: 13px; height: 13px; }
+
+/* Blocos (B) com acabamento do A */
+.b { background: linear-gradient(180deg, var(--bloco-2), var(--bloco)); border-radius: 18px; box-shadow: 0 0 0 1px var(--bloco-anel), var(--sombra-bloco); padding: 20px 22px; position: relative; overflow: hidden; min-height: 0; }
+.b-cab { display: flex; align-items: center; gap: 9px; color: var(--suave); font-size: 12.5px; font-weight: 650; position: relative; z-index: 1; }
+.b-cab .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); }
+.b-cab .ic svg { width: 14px; height: 14px; }
+.b-cab .d { margin-left: auto; color: var(--fraco); font-weight: 500; }
+.brilho::after { content: ""; position: absolute; width: 300px; height: 300px; right: -100px; top: -150px; background: radial-gradient(circle, color-mix(in srgb, var(--c) var(--brilho), transparent), transparent 70%); pointer-events: none; }
+.b > *:not(svg.fundo) { position: relative; }
+
+/* Faixa de atenção (A) */
+.atencao { display: grid; grid-template-columns: repeat(4, 1fr); border-radius: 14px; background: var(--bloco); box-shadow: 0 0 0 1px var(--bloco-anel), var(--sombra-bloco); margin-bottom: 14px; }
+[data-theme="escuro"] .atencao { background: linear-gradient(180deg, var(--bloco-2), var(--bloco)); }
+.atencao > div { padding: 14px 18px; display: flex; gap: 12px; }
+.atencao > div + div { border-left: 1px solid var(--linha); }
+.atencao .m { width: 3px; border-radius: 2px; background: var(--c); flex: none; }
+[data-theme="escuro"] .atencao .m { box-shadow: 0 0 8px var(--c); }
+.atencao b { display: block; font-weight: 650; font-size: 13px; }
+.atencao span { color: var(--suave); font-size: 12px; }
+
+/* Início */
+.mosaico { flex: 1; display: grid; gap: 14px; grid-template-columns: 1.1fr 1fr 1fr 1.25fr; grid-template-rows: 268px minmax(0, 1fr); min-height: 0; }
+.estante { display: flex; flex-direction: column; }
+.estante .capas { flex: 1; }
+.estante .capa { height: auto; }
+.nova-tarefa { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--capsula); box-shadow: inset 0 0 0 1px var(--linha); color: var(--fraco); font-size: 13px; }
+.nova-tarefa kbd { margin-left: auto; font: 600 10.5px Manrope; color: var(--suave); padding: 1px 6px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--linha-forte); }
+.peso { grid-row: span 2; display: flex; flex-direction: column; }
+.peso svg.graf { margin-top: auto; width: calc(100% + 44px); margin-left: -22px; margin-bottom: -20px; height: 46%; }
+.linha-d { display: flex; gap: 22px; margin-top: auto; }
+.linha-d b { display: block; font-size: 14.5px; font-weight: 650; }
+.hoje { grid-row: span 2; display: flex; flex-direction: column; }
+.lista > div { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.lista > div:last-child { border-bottom: 0; }
+.lista .hora { width: 42px; font-weight: 700; font-size: 13px; }
+.lista .sub { color: var(--suave); font-size: 12px; }
+.lista .fim { margin-left: auto; color: var(--fraco); font-size: 12px; }
+.check { width: 17px; height: 17px; border-radius: 6px; box-shadow: inset 0 0 0 1.5px var(--linha-forte); flex: none; }
+.check.ok { background: #34C759; box-shadow: none; display: grid; place-items: center; color: #fff; }
+.check.ok svg { width: 11px; height: 11px; stroke-width: 3.2; }
+.estante { grid-column: span 2; }
+.capas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.capa { border-radius: 12px; height: 108px; padding: 12px; display: flex; flex-direction: column; justify-content: flex-end; background: linear-gradient(160deg, var(--c1), var(--c2)); box-shadow: inset 0 0 0 1px #ffffff14; position: relative; color: #fff; }
+.capa b { font-size: 13px; font-weight: 700; line-height: 1.2; }
+.capa span { font-size: 11px; color: #ffffffaa; }
+.capa .barra { height: 3px; border-radius: 2px; background: #ffffff2e; margin-top: 8px; }
+.capa .barra i { display: block; height: 100%; border-radius: 2px; background: #fff; }
+.capa .tipo { position: absolute; top: 10px; left: 12px; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: #0005; color: #fffd; }
+
+/* Carro */
+.placa { display: inline-block; font-weight: 700; font-size: 11.5px; letter-spacing: .08em; padding: 3px 8px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--linha-forte); color: var(--suave); vertical-align: 9px; margin-left: 10px; }
+.abas { display: flex; gap: 26px; border-bottom: 1px solid var(--linha); margin: -6px 0 18px; }
+.abas a { padding: 0 0 11px; color: var(--suave); font-weight: 600; font-size: 13.5px; }
+.abas a.ativo { color: var(--tinta); box-shadow: inset 0 -2px 0 var(--tinta); }
+[data-theme="escuro"] .abas a.ativo { box-shadow: inset 0 -2px 0 #5AA9FF; }
+.carro { flex: 1; display: grid; gap: 14px; grid-template-columns: 1fr 340px; grid-template-rows: auto 1fr; min-height: 0; }
+.hero { display: flex; flex-direction: column; }
+.quatro { display: grid; grid-template-columns: repeat(4, 1fr); }
+.quatro > div + div { padding-left: 22px; border-left: 1px solid var(--linha); }
+.quatro .v { font-size: 30px; font-weight: 250; letter-spacing: -.035em; line-height: 1.15; margin-top: 2px; }
+.quatro .v small { font-size: 13px; color: var(--suave); font-weight: 500; letter-spacing: 0; margin-left: 3px; }
+.graf-cons { height: 168px; position: relative; margin: 14px -22px -20px; }
+.graf-cons .eixo { position: absolute; left: 22px; right: 22px; bottom: 8px; display: flex; justify-content: space-between; color: var(--fraco); font-size: 11px; }
+.lado { grid-row: span 2; display: flex; flex-direction: column; gap: 14px; }
+.tanque { display: flex; align-items: center; gap: 18px; }
+.lemb { padding: 11px 0; border-bottom: 1px solid var(--linha); }
+.lemb:last-child { border-bottom: 0; padding-bottom: 0; }
+.lemb .l1 { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; }
+.lemb .l1 span { font-weight: 500; color: var(--suave); font-size: 12.5px; }
+.prog { height: 4px; background: var(--trilha); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.prog i { display: block; height: 100%; border-radius: 2px; background: var(--tinta); }
+[data-theme="escuro"] .prog i { background: linear-gradient(90deg, #3B82F6, #A9B8FF); }
+.prog.at i { background: var(--atencao) !important; }
+.doc { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--linha); }
+.doc:last-child { border-bottom: 0; }
+.doc span { font-weight: 500; color: var(--suave); }
+.doc span.at { color: var(--atencao); font-weight: 700; }
+.tabela { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.tabela th { text-align: left; font-weight: 600; color: var(--fraco); font-size: 12px; padding: 0 0 8px; border-bottom: 1px solid var(--linha); }
+.tabela td { padding: 13px 0; border-bottom: 1px solid var(--linha); }
+.tabela tr:last-child td { border-bottom: 0; }
+.tabela .r { text-align: right; }
+.tag { font-size: 11.5px; font-weight: 650; padding: 2px 8px; border-radius: 20px; background: var(--trilha); color: var(--suave); }
+.tag.etanol { background: color-mix(in srgb, var(--bom) 14%, transparent); color: var(--bom); }
+
+/* Assinaturas */
+.assin { flex: 1; display: grid; gap: 14px; grid-template-columns: 360px 1fr; grid-template-rows: auto 1fr; min-height: 0; }
+.rosca-b { grid-row: span 2; display: flex; flex-direction: column; align-items: center; }
+.rosca-centro { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.prox { align-self: stretch; margin-top: auto; }
+.prox .p { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--linha); font-size: 13px; }
+.prox .p b { margin-left: auto; font-weight: 700; }
+.lg { border-radius: 9px; background: var(--c); color: #fff; display: grid; place-items: center; font-weight: 800; flex: none; }
+.mes { display: grid; grid-template-columns: repeat(15, 1fr); gap: 6px; margin-top: 12px; }
+.dia { height: 38px; border-radius: 8px; background: var(--capsula); padding: 4px 6px; font-size: 11px; color: var(--fraco); position: relative; }
+.dia.hj { box-shadow: inset 0 0 0 1.5px var(--tinta); color: var(--tinta); font-weight: 700; }
+.dia.passou { opacity: .5; }
+.dia .cob { position: absolute; left: 6px; bottom: 5px; display: flex; gap: 3px; }
+.dia .cob i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+[data-theme="escuro"] .dia .cob i { box-shadow: 0 0 6px var(--c); }
+.direita-a { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.historico { flex: 1; display: flex; flex-direction: column; }
+.hbarras { flex: 1; display: flex; align-items: flex-end; gap: 12px; margin-top: 12px; }
+.hbarras div { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; color: var(--fraco); font-size: 11px; }
+.hbarras span { width: 100%; border-radius: 6px 6px 2px 2px; background: color-mix(in srgb, #AF52DE 22%, transparent); }
+.hbarras div:last-child span { background: linear-gradient(180deg, #C77DFF, #8E3FD0); }
+[data-theme="escuro"] .hbarras div:last-child span { box-shadow: 0 10px 30px -10px #AF52DE; }
+.hbarras div:last-child { color: var(--tinta); font-weight: 700; }
+.sv { border-radius: 16px; padding: 15px 16px; display: flex; flex-direction: column; gap: 2px; background: radial-gradient(220px 140px at 100% 0%, color-mix(in srgb, var(--c) var(--brilho), transparent), transparent), linear-gradient(180deg, var(--bloco-2), var(--bloco)); box-shadow: 0 0 0 1px var(--bloco-anel), var(--sombra-bloco); }
+.sv .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.sv b { font-weight: 700; }
+.sv .valor { margin-top: 8px; font-size: 22px; font-weight: 300; letter-spacing: -.03em; }
+.sv .valor small { font-size: 12px; color: var(--suave); }
+.pilula { display: inline-flex; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: var(--capsula); color: var(--suave); box-shadow: inset 0 0 0 1px var(--linha); }
+.pilula.at { color: var(--atencao); background: color-mix(in srgb, var(--atencao) 12%, transparent); box-shadow: none; }
+.sub { color: var(--suave); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="janela">
+  <header class="topo">
+    <div class="esq"><div class="semaforo"><i></i><i></i><i></i></div><div class="marca"><span class="marca-s">C<b>H</b></span><span class="marca-p">CRANKO<b>HUB</b></span></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="dir" id="dir"></div>
+  </header>
+  <div class="palco" id="conteudo"></div>
+</div>
+<script>
+const [tela, tema] = (location.hash.slice(1) || "inicio-claro").split("-");
+document.documentElement.dataset.theme = tema || "claro";
+const escuro = tema === "escuro";
+
+const itens = [["inicio", "Início", "house", "#6E86FF"], ...D.modulos.slice(0, 5).map(m => [m.id, m.nome, m.icone, m.cor]), ["mais", "Mais", "ellipsis", "#8E8E93"]];
+const pend = { carro: 1, tarefas: 1 };
+nav.innerHTML = itens.map(([id, n, ic, c]) => `<a class="${id === tela ? "ativo" : ""}" style="--c:${c}">${icon(ic)}${n}${pend[id] && id !== tela ? '<span class="pt"></span>' : ""}</a>`).join("");
+dir.innerHTML = `<div class="busca">${icon("search")}Buscar ou registrar<kbd>Ctrl K</kbd></div><span class="ib">${icon("bell")}<span class="n"></span></span><span class="ib">${icon(escuro ? "sun" : "moon")}</span><span class="avatar"><span>D</span></span>`;
+
+function anel(pct, cor, r = 30, w = 7) {
+  const c = 2 * Math.PI * r, s = 2 * r + w * 2;
+  return `<svg width="${s}" height="${s}" style="transform:rotate(-90deg);display:block"><circle cx="${r + w}" cy="${r + w}" r="${r}" fill="none" stroke="var(--trilha)" stroke-width="${w}"/><circle cx="${r + w}" cy="${r + w}" r="${r}" fill="none" stroke="${cor}" stroke-width="${w}" stroke-linecap="round" stroke-dasharray="${c * pct} ${c}" ${escuro ? `style="filter:drop-shadow(0 0 6px ${cor})"` : ""}/></svg>`;
+}
+const corNivel = (n) => n === "serio" ? "var(--serio)" : n === "atencao" ? "var(--atencao)" : "var(--fraco)";
+const area = (id, cor, op) => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${cor}" stop-opacity="${op}"/><stop offset="1" stop-color="${cor}" stop-opacity="0"/></linearGradient></defs>`;
+
+const telas = {
+  inicio: () => {
+    const p = caminho(D.peso.serie, 300, 150, 6);
+    return `
+    <div class="cab">
+      <div><p class="data">${D.data}</p><h1>Boa tarde, Diego</h1><p class="resumo">Hoje: <b>2 compromissos</b>, <b>4 tarefas</b> e <b>1 cobrança</b> chegando.</p></div>
+      <div class="acoes"><button class="btn">${icon("layout-grid")}Organizar</button><button class="btn prim">${icon("plus")}Registrar</button></div>
+    </div>
+    <div class="atencao">${D.alertas.map(a => `<div style="--c:${corNivel(a.nivel)}"><span class="m"></span><p><b>${a.texto}</b><span>${a.sub.split(" · ")[0]}</span></p></div>`).join("")}</div>
+    <div class="mosaico">
+      <section class="b peso brilho" style="--c:#FF2D55">
+        <div class="b-cab"><span class="ic">${icon("scale")}</span>Dieta<span class="d">90 dias</span></div>
+        <div class="num" style="margin-top:18px">82,4<small>kg</small></div>
+        <p class="rot" style="margin-top:8px"><span class="delta">${icon("arrow-down")}1,9 kg</span> em 30 dias</p>
+        <p class="rot">Meta 78 kg · faltam 4,4</p>
+        <svg class="graf" viewBox="0 0 300 150" preserveAspectRatio="none">${area("gp", "#FF2D55", escuro ? .42 : .2)}<path d="${p.area}" fill="url(#gp)"/><path d="${p.linha}" fill="none" stroke="${escuro ? "#FF5C7C" : "#E11D48"}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+      </section>
+      <section class="b brilho" style="--c:#007AFF;display:flex;flex-direction:column">
+        <div class="b-cab"><span class="ic">${icon("car")}</span>Civic<span class="d">FHK-2B47</span></div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-top:16px"><div><div class="num" style="font-size:42px">11,8<small>km/l</small></div><p class="rot" style="margin-top:6px"><span class="delta">${icon("arrow-up")}5%</span> vs. 3 meses</p></div><div style="position:relative">${anel(.64, escuro ? "#3B9BFF" : "#24346F", 24, 6)}<div class="rosca-centro" style="font-size:11.5px;font-weight:700">64%</div></div></div>
+        <div class="linha-d"><div><span class="rot">Novembro</span><b>R$ 512,80</b></div><div><span class="rot">Tanque</span><b>64%</b></div></div>
+      </section>
+      <section class="b brilho" style="--c:#AF52DE;display:flex;flex-direction:column">
+        <div class="b-cab"><span class="ic">${icon("repeat")}</span>Assinaturas<span class="d">8 ativas</span></div>
+        <div class="num" style="font-size:42px;margin-top:16px">453<small>R$/mês</small></div>
+        <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px;margin-top:14px">${[...D.assinaturas].sort((a, b) => b.valor - a.valor).map(a => `<span style="flex:${a.valor};background:${a.cor}"></span>`).join("")}</div>
+        <div class="linha-d"><div><span class="rot">Próxima</span><b>Spotify, amanhã</b></div><div><span class="rot">Valor</span><b>R$ 34,90</b></div></div>
+      </section>
+      <section class="b hoje">
+        <div class="b-cab"><span class="ic" style="--c:#30B0C7">${icon("calendar")}</span>Hoje<span class="d">3 de 7 tarefas</span></div>
+        <div class="lista" style="margin-top:6px">
+          ${D.agenda.map(e => `<div><span class="hora">${e.hora}</span><div><b style="font-weight:650">${e.titulo}</b><div class="sub">${e.local}</div></div></div>`).join("")}
+          ${D.tarefas.hoje.map((t, i) => `<div><span class="check ${i === 0 ? "ok" : ""}">${i === 0 ? icon("check") : ""}</span><span style="${i === 0 ? "color:var(--fraco);text-decoration:line-through" : ""}">${t}</span><span class="fim">${i === 2 ? "Carro" : "Casa"}</span></div>`).join("")}
+        </div>
+        <div class="nova-tarefa">${icon("plus")}Adicionar tarefa para hoje<kbd>N</kbd></div>
+      </section>
+      <section class="b estante">
+        <div class="b-cab"><span class="ic" style="--c:#FF9500">${icon("clapperboard")}</span>Continuar de onde parou<span class="d">Entretenimento</span></div>
+        <div class="capas">${D.entretenimento.map(e => `<div class="capa" style="--c1:${e.cor1};--c2:${e.cor2}"><span class="tipo">${e.tipo}</span><b>${e.titulo}</b><span>${e.sub}</span><div class="barra"><i style="width:${e.progresso * 100}%"></i></div></div>`).join("")}</div>
+      </section>
+    </div>`;
+  },
+  carro: () => {
+    const p = caminho(D.carro.consumo, 900, 150, 8, 9.5, 13);
+    const cor = escuro ? "#7FB2FF" : "#24346F";
+    return `
+    <div class="cab" style="margin-bottom:18px">
+      <div><p class="data">${D.carro.modelo}</p><h1>Civic<span class="placa">${D.carro.placa}</span></h1></div>
+      <div class="acoes"><button class="btn">${icon("car-front")}Modo Carro</button><button class="btn prim">${icon("fuel")}Novo abastecimento</button></div>
+    </div>
+    <nav class="abas"><a class="ativo">Visão geral</a><a>Abastecimentos</a><a>Consumo</a><a>Manutenção</a><a>Documentos</a><a>Calculadoras</a></nav>
+    <div class="carro">
+      <section class="b hero brilho" style="--c:#007AFF">
+        <div class="quatro">
+          <div><span class="rot">Consumo médio</span><div class="v">11,8<small>km/l</small></div><span class="delta">${icon("arrow-up")}0,6 km/l</span></div>
+          <div><span class="rot">Custo por km</span><div class="v">0,52<small>R$</small></div><span class="rot">últimos 90 dias</span></div>
+          <div><span class="rot">Gasto em novembro</span><div class="v">512,80<small>R$</small></div><span class="rot">2 abastecimentos</span></div>
+          <div><span class="rot">Odômetro</span><div class="v">68.420<small>km</small></div><span class="rot">+1.240 km no mês</span></div>
+        </div>
+        <div class="graf-cons">
+          <svg viewBox="0 0 900 150" preserveAspectRatio="none" style="width:100%;height:150px;display:block">${area("gc", escuro ? "#3B82F6" : "#24346F", escuro ? .4 : .14)}
+          ${[.33, .66].map(y => `<line x1="0" x2="900" y1="${150 * y}" y2="${150 * y}" stroke="var(--linha)"/>`).join("")}
+          <path d="${p.area}" fill="url(#gc)"/><path d="${p.linha}" fill="none" stroke="${cor}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+          <div class="eixo">${D.carro.meses.map(m => `<span>${m}</span>`).join("")}</div>
+        </div>
+      </section>
+      <div class="lado">
+        <section class="b brilho tanque" style="--c:#007AFF">
+          <div style="position:relative">${anel(.64, escuro ? "#3B9BFF" : "#24346F", 34, 8)}<div class="rosca-centro"><b style="font-size:17px;font-weight:700">64%</b></div></div>
+          <div><span class="rot">Tanque</span><div style="font-size:24px;font-weight:300;letter-spacing:-.03em">≈ 410 km</div><span class="rot">30 de 47 litros</span></div>
+        </section>
+        <section class="b">
+          <div class="b-cab"><span class="ic" style="--c:#FF9500">${icon("wrench")}</span>Manutenção<span class="d">3 lembretes</span></div>
+          <div style="margin-top:4px">${D.carro.lembretes.map(l => `<div class="lemb"><div class="l1">${l.nome}<span>${l.estado === "atencao" ? `<b style="color:var(--atencao)">em ${l.falta}</b>` : "em " + l.falta}</span></div><div class="prog ${l.estado === "atencao" ? "at" : ""}"><i style="width:${l.pct * 100}%"></i></div></div>`).join("")}</div>
+        </section>
+        <section class="b" style="flex:1">
+          <div class="b-cab"><span class="ic" style="--c:#34C759">${icon("file-check-2")}</span>Documentos<span class="d">2027</span></div>
+          <div style="margin-top:6px">${D.carro.documentos.map(d => `<div class="doc">${d.nome}<span class="${d.estado === "atencao" ? "at" : ""}">${d.info}</span></div>`).join("")}</div>
+        </section>
+      </div>
+      <section class="b">
+        <div class="b-cab"><span class="ic" style="--c:#007AFF">${icon("fuel")}</span>Últimos abastecimentos<span class="d">Ver histórico</span></div>
+        <table class="tabela"><tr><th>Data</th><th>Posto</th><th>Combustível</th><th class="r">Litros</th><th class="r">km/l</th><th class="r">Valor</th></tr>
+        ${D.carro.abastecimentos.slice(0, 5).map(a => `<tr><td>${a.data}</td><td>${a.posto}</td><td><span class="tag ${a.comb === "Etanol" ? "etanol" : ""}">${a.comb}</span></td><td class="r">${fmt.num(a.litros)} L</td><td class="r">${fmt.num(a.kml)}</td><td class="r"><b>${fmt.brl(a.valor)}</b></td></tr>`).join("")}</table>
+      </section>
+    </div>`;
+  },
+  assinaturas: () => {
+    const ord = [...D.assinaturas].sort((a, b) => b.valor - a.valor);
+    const r = 92, c = 2 * Math.PI * r; let acc = 0;
+    const arcos = ord.map(a => { const f = a.valor / totalAssin; const s = `<circle cx="115" cy="115" r="${r}" fill="none" stroke="${a.cor}" stroke-width="18" stroke-dasharray="${c * f - 4} ${c}" stroke-dashoffset="${-c * acc}"/>`; acc += f; return s; }).join("");
+    const prox = D.assinaturas.filter(a => a.dia > 13).sort((a, b) => a.dia - b.dia).slice(0, 4);
+    return `
+    <div class="cab">
+      <div><p class="data">8 serviços ativos · 2 pausados</p><h1>${fmt.brl(totalAssin)} por mês</h1></div>
+      <div class="acoes"><button class="btn">${icon("pause")}Pausadas (2)</button><button class="btn prim">${icon("plus")}Nova assinatura</button></div>
+    </div>
+    <div class="assin">
+      <section class="b rosca-b brilho" style="--c:#AF52DE">
+        <div class="b-cab" style="align-self:stretch"><span class="ic">${icon("pie-chart")}</span>Para onde vai o dinheiro</div>
+        <div style="position:relative;margin-top:14px"><svg width="230" height="230" style="transform:rotate(-90deg);display:block">${arcos}</svg>
+          <div class="rosca-centro"><span class="rot">Por ano</span><div class="num" style="font-size:32px">5.439</div><span class="rot">reais</span></div></div>
+        <div class="prox"><div class="b-cab" style="margin-bottom:4px">Próximas cobranças</div>
+          ${prox.map(a => `<div class="p"><span class="lg" style="--c:${a.cor};width:22px;height:22px;border-radius:6px;font-size:10.5px">${a.nome[0]}</span>${a.nome}<span class="sub">dia ${a.dia}${a.dia === 14 ? " · amanhã" : ""}</span><b>${fmt.brl(a.valor)}</b></div>`).join("")}
+        </div>
+      </section>
+      <section class="b">
+        <div class="b-cab"><span class="ic" style="--c:#AF52DE">${icon("calendar")}</span>Cobranças de novembro<span class="d">Hoje é dia 13</span></div>
+        <div class="mes">${Array.from({ length: 30 }, (_, i) => i + 1).map(d => { const cs = D.assinaturas.filter(a => a.dia === d); return `<div class="dia ${d === 13 ? "hj" : d < 13 ? "passou" : ""}">${d}${cs.length ? `<span class="cob">${cs.map(a => `<i style="--c:${a.cor}"></i>`).join("")}</span>` : ""}</div>`; }).join("")}</div>
+      </section>
+      <div class="direita-a"><div class="cards">
+        ${ord.map(a => `<div class="sv" style="--c:${a.cor}"><div class="top"><span class="lg" style="width:36px;height:36px;border-radius:10px;${escuro ? `box-shadow:0 8px 18px -8px ${a.cor}` : ""}">${a.nome[0]}</span><span class="pilula ${a.dia === 14 ? "at" : ""}">${a.dia === 14 ? "Amanhã" : "Dia " + a.dia}</span></div><b>${a.nome}</b><span class="sub">${a.plano} · ${a.cat}</span><div class="valor">${fmt.brl(a.valor)}<small> /mês</small></div></div>`).join("")}
+      </div>
+        <section class="b historico brilho" style="--c:#AF52DE"><div class="b-cab"><span class="ic">${icon("chart-column")}</span>Gasto mensal com assinaturas<span class="d">Subiu R$ 119,90 em julho, com o ChatGPT</span></div>
+          <div class="hbarras">${[311.5, 311.5, 333.4, 333.4, 333.4, 333.4, 333.4, 453.3, 453.3, 453.3, 453.3, 453.3].map((v, i) => `<div>${Math.round(v)}<span style="height:${v / 453.3 * 74}%"></span>${D.carro.meses[i]}</div>`).join("")}</div>
+        </section>
+      </div>
+    </div>`;
+  },
+};
+conteudo.innerHTML = (telas[tela] || telas.inicio)();
+if (window.lucide) lucide.createIcons({ attrs: { "stroke-width": 1.6 } });
+</script>
+</body>
+</html>
