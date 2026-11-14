@@ -136,6 +136,7 @@ cranko-hub/
 │   └── README.md                    # Referência rápida do projeto
 ├── .github/workflows/
 │   └── crankohub-release.yml        # Gera o .exe, o pacote Linux e o APK Android e publica no Releases
+├── ferramentas/radares/             # Scripts Node que geram a lista de radares de Piracicaba (ver o README da pasta)
 ├── cranko-hub.slnx                  # Solução (Windows + Linux + Android)
 └── README.md                        # Esta página
 ```

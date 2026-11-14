@@ -406,3 +406,6 @@ publicar/
 # Chave de assinatura do Android (fica só nos secrets do GitHub)
 *.keystore
 *.jks
+
+# Downloads das ferramentas de radares (ferramentas/radares/baixar.js)
+ferramentas/radares/dados/

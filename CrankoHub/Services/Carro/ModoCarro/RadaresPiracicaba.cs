@@ -3,14 +3,13 @@ using CrankoHub.Models;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Radares municipais de Piracicaba, montados à mão em 14/11/2026 a partir da lista da prefeitura (jornal JP, jan/2026)
-/// conferida com o cadastro de aferições do Inmetro (servicos.rbmlq.gov.br/dados-abertos/SP/medidores.json), que dá a
-/// velocidade (50 km/h; 60 na Pádua Dias) e o sentido.
-/// Posição: número de porta pelo CNEFE do IBGE (Censo 2022), encaixado na linha da via do OpenStreetMap; cruzamento pelo
-/// ponto em comum das duas vias. Sentido: "B/C" (bairro → centro) ou "C/B" em graus, só onde a geometria deixou claro;
-/// null = avisa nos dois sentidos. Ficaram de fora as lombadas dos viadutos Avanzi e Carmignani (sem nome no OSM) e os
-/// radares de caminhão (não fiscalizam velocidade). Rodovias que passam pela cidade vêm do DER.
-/// <b>Não se atualiza sozinho:</b> radar novo da prefeitura precisa entrar aqui.
+/// Radares municipais de Piracicaba. <b>Arquivo gerado</b> por ferramentas/radares/montar.js a partir de
+/// ferramentas/radares/piracicaba.js: para incluir ou tirar um radar, mexa lá e rode de novo (ver o README da pasta).
+/// A lista vem da prefeitura (jornal JP, jan/2026), conferida com o cadastro de aferições do Inmetro, que dá a velocidade
+/// e o sentido. Posição: número de porta pelo CNEFE do IBGE (Censo 2022), encaixado na via do OpenStreetMap; cruzamento
+/// pelo ponto em comum das duas vias. Sentido: "B/C" (bairro → centro) ou "C/B" em graus onde a geometria deixou claro;
+/// null = avisa nos dois sentidos. As rodovias que passam pela cidade vêm do DER.
+/// <b>Não se atualiza sozinho.</b>
 /// </summary>
 internal static class RadaresPiracicaba
 {
@@ -20,8 +19,8 @@ internal static class RadaresPiracicaba
     private static readonly (string Id, double Lat, double Lon, int? Kmh, double? Sentido, bool Lombada)[] Pontos =
     [
         new("pira:1", -22.716094, -47.627677, 60, 282, false), // Av. Pádua Dias perto da R. Santos Dumont
-        new("pira:2", -22.710864, -47.639229, 50, null, false), // Av. Centenário, 900
-        new("pira:3", -22.673665, -47.690508, 50, 293, false), // Av. Corcovado, 915 (C/B)
+        new("pira:2", -22.710864, -47.639229, 50, null, false), // Av. Centenário, 900 (shopping/bairro e bairro/shopping)
+        new("pira:3", -22.673665, -47.690508, 50, 293, false), // Av. Corcovado, oposto ao 915 (C/B)
         new("pira:4", -22.673665, -47.690508, 50, 113, false), // Av. Corcovado, 915 (B/C)
         new("pira:5", -22.732458, -47.661449, 50, 287, false), // Av. Dr. Paulo de Moraes perto da R. Prof. Silvio A. de Souza
         new("pira:6", -22.741950, -47.646067, 50, 153, false), // Av. 31 de Março, perto do 780
@@ -34,7 +33,7 @@ internal static class RadaresPiracicaba
         new("pira:13", -22.719885, -47.646310, 50, null, false), // Av. Armando de Salles Oliveira, 924
         new("pira:14", -22.735326, -47.628897, 50, 191, false), // Av. Vollet Sachs, perto do 2200
         new("pira:15", -22.726200, -47.624299, 50, 291, false), // Av. Cássio Paschoal Padovani, 215
-        new("pira:16", -22.689722, -47.664070, 50, null, false), // Av. Brasília, 1080
+        new("pira:16", -22.689722, -47.664070, 50, null, false), // Av. Brasília, 1080 (os dois sentidos)
         new("pira:18", -22.713468, -47.653182, null, null, true), // R. Gioconda Fiorim Oriani perto da Av. Rui Barbosa (lombada)
         new("pira:21", -22.725125, -47.633822, 50, 205, false), // Av. Independência x R. Cristiano Cleopath
         new("pira:22", -22.727459, -47.646808, 50, null, false), // Av. Armando de Salles Oliveira x R. XV de Novembro
@@ -54,7 +53,7 @@ internal static class RadaresPiracicaba
         new("pira:37", -22.740228, -47.666685, 50, 259, false), // Av. Madre Maria Teodora, 913
         new("pira:38", -22.747683, -47.658095, 50, null, false), // Av. Raposo Tavares, 1234
         new("pira:39", -22.754245, -47.636774, 50, 198, false), // Av. Com. Luciano Guidotti, oposto ao 1937
-        new("pira:40", -22.768289, -47.610710, 50, null, false), // Av. Rio das Pedras, 3667
+        new("pira:40", -22.768289, -47.610710, 50, null, false), // Av. Rio das Pedras, 3667 (os dois sentidos)
     ];
 
     public static List<RadarSp> Lista() =>
