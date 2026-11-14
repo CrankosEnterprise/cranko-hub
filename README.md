@@ -63,6 +63,7 @@ Baixe a versão oficial do **CrankoHub**:
 ### 5. Entretenimento
 - Estante de **filmes, séries, animações, animes, jogos e livros**, com status (*Concluído*, *Em andamento*, *Quero ver*), nota e data.
 - **Busca automática** de título, capa, sinopse e gêneros em TMDB, AniList, RAWG e Open Library.
+- **Roleta** para quando não sabe o que ver: um quiz rápido (tipo, tempo e clima, mais filtros avançados) e três capas girando com sugestões novas, puxadas pelo seu gosto. A escolhida entra como *Quero ver*.
 
 ### 6. Tarefas
 - Quadros estilo **Kanban** (Trabalho, Faculdade, Pessoal...) com colunas e cards arrastáveis, prazo (com horário de entrega opcional), prioridade, etiquetas, checklist e **anexos** (qualquer arquivo até 20 MB, compactado antes de ir para o servidor: imagem em WebP, o resto em Brotli).

@@ -52,6 +52,8 @@
                  Titulo="@($"{noAno} {Plural(noAno, "concluído", "concluídos")} em {hoje.Year}")" />
 
 <AcoesTopo>
+    @* Roleta: sugestões novas para quando não sabe o que ver *@
+    <button class="btn" type="button" title="Roleta: não sabe o que ver?" aria-label="Roleta" @onclick="() => _roletaAberta = true">@Icones.Dado<span class="rotulo">Roleta</span></button>
     <button class="btn primary" type="button" title="Adicionar" aria-label="Adicionar" @onclick="AbrirBusca">@Icones.Mais<span class="rotulo">Adicionar</span></button>
     @* Configurações só do Entretenimento (as gerais do app ficam em Configurações, no menu) *@
     <button class="icon-btn" type="button" title="Configurações do Entretenimento" aria-label="Configurações do Entretenimento" @onclick="AbrirConfig">@Icones.Engrenagem</button>
@@ -498,6 +500,12 @@
     </div>
 }
 
+@* ---- Roleta (botão no topo) ---- *@
+@if (_roletaAberta)
+{
+    <Roleta OnFechar="() => _roletaAberta = false" OnAdicionado="AoAdicionarDaRoleta" />
+}
+
 @* ---- Configurações do Entretenimento (engrenagem no topo) ---- *@
 @if (_configAberta)
 {
@@ -525,6 +533,16 @@
 
 @code {
     private enum Modo { Nenhum, Buscar, Form, Detalhe }
+
+    // Roleta: o item escolhido entra como "Quero ver" e abre no detalhe (série/anime já carrega os episódios)
+    private bool _roletaAberta;
+
+    private async Task AoAdicionarDaRoleta(ItemEntretenimento item)
+    {
+        _roletaAberta = false;
+        AbrirDetalhe(item);
+        if (CategoriaEntretenimento.Buscar(item.Categoria).TemEpisodios) await CarregarEpisodios(item, avisar: false);
+    }
 
     // Engrenagem: configurações do Entretenimento
     private bool _configAberta, _fNomesEpisodios;

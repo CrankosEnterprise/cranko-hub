@@ -1,0 +1,481 @@
+@namespace CrankoHub.Components
+@inject ArmazenamentoService Store
+@inject ToastService Toast
+@inject EntretenimentoBusca Busca
+@inject CapasService Capas
+@implements IDisposable
+@*
+    Roleta do Entretenimento: um quiz curto (tipo, tempo, clima + filtros avançados) e três fitas de capas que giram
+    e param em três sugestões novas (nada que já esteja na estante). Escolhe uma e adiciona como "Quero ver".
+    Os gêneros do que você deu nota alta pesam mais no sorteio.
+*@
+
+<div class="modal-backdrop" @onclick="Fechar">
+    <div class="card modal modal-largo roleta" @onclick:stopPropagation="true">
+        <div class="rl-topo">
+            <div>
+                <h2>🎲 Roleta</h2>
+                <p class="muted">@(_passo < PassoRoleta ? "Não sabe o que ver? Responda rapidinho e gire." : "Sugestões que ainda não estão na sua estante.")</p>
+            </div>
+            @if (_passo < PassoRoleta)
+            {
+                <div class="rl-passos" aria-label="Passo @(_passo + 1) de 4">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <i class="@(i == _passo ? "atual" : i < _passo ? "feito" : "")"></i>
+                    }
+                </div>
+            }
+        </div>
+
+        @switch (_passo)
+        {
+            case 0:
+                <h3 class="rl-pergunta">O que você quer?</h3>
+                <div class="rl-opcoes">
+                    <button type="button" class="rl-opcao @(_tipo == Surpresa ? "ativa" : "")" disabled="@(Busca.CategoriasRoleta().Count == 0)" @onclick="() => EscolherTipo(Surpresa)">
+                        <span class="rl-emoji">🎲</span><b>Surpresa</b><small>Qualquer tipo</small>
+                    </button>
+                    @foreach (var c in CategoriaEntretenimento.Todas)
+                    {
+                        var motivo = Busca.RoletaIndisponivel(c.Chave);
+                        <button type="button" class="rl-opcao @(_tipo == c.Chave ? "ativa" : "")" disabled="@(motivo is not null)" title="@motivo" @onclick="() => EscolherTipo(c.Chave)">
+                            <span class="rl-emoji">@EmojiDe(c.Chave)</span><b>@c.Nome</b><small>@(motivo is null ? DescricaoDe(c.Chave) : "precisa de chave")</small>
+                        </button>
+                    }
+                </div>
+                @if (CategoriaEntretenimento.Todas.Any(c => Busca.RoletaIndisponivel(c.Chave) is not null))
+                {
+                    <p class="muted rl-nota">Filmes, séries e animações usam o TMDB, e jogos o RAWG. As chaves são grátis: cole em <a href="configuracoes?aba=integracoes">Configurações › Integrações</a>.</p>
+                }
+                break;
+
+            case 1:
+                <h3 class="rl-pergunta">Quanto tempo você tem?</h3>
+                <div class="rl-opcoes">
+                    @foreach (var (chave, emoji, nome, desc) in OpcoesTempo(_tipo))
+                    {
+                        <button type="button" class="rl-opcao @(_tempo == chave ? "ativa" : "")" @onclick="() => { _tempo = chave; _passo = 2; }">
+                            <span class="rl-emoji">@emoji</span><b>@nome</b><small>@desc</small>
+                        </button>
+                    }
+                </div>
+                break;
+
+            case 2:
+                <h3 class="rl-pergunta">Qual o clima?</h3>
+                <div class="rl-opcoes">
+                    @foreach (var (chave, emoji, nome, desc) in OpcoesClima)
+                    {
+                        <button type="button" class="rl-opcao @(_clima == chave ? "ativa" : "")" @onclick="() => { _clima = chave; _passo = 3; }">
+                            <span class="rl-emoji">@emoji</span><b>@nome</b><small>@desc</small>
+                        </button>
+                    }
+                </div>
+                break;
+
+            case 3:
+                IReadOnlyList<(string Chave, string Nome)> generos = _tipo == Surpresa ? [] : EntretenimentoBusca.GenerosRoleta(_tipo);
+                var tempo = OpcoesTempo(_tipo).FirstOrDefault(o => o.Chave == _tempo);
+                var clima = OpcoesClima.FirstOrDefault(o => o.Chave == _clima);
+                <h3 class="rl-pergunta">Tudo pronto</h3>
+                <div class="rl-resumo">
+                    <button type="button" class="rl-resp" title="Mudar" @onclick="() => _passo = 0"><small>Tipo</small>@EmojiDe(_tipo) @NomeTipo(_tipo)</button>
+                    <button type="button" class="rl-resp" title="Mudar" @onclick="() => _passo = 1"><small>Tempo</small>@tempo.Emoji @tempo.Nome</button>
+                    <button type="button" class="rl-resp @(_genero is not null ? "riscada" : "")" title="@(_genero is not null ? "O gênero escolhido nos filtros substitui o clima" : "Mudar")" @onclick="() => _passo = 2">
+                        <small>Clima</small>@clima.Emoji @clima.Nome</button>
+                </div>
+
+                <details class="rl-avancado" open="@(_genero is not null || _epoca != "todas" || _nota > 0)">
+                    <summary>Filtros avançados</summary>
+                    <div class="form-grid">
+                        @if (generos.Count > 0)
+                        {
+                            <label class="field"><span>Gênero</span>
+                                <select @bind="GeneroSelecionado">
+                                    <option value="">Pelo clima</option>
+                                    @foreach (var (chave, nome) in generos)
+                                    {
+                                        <option value="@chave">@nome</option>
+                                    }
+                                </select></label>
+                        }
+                        <label class="field"><span>Época</span>
+                            <select @bind="_epoca">
+                                <option value="todas">Qualquer época</option>
+                                <option value="recentes">Lançamentos (últimos 3 anos)</option>
+                                <option value="2010">De 2010 para cá</option>
+                                <option value="1990">Anos 90 e 2000</option>
+                                <option value="classicos">Clássicos (antes de 1990)</option>
+                            </select></label>
+                        <label class="field"><span>Nota mínima</span>
+                            <select @bind="_nota">
+                                <option value="0">Qualquer nota</option>
+                                <option value="35">Bem avaliados (★ 3,5+)</option>
+                                <option value="40">Excelentes (★ 4+)</option>
+                            </select></label>
+                    </div>
+                </details>
+                @if (_favoritos.Count > 0)
+                {
+                    <p class="muted rl-nota">Os gêneros do que você deu nota 4 ou mais têm mais chance de sair.</p>
+                }
+                break;
+
+            case PassoRoleta:
+                <div class="rl-fitas @(_pular ? "rl-rapido" : "")" @onclick="() => _pular = true">
+                    @for (var i = 0; i < 3; i++)
+                    {
+                        var idx = i;
+                        var r = idx < _sorteados.Count ? _sorteados[idx] : null;
+                        <div class="rl-slot" style="--dur:@(1300 + 550 * idx)ms">
+                            <div class="rl-janela">
+                                @if (_carregando)
+                                {
+                                    <span class="rl-esperando"></span>
+                                }
+                                else if (r is not null)
+                                {
+                                    <div class="rl-fita" @key="@($"{_giro}-{idx}")">
+                                        @foreach (var c in _fitas[idx])
+                                        {
+                                            <Capa UrlExterna="@c.UrlCapa" Titulo="@c.Titulo" />
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            @if (!_carregando && r is not null)
+                            {
+                                var afinidade = EntretenimentoBusca.Afinidade(r, _favoritos);
+                                <div class="rl-info" @key="@($"i{_giro}-{idx}")">
+                                    <b title="@r.Titulo">@r.Titulo</b>
+                                    <small>@string.Join(" · ", new[] { _tipo == Surpresa && r.Categoria is not null ? Maiuscula(CategoriaEntretenimento.Buscar(r.Categoria).Singular) : null, r.Ano?.ToString() }.Where(x => x is not null))</small>
+                                    @if (r.Generos is not null)
+                                    {
+                                        <small class="rl-generos">@r.Generos</small>
+                                    }
+                                    @if (afinidade > 0)
+                                    {
+                                        <span class="badge good">Combina com você</span>
+                                    }
+                                    <button type="button" class="btn sm primary" @onclick:stopPropagation="true" @onclick="() => Escolher(r)">Escolher</button>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (_carregando)
+                {
+                    <p class="muted rl-nota">Procurando sugestões...</p>
+                }
+                else if (_erro is not null)
+                {
+                    <div class="preview">@_erro</div>
+                }
+                break;
+
+            case PassoEscolhido when _escolhido is { } e:
+                var cat = CategoriaEntretenimento.Buscar(e.Categoria ?? "filme");
+                <div class="detalhe">
+                    <div class="detalhe-capa"><Capa UrlExterna="@e.UrlCapa" Titulo="@e.Titulo" /></div>
+                    <div class="detalhe-info">
+                        <span class="muted">@Maiuscula(cat.Singular)@(e.Ano is int ano ? $" · {ano}" : "")</span>
+                        <h2>@e.Titulo</h2>
+                        @if (e.Criadores is not null)
+                        {
+                            <p class="muted">@e.Criadores</p>
+                        }
+                        @if (e.Generos is not null)
+                        {
+                            <p><small class="muted">@e.Generos</small></p>
+                        }
+                        @if (e.Sinopse is not null)
+                        {
+                            <p class="sinopse">@e.Sinopse</p>
+                        }
+                        else if (_detalhando)
+                        {
+                            <p class="muted">Carregando a sinopse...</p>
+                        }
+                    </div>
+                </div>
+                break;
+        }
+
+        <div class="form-actions">
+            @switch (_passo)
+            {
+                case 0:
+                    <button class="btn" type="button" @onclick="Fechar">Cancelar</button>
+                    break;
+                case 1 or 2:
+                    <button class="btn" type="button" @onclick="() => _passo--">Voltar</button>
+                    <button class="btn" type="button" @onclick="() => { if (_passo == 1) _tempo = TantoFaz; else _clima = TantoFaz; _passo++; }">Pular</button>
+                    break;
+                case 3:
+                    <button class="btn" type="button" @onclick="() => _passo = 2">Voltar</button>
+                    <button class="btn primary rl-girar" type="button" @onclick="() => Girar(novo: true)">🎲 Girar</button>
+                    break;
+                case PassoRoleta:
+                    <label class="check rl-sem-animacao"><input type="checkbox" @bind="SemAnimacao"> Sem animação</label>
+                    <button class="btn" type="button" @onclick="RefazerPerguntas">Refazer perguntas</button>
+                    <button class="btn primary" type="button" disabled="@(_carregando || _giros == 0 || _sorteados.Count == 0)" @onclick="() => Girar(novo: false)"
+                            title="Os três de agora não voltam nesta rodada">
+                        @(_giros > 0 ? $"Girar de novo ({_giros})" : "Sem giros: escolha um")</button>
+                    break;
+                case PassoEscolhido:
+                    <button class="btn" type="button" @onclick="() => _passo = PassoRoleta">Voltar aos três</button>
+                    <button class="btn primary" type="button" disabled="@_adicionando" @onclick="Adicionar">@(_adicionando ? "Adicionando..." : "+ Quero ver")</button>
+                    break;
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>Fecha a roleta.</summary>
+    [Parameter] public EventCallback OnFechar { get; set; }
+
+    /// <summary>Item que acabou de entrar na estante como "Quero ver".</summary>
+    [Parameter] public EventCallback<ItemEntretenimento> OnAdicionado { get; set; }
+
+    private const string Surpresa = "surpresa", TantoFaz = "tantofaz";
+    private const int PassoRoleta = 4, PassoEscolhido = 5;
+    private const int GirosExtras = 3;     // quantas vezes dá para girar de novo na mesma rodada
+    private const int TamanhoFita = 10;    // capas em cada fita (a última é a sorteada)
+
+    // Últimas respostas e preferência de animação, mantidas enquanto o app estiver aberto
+    private static FiltrosRoleta? _ultimos;
+    private static bool _semAnimacao;
+
+    private int _passo;
+    private string _tipo = Surpresa, _tempo = TantoFaz, _clima = TantoFaz, _epoca = "todas";
+    private string? _genero;
+    private int _nota;   // nota mínima × 10 (35 = ★ 3,5): inteiro, para o select não depender da cultura
+
+    private List<ResultadoBusca> _pool = [], _sorteados = [];
+    private List<List<ResultadoBusca>> _fitas = [];
+    private readonly HashSet<(string, string)> _recusados = [];
+    private Dictionary<string, int> _favoritos = [];
+    private int _giros, _giro;
+    private bool _carregando, _pular, _detalhando, _adicionando;
+    private string? _erro;
+    private ResultadoBusca? _escolhido;
+    private CancellationTokenSource? _cts;
+
+    private string GeneroSelecionado
+    {
+        get => _genero ?? "";
+        set => _genero = value.Length > 0 ? value : null;
+    }
+
+    private bool SemAnimacao
+    {
+        get => _semAnimacao;
+        set => _pular = _semAnimacao = value;
+    }
+
+    protected override void OnInitialized()
+    {
+        _favoritos = EntretenimentoBusca.GenerosFavoritos(Store.Dados.Entretenimento);
+        // Reabrindo: começa do resumo com as últimas respostas (se o tipo ainda estiver disponível)
+        if (_ultimos is { } u && (u.Tipo == Surpresa || Busca.RoletaIndisponivel(u.Tipo) is null))
+        {
+            (_tipo, _tempo, _clima, _genero, _epoca, _nota) = (u.Tipo, u.Tempo, u.Clima, u.Genero, u.Epoca, (int)Math.Round(u.NotaMin * 10));
+            _passo = 3;
+        }
+    }
+
+    public void Dispose() => _cts?.Cancel();
+
+    private Task Fechar()
+    {
+        _cts?.Cancel();
+        return OnFechar.InvokeAsync();
+    }
+
+    private void EscolherTipo(string tipo)
+    {
+        // Os gêneros mudam de uma categoria para outra
+        if (tipo != _tipo) _genero = null;
+        _tipo = tipo;
+        _passo = 1;
+    }
+
+    private void RefazerPerguntas()
+    {
+        _cts?.Cancel();
+        _carregando = false;
+        _passo = 0;
+    }
+
+    private FiltrosRoleta Filtros() => new(_tipo, _tempo, _clima, _genero, _epoca, _nota / 10.0);
+
+    private static (string, string) Chave(ResultadoBusca r) => (r.Fonte, r.FonteId);
+
+    private async Task Girar(bool novo)
+    {
+        if (novo)
+        {
+            _ultimos = Filtros();
+            _pool = [];
+            _recusados.Clear();
+            _giros = GirosExtras;
+        }
+        else
+        {
+            if (_giros == 0) return;
+            _giros--;
+            foreach (var s in _sorteados) _recusados.Add(Chave(s));
+        }
+        _cts?.Cancel();
+        var cts = _cts = new CancellationTokenSource();
+        _passo = PassoRoleta;
+        _carregando = true;
+        _erro = null;
+        _sorteados = [];
+        StateHasChanged();
+
+        try
+        {
+            // Busca mais quando sobram menos de três (até três levas por giro)
+            for (var tentativa = 0; tentativa < 3 && Disponiveis().Count < 3; tentativa++)
+            {
+                try
+                {
+                    var novos = await Busca.Descobrir(_ultimos!, cts.Token);
+                    var ja = _pool.Select(Chave).ToHashSet();
+                    _pool.AddRange(novos.Where(r => ja.Add(Chave(r))));
+                }
+                catch (BuscaException e) when (tentativa == 0 && _pool.Count == 0) { _erro = e.Message; break; }
+                catch (BuscaException) { break; }
+            }
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { return; }
+
+        var disponiveis = Disponiveis();
+        if (_erro is null && disponiveis.Count == 0)
+            _erro = novo ? "Nada encontrado com essas respostas. Tente outro tempo, clima ou filtros." : "Acabaram as sugestões desta rodada. Refaça as perguntas para buscar outras.";
+        _sorteados = Sortear(disponiveis, 3);
+        _fitas = _sorteados.Select(Fita).ToList();
+        _giro++;
+        _pular = _semAnimacao;
+        _carregando = false;
+        StateHasChanged();
+    }
+
+    private List<ResultadoBusca> Disponiveis() => _pool.Where(r => !_recusados.Contains(Chave(r))).ToList();
+
+    /// <summary>Sorteio com peso: gêneros que você curte pesam mais; na surpresa, evita repetir a categoria.</summary>
+    private List<ResultadoBusca> Sortear(List<ResultadoBusca> opcoes, int quantos)
+    {
+        var restantes = opcoes.ToList();
+        var escolhidos = new List<ResultadoBusca>();
+        while (escolhidos.Count < quantos && restantes.Count > 0)
+        {
+            // Na surpresa, primeiro a categoria (todas com a mesma chance, sem repetir enquanto houver outra):
+            // senão a fonte que manda mais itens por leva (livros) dominaria
+            var candidatos = restantes;
+            if (_tipo == Surpresa)
+            {
+                var cats = restantes.Select(r => r.Categoria).Distinct().ToList();
+                var novas = cats.Where(c => escolhidos.All(e => e.Categoria != c)).ToList();
+                if (novas.Count > 0) cats = novas;
+                var cat = cats[Random.Shared.Next(cats.Count)];
+                candidatos = restantes.Where(r => r.Categoria == cat).ToList();
+            }
+            var pesos = candidatos.Select(r => 1 + 1.5 * Math.Min(EntretenimentoBusca.Afinidade(r, _favoritos), 3)).ToList();
+            var alvo = Random.Shared.NextDouble() * pesos.Sum();
+            var i = 0;
+            for (; i < pesos.Count - 1 && (alvo -= pesos[i]) > 0; i++) { }
+            escolhidos.Add(candidatos[i]);
+            restantes.Remove(candidatos[i]);
+        }
+        return escolhidos;
+    }
+
+    /// <summary>A fita que gira: capas aleatórias da leva e, no fim, a sorteada.</summary>
+    private List<ResultadoBusca> Fita(ResultadoBusca sorteado)
+    {
+        var outros = _pool.Where(r => r != sorteado).ToList();
+        var fita = Enumerable.Range(0, TamanhoFita - 1)
+            .Select(_ => outros.Count > 0 ? outros[Random.Shared.Next(outros.Count)] : sorteado).ToList();
+        fita.Add(sorteado);
+        return fita;
+    }
+
+    private async Task Escolher(ResultadoBusca r)
+    {
+        _escolhido = r;
+        _passo = PassoEscolhido;
+        // Completa com sinopse, diretor/estúdio e os gêneros em português
+        _detalhando = true;
+        StateHasChanged();
+        var detalhado = await Busca.Detalhar(r);
+        _detalhando = false;
+        if (_escolhido == r) _escolhido = detalhado with { Categoria = r.Categoria };
+    }
+
+    private async Task Adicionar()
+    {
+        if (_escolhido is not { } r || _adicionando) return;
+        _adicionando = true;
+        var capa = r.UrlCapa is not null ? await Capas.Baixar(r.UrlCapa) : null;
+        var item = new ItemEntretenimento
+        {
+            Id = ArmazenamentoService.NovoId(),
+            Categoria = r.Categoria ?? "filme",
+            Titulo = r.Titulo,
+            Ano = r.Ano,
+            Status = "quero",
+            Capa = capa,
+            Sinopse = r.Sinopse,
+            Criadores = r.Criadores,
+            Generos = r.Generos,
+            Fonte = r.Fonte,
+            FonteId = r.FonteId,
+        };
+        Store.Dados.Entretenimento.Add(item);
+        Store.Salvar();
+        _adicionando = false;
+        Toast.Ok($"\"{item.Titulo}\" está no Quero ver.{(capa is null && r.UrlCapa is not null ? " A capa não foi baixada." : "")}");
+        await OnAdicionado.InvokeAsync(item);
+    }
+
+    // ---- Textos das opções ----
+
+    private static string Maiuscula(string s) => s.Length > 0 ? char.ToUpperInvariant(s[0]) + s[1..] : s;
+
+    private static string NomeTipo(string tipo) => tipo == Surpresa ? "Surpresa" : CategoriaEntretenimento.Buscar(tipo).Nome;
+
+    private static string EmojiDe(string tipo) => tipo switch
+    {
+        "filme" => "🎬", "serie" => "📺", "animacao" => "🧸", "anime" => "🍥", "jogo" => "🎮", "livro" => "📚", _ => "🎲",
+    };
+
+    private static string DescricaoDe(string tipo) => tipo switch
+    {
+        "filme" => "Para uma sessão", "serie" => "Para acompanhar", "animacao" => "Filmes e séries animados",
+        "anime" => "Do AniList", "jogo" => "Para jogar", "livro" => "Para ler", _ => "",
+    };
+
+    private static readonly (string Chave, string Emoji, string Nome, string Desc)[] OpcoesClima =
+    [
+        ("leve", "😄", "Leve", "Comédia, romance, algo gostoso"),
+        ("tenso", "😱", "Tenso", "Suspense, terror, mistério"),
+        ("emocionante", "🚀", "Emocionante", "Ação, aventura, ficção"),
+        ("pensar", "🤔", "Para pensar", "Drama, documentário, histórias densas"),
+        (TantoFaz, "🎲", "Tanto faz", "Qualquer clima"),
+    ];
+
+    private static (string Chave, string Emoji, string Nome, string Desc)[] OpcoesTempo(string tipo) => tipo switch
+    {
+        "filme" => [("pouco", "⚡", "Pouco", "Até 1h30"), ("medio", "🍿", "Uma sessão", "Entre 1h30 e 2h20"), ("longo", "🎞️", "Sem pressa", "Filme longo, 2h20+"), (TantoFaz, "🎲", "Tanto faz", "Qualquer duração")],
+        "serie" => [("pouco", "⚡", "Pouco", "Episódios de até 30 min"), ("medio", "🍿", "Algumas noites", "Uma minissérie"), ("longo", "🛋️", "Maratona", "Série com temporadas"), (TantoFaz, "🎲", "Tanto faz", "Qualquer formato")],
+        "animacao" => [("pouco", "⚡", "Pouco", "Filme curto ou episódios curtos"), ("medio", "🍿", "Uma sessão", "Um filme"), ("longo", "🛋️", "Maratona", "Uma série"), (TantoFaz, "🎲", "Tanto faz", "Filme ou série")],
+        "anime" => [("pouco", "⚡", "Pouco", "Um filme"), ("medio", "🍿", "Algumas noites", "Até 13 episódios"), ("longo", "🛋️", "Maratona", "24 episódios ou mais"), (TantoFaz, "🎲", "Tanto faz", "Filme ou série")],
+        "jogo" => [("pouco", "⚡", "Curto", "Até 10 horas"), ("medio", "🎮", "Médio", "De 10 a 30 horas"), ("longo", "🗺️", "Longo", "Mais de 30 horas"), (TantoFaz, "🎲", "Tanto faz", "Qualquer duração")],
+        "livro" => [("pouco", "⚡", "Curto", "Até 200 páginas"), ("medio", "📖", "Médio", "De 200 a 400 páginas"), ("longo", "📚", "Calhamaço", "Mais de 400 páginas"), (TantoFaz, "🎲", "Tanto faz", "Qualquer tamanho")],
+        _ => [("pouco", "⚡", "Pouco", "Algo rápido"), ("medio", "🍿", "Uma noite", "Algumas horas"), ("longo", "🛋️", "Bastante", "Para maratonar"), (TantoFaz, "🎲", "Tanto faz", "Qualquer duração")],
+    };
+}
