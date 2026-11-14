@@ -190,6 +190,31 @@
             }
             <button type="button" class="tab" title="Novo quadro" @onclick="NovoQuadro">+ Quadro</button>
         </div>
+        @* Filtros na mesma linha das abas; o que estiver filtrando fica na cor do módulo *@
+        <div class="tv-filtros" style="--c:@cor">
+            <input class="select @(_filtroTexto.Trim().Length > 0 ? "tv-ativo" : "")" type="search" placeholder="Buscar tarefa..." aria-label="Buscar tarefa" @bind="_filtroTexto" @bind:event="oninput">
+            <select class="select @(_filtroPrioridade != "" ? "tv-ativo" : "")" aria-label="Prioridade" @bind="_filtroPrioridade">
+                <option value="">Prioridade</option>
+                @foreach (var p in PrioridadeTarefa.Todas)
+                {
+                    <option value="@p.Chave">@p.Nome</option>
+                }
+            </select>
+            @if (etiquetas.Count > 0 || _filtroEtiqueta != "")
+            {
+                <select class="select @(_filtroEtiqueta != "" ? "tv-ativo" : "")" aria-label="Etiqueta" @bind="_filtroEtiqueta">
+                    <option value="">Etiqueta</option>
+                    @foreach (var e in etiquetas)
+                    {
+                        <option value="@e">#@e</option>
+                    }
+                </select>
+            }
+            @if (Filtrando)
+            {
+                <button type="button" class="icon-btn tv-limpar" title="Limpar filtros" aria-label="Limpar filtros" @onclick="LimparFiltros">@Icones.Fechar</button>
+            }
+        </div>
     </div>
 
     @* Menu do quadro: clique no quadro aberto ou botão direito em qualquer um *@
@@ -203,46 +228,45 @@
         </div>
     }
 
-    <div class="estante-busca tarefas-filtros">
-        <input class="select" type="search" placeholder="Buscar tarefa..." @bind="_filtroTexto" @bind:event="oninput">
-        <select class="select" @bind="_filtroPrioridade">
-            <option value="">Todas as prioridades</option>
-            @foreach (var p in PrioridadeTarefa.Todas)
-            {
-                <option value="@p.Chave">@p.Nome</option>
-            }
-        </select>
-        @if (etiquetas.Count > 0)
-        {
-            <select class="select" @bind="_filtroEtiqueta">
-                <option value="">Todas as etiquetas</option>
-                @foreach (var e in etiquetas)
-                {
-                    <option value="@e">#@e</option>
-                }
-            </select>
-        }
-    </div>
-
     @if (emHoje)
     {
         var lista = TarefasCalculos.DeHoje(t, hoje).Where(Passa).ToList();
+        // Separada em partes: o que pede atenção primeiro, as concluídas por último
+        var partes = new (string Chave, string Titulo, List<CardTarefa> Itens)[]
+        {
+            ("atrasadas", "Atrasadas", lista.Where(c => c.Concluido is null && c.Prazo < hoje).ToList()),
+            ("hoje", "Para hoje", lista.Where(c => c.Concluido is null && c.Prazo == hoje).ToList()),
+            ("foco", "Em foco", lista.Where(c => c.Concluido is null && !(c.Prazo <= hoje)).ToList()),
+            ("feitas", "Concluídas hoje", lista.Where(c => c.Concluido is not null).ToList()),
+        }.Where(p => p.Itens.Count > 0).ToList();
         @if (t.Quadros.Count == 0)
         {
             <div class="chart-empty">Você ainda não tem quadros. Clique em "+ Quadro" para criar o primeiro.</div>
         }
         else if (lista.Count == 0)
         {
-            <div class="chart-empty">Nada para hoje. Cards com prazo até hoje ou marcados como foco (☆) aparecem aqui.</div>
+            <div class="b-vazio ev-vazio">
+                <span>@(Filtrando ? "Nada encontrado com esses filtros." : "Nada para hoje. Cards com prazo até hoje ou marcados como foco (☆) aparecem aqui.")</span>
+                @if (Filtrando)
+                {
+                    <button type="button" class="btn sm" @onclick="LimparFiltros">Limpar filtros</button>
+                }
+            </div>
         }
         else
         {
-            <div class="lista-hoje">
-                @foreach (var c in lista)
-                {
-                    @CardView(c, true)
-                }
-            </div>
+            @foreach (var (chave, titulo, itens) in partes)
+            {
+                <div class="ev-grupo tv-parte tv-@chave" @key="chave">
+                    <div class="ev-grupo-cab"><b>@titulo</b><span>@itens.Count</span></div>
+                    <div class="lista-hoje">
+                        @foreach (var c in itens)
+                        {
+                            @CardView(c, true)
+                        }
+                    </div>
+                </div>
+            }
         }
     }
     else if (quadro is not null)
@@ -259,8 +283,23 @@
                 bool Antiga(CardTarefa c) => diasOcultar > 0 && c.Concluido is DateOnly f && hoje.DayNumber - f.DayNumber > diasOcultar;
                 var antigas = ultima ? daColuna.Count(Antiga) : 0;
                 var cards = ultima && _ocultarAntigos ? daColuna.Where(c => !Antiga(c)).ToList() : daColuna;
+                var recolhida = Recolhida(col.Id);
+                if (recolhida)
+                {
+                    @* Minimizada: só o nome em pé e a contagem; ainda recebe cards arrastados (vão para o fim) *@
+                    <div class="coluna recolhida" @key="col.Id" data-coluna="@col.Id">
+                        <div class="coluna-head">
+                            <button type="button" class="coluna-seta" title="Expandir coluna" aria-label="Expandir a coluna @col.Nome" aria-expanded="false" @onclick="() => AlternarRecolhida(col.Id)">@SetaColuna(false)</button>
+                            <span class="tab-count">@cards.Count</span>
+                            <b>@col.Nome</b>
+                        </div>
+                        <div class="coluna-cards"></div>
+                    </div>
+                    continue;
+                }
                 <div class="coluna" @key="col.Id" data-coluna="@col.Id">
                     <div class="coluna-head">
+                        <button type="button" class="coluna-seta" title="Minimizar coluna" aria-label="Minimizar a coluna @col.Nome" aria-expanded="true" @onclick="() => AlternarRecolhida(col.Id)">@SetaColuna(true)</button>
                         <b>@col.Nome</b>
                         <span class="tab-count">@cards.Count</span>
                         <span class="coluna-acoes">
@@ -279,7 +318,23 @@
                             </div>
                         }
                     </div>
-                    <button type="button" class="coluna-add" @onclick="() => AbrirNovo(quadro, col)">+ Adicionar tarefa</button>
+                    @if (_rapidoColuna == col.Id)
+                    {
+                        @* Adicionar rápido: digita o título e Enter; o campo continua aberto para a próxima. Esc fecha. *@
+                        <div class="coluna-rapido">
+                            <input class="select" maxlength="140" placeholder="Título da tarefa e Enter" aria-label="Título da nova tarefa" autofocus
+                                   @bind="_rapidoTexto" @bind:event="oninput" @onkeydown="e => TeclouRapido(e, quadro, col)" @onfocusout="SaiuDoRapido">
+                            <div class="coluna-rapido-acoes">
+                                <button type="button" class="btn sm primary" @onmousedown:preventDefault="true" @onclick="() => CriarRapido(quadro, col)">Adicionar</button>
+                                <button type="button" class="btn sm" title="Abrir com prazo, prioridade, checklist..." @onmousedown:preventDefault="true" @onclick="() => MaisOpcoes(quadro, col)">Mais opções</button>
+                                <button type="button" class="icon-btn" title="Fechar (Esc)" aria-label="Fechar" @onmousedown:preventDefault="true" @onclick="FecharRapido">@Icones.Fechar</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <button type="button" class="coluna-add" @onclick="() => AbrirRapido(col.Id)">+ Adicionar tarefa</button>
+                    }
                     @if (antigas > 0)
                     {
                         <button type="button" class="coluna-rodape" @onclick="() => _ocultarAntigos = !_ocultarAntigos">
@@ -480,6 +535,79 @@
             _cardAberto = CardDoLink;
             AbrirEdicao(card);
         }
+    }
+
+    private bool Filtrando => _filtroTexto.Trim().Length > 0 || _filtroPrioridade != "" || _filtroEtiqueta != "";
+
+    private void LimparFiltros()
+    {
+        _filtroTexto = _filtroPrioridade = _filtroEtiqueta = "";
+    }
+
+    // ---- Colunas minimizadas (guardado só neste aparelho, em ConfigLocal) ----
+    private static bool Recolhida(string colunaId) => ConfigLocal.Atual.ColunasRecolhidas.Contains(colunaId);
+
+    private void AlternarRecolhida(string colunaId)
+    {
+        var lista = ConfigLocal.Atual.ColunasRecolhidas;
+        if (!lista.Remove(colunaId)) lista.Add(colunaId);
+        // Colunas que já não existem saem da lista
+        lista.RemoveAll(id => !Dados.Quadros.Any(q => q.Colunas.Any(c => c.Id == id)));
+        ConfigLocal.Atual.Salvar();
+        if (_rapidoColuna == colunaId) FecharRapido();
+    }
+
+    // Setinha do título da coluna: aberta aponta para a esquerda (minimizar), minimizada para a direita (expandir)
+    private static MarkupString SetaColuna(bool aberta) => new(aberta
+        ? """<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>"""
+        : """<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>""");
+
+    // ---- Adicionar rápido na coluna ----
+    private string? _rapidoColuna;
+    private string _rapidoTexto = "";
+
+    private void AbrirRapido(string colunaId)
+    {
+        _rapidoColuna = colunaId;
+        _rapidoTexto = "";
+    }
+
+    private void FecharRapido()
+    {
+        _rapidoColuna = null;
+        _rapidoTexto = "";
+    }
+
+    // Clicou fora com o campo vazio: fecha (com texto, deixa aberto para não perder o que foi digitado)
+    private void SaiuDoRapido()
+    {
+        if (_rapidoTexto.Trim().Length == 0) FecharRapido();
+    }
+
+    private void TeclouRapido(KeyboardEventArgs e, Quadro q, ColunaQuadro col)
+    {
+        if (e.Key == "Enter") CriarRapido(q, col);
+        else if (e.Key == "Escape") FecharRapido();
+    }
+
+    private void CriarRapido(Quadro q, ColunaQuadro col)
+    {
+        var titulo = _rapidoTexto.Trim();
+        if (titulo.Length == 0) return;
+        var c = new CardTarefa { Id = ArmazenamentoService.NovoId(), Titulo = titulo, Criado = Hoje, QuadroId = q.Id };
+        Dados.Cards.Add(c);
+        TarefasCalculos.Mover(Dados, c, col.Id, null, Hoje);
+        Store.Salvar();
+        _rapidoTexto = "";
+    }
+
+    // "Mais opções": abre a janela completa já com o título digitado
+    private void MaisOpcoes(Quadro q, ColunaQuadro col)
+    {
+        var titulo = _rapidoTexto.Trim();
+        FecharRapido();
+        AbrirNovo(q, col);
+        _fTitulo = titulo;
     }
 
     private bool Passa(CardTarefa c)

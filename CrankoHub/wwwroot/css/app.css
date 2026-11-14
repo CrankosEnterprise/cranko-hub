@@ -846,6 +846,35 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
 .tarefas-visao .cv-lado { grid-row: 1; }
 .cv-v.tv-ruim { color: var(--bad); }
 .tv-prazo b { margin-left: auto; }
+/* Filtros na linha das abas */
+.tv-filtros { display: flex; align-items: center; gap: 8px; flex: 0 1 auto; margin-left: auto; padding-bottom: 6px; }
+.tv-filtros input { width: 190px; min-width: 0; }
+.tv-filtros select { width: auto; }
+.tv-filtros .tv-ativo { color: var(--c); font-weight: 650; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 55%, transparent); }
+.tv-limpar { width: 32px; height: 32px; }
+@media (max-width: 760px) {
+  .tv-filtros { flex: 1 1 100%; margin-left: 0; }
+  .tv-filtros input { flex: 1 1 auto; width: auto; }
+  .tv-filtros select { flex: 0 1 auto; min-width: 0; }
+}
+/* Aba Hoje em partes */
+.tv-parte + .tv-parte { margin-top: 22px; padding-top: 18px; }
+.tv-atrasadas .ev-grupo-cab b { color: var(--bad); }
+.tv-feitas .ev-grupo-cab b { color: var(--muted); }
+/* Setinha do título da coluna (minimizar / expandir) */
+.coluna-seta { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin: 0 -2px 0 -4px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.coluna-seta:hover { background: var(--surface); color: var(--text); }
+.coluna-seta svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.coluna.recolhida { flex: 0 0 46px; align-self: stretch; min-height: 180px; padding: 10px 0; align-items: center; }
+.coluna.recolhida .coluna-head { flex-direction: column; gap: 10px; padding: 0; }
+.coluna.recolhida .coluna-seta { margin: 0; }
+.coluna.recolhida .coluna-head b { writing-mode: vertical-rl; white-space: nowrap; font-size: 13px; }
+.coluna.recolhida .coluna-cards { flex: 1; align-self: stretch; min-height: 40px; }
+/* Adicionar rápido */
+.coluna-rapido { display: flex; flex-direction: column; gap: 6px; }
+.coluna-rapido input { width: 100%; }
+.coluna-rapido-acoes { display: flex; align-items: center; gap: 6px; }
+.coluna-rapido-acoes .icon-btn { margin-left: auto; width: 28px; height: 28px; }
 
 /* ---- Assinaturas ---- */
 .assin-grade { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; align-items: stretch; }

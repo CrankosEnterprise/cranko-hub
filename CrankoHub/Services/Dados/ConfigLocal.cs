@@ -32,6 +32,9 @@ public class ConfigLocal
     /// </summary>
     public bool MenuLateral { get; set; }
 
+    /// <summary>Colunas das Tarefas minimizadas (setinha no título). É do aparelho: cada tela tem espaço diferente.</summary>
+    public List<string> ColunasRecolhidas { get; set; } = [];
+
     /// <summary>Alguma opção de tela mudou (ex.: a posição do menu): o layout se redesenha.</summary>
     public static event Action? Mudou;
 
