@@ -36,6 +36,7 @@ public static class Icones
     public static readonly MarkupString Musica = new("""<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>""");
     // Layout do Modo Carro: tela com uma área grande e um painel ao lado
     public static readonly MarkupString Layout = new("""<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M14.5 4v16M14.5 10H21"/></svg>""");
+    public static readonly MarkupString Painel = new("""<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9.5 4v16M5.8 8.5h1M5.8 11.5h1"/></svg>""");
     public static readonly MarkupString Recolher = new("""<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>""");
     public static readonly MarkupString Navegacao =new("""<svg viewBox="0 0 24 24"><path d="M12 2.5 19.5 21 12 17l-7.5 4z"/></svg>""");
     public static readonly MarkupString Busca = new("""<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>""");

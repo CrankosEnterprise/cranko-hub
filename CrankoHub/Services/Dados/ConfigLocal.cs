@@ -27,10 +27,13 @@ public class ConfigLocal
     public string? ContaId { get; set; }
 
     /// <summary>
-    /// Menu das áreas na barra lateral (como o conceito "Atelier") em vez da cápsula no topo.
-    /// É do aparelho: no celular o menu é sempre a barra de abas embaixo.
+    /// Menu das áreas na barra lateral (como o conceito "Atelier") em vez da cápsula no topo (no celular, da barra de abas
+    /// embaixo). É do aparelho. Em tela estreita a lateral vira uma gaveta que abre por cima pelo botão do topo.
     /// </summary>
     public bool MenuLateral { get; set; }
+
+    /// <summary>Menu lateral escondido (botão na lateral): sobra uma barra fina no topo com o botão para mostrar de novo.</summary>
+    public bool MenuLateralOculto { get; set; }
 
     /// <summary>Colunas das Tarefas minimizadas (setinha no título). É do aparelho: cada tela tem espaço diferente.</summary>
     public List<string> ColunasRecolhidas { get; set; } = [];

@@ -18,7 +18,7 @@
     No Windows a janela não tem moldura: a barra do topo arrasta a janela (data-arrastar, wwwroot/js/interop.js)
     e as bordas .borda-janela redimensionam. No celular o menu vira uma barra de abas fixa embaixo.
 *@
-<div class="app @(Janela.ControlesProprios ? "janela-propria" : "") @(Janela.Maximizada ? "maximizada" : "") @(NoInicio ? "no-inicio" : "") @(Lateral ? "com-lateral" : "")"
+<div class="app @(Janela.ControlesProprios ? "janela-propria" : "") @(Janela.Maximizada ? "maximizada" : "") @(NoInicio ? "no-inicio" : "") @(Lateral ? "com-lateral" : "") @(Lateral && ConfigLocal.Atual.MenuLateralOculto ? "lateral-oculta" : "") @(_gaveta ? "gaveta-aberta" : "")"
      style="@(ModuloAtual is { } atual ? $"--c-pagina:{atual.Cor}" : null)">
     @if (Janela.ControlesProprios && !Janela.Maximizada)
     {
@@ -31,7 +31,28 @@
     @if (Lateral)
     {
         @* Menu na lateral (Configurações → Aparência → Menu): semáforo e marca em cima, as áreas com o pontinho
-           da cor de cada uma, Configurações em "Sistema" e, no pé, a conta e o tema *@
+           da cor de cada uma, Configurações em "Sistema" e, no pé, a conta, o tema e o botão de ocultar.
+           Escondida (ou em tela estreita, onde ela vira gaveta por cima) sobra a barra fina .topo-lateral com o botão
+           para mostrar. As duas existem sempre; o CSS decide qual aparece *@
+        <header class="topo topo-lateral" data-arrastar>
+            <div class="topo-esq">
+                @Semaforo
+                <button type="button" class="icon-btn" title="Mostrar o menu" aria-label="Mostrar o menu" aria-expanded="@_gaveta" @onclick="MostrarLateral">@Icones.Menu</button>
+                @Marca
+            </div>
+            <div class="topo-dir">
+                <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
+                <NavLink class="icon-btn" href="configuracoes" title="Configurações" aria-label="Configurações">@Icones.Engrenagem</NavLink>
+                @if (ContaService.Configurado)
+                {
+                    <ContaRodape Compacto="true" />
+                }
+            </div>
+        </header>
+        @if (_gaveta)
+        {
+            <div class="lateral-fundo" aria-hidden="true" @onclick="FecharGaveta"></div>
+        }
         <aside class="lateral" data-arrastar>
             @Semaforo
             @Marca
@@ -54,6 +75,7 @@
                     <ContaRodape />
                 }
                 <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
+                <button type="button" class="icon-btn" aria-label="Ocultar o menu" title="Ocultar o menu" @onclick="OcultarLateral">@Icones.Painel</button>
             </div>
         </aside>
     }
@@ -116,8 +138,32 @@
 
     private static readonly string[] BordasJanela = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
 
-    // Menu na lateral (opção deste computador); no Android o menu é sempre a barra de abas embaixo
-    private static bool Lateral => ConfigLocal.Atual.MenuLateral && !OperatingSystem.IsAndroid();
+    // Menu na lateral (opção deste aparelho, também no celular)
+    private static bool Lateral => ConfigLocal.Atual.MenuLateral;
+
+    // Gaveta da lateral aberta por cima (só vale em tela estreita, ver app.css); fecha ao navegar
+    private bool _gaveta;
+
+    // Botão do topo: na tela larga volta a lateral fixa; na estreita abre a gaveta
+    private void MostrarLateral()
+    {
+        _gaveta = true;
+        if (ConfigLocal.Atual.MenuLateralOculto)
+        {
+            ConfigLocal.Atual.MenuLateralOculto = false;
+            ConfigLocal.Atual.Salvar();
+        }
+    }
+
+    // Botão no pé da lateral: esconde a lateral fixa (tela larga) e fecha a gaveta (estreita)
+    private void OcultarLateral()
+    {
+        _gaveta = false;
+        ConfigLocal.Atual.MenuLateralOculto = true;
+        ConfigLocal.Atual.Salvar();
+    }
+
+    private void FecharGaveta() => _gaveta = false;
 
     // Semáforo (janela sem moldura, Windows) e marca: iguais no topo e na lateral
     private RenderFragment Semaforo => @<text>
@@ -216,6 +262,7 @@
     private void AoNavegar(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(async () =>
     {
         _caminho = CaminhoAtual();
+        _gaveta = false;
         StateHasChanged();
         await JS.InvokeVoidAsync("crankohub.rolarParaTopo");
     });

@@ -364,6 +364,18 @@ html.inativa .semaforo:not(:hover) button { background: #c9cbd0; box-shadow: ins
 .app.com-lateral .palco { margin: 8px 8px 8px 0; }
 .app.com-lateral.maximizada .palco { margin: 0; }
 .app.com-lateral .content { padding-top: 30px; }
+/* Lateral oculta (botão no pé dela): sobra a barra fina .topo-lateral, com o botão para mostrar de novo.
+   Com a lateral à mostra a barra some; em tela estreita (Responsivo) ela fica sempre e a lateral vira gaveta */
+.topo-lateral { grid-template-columns: minmax(0, 1fr) auto; }
+.topo-lateral .topo-esq { gap: 14px; }
+.app.com-lateral:not(.lateral-oculta) .topo-lateral { display: none; }
+.app.com-lateral.lateral-oculta { flex-direction: column; }
+.app.com-lateral.lateral-oculta .lateral { display: none; }
+.app.com-lateral.lateral-oculta .palco { margin: 0 8px 8px; }
+.app.com-lateral.lateral-oculta.maximizada .palco { margin: 0; }
+.app.com-lateral.lateral-oculta .content { padding-top: 26px; }
+.lateral-fundo { display: none; }
+@keyframes fundo-entra { from { opacity: 0; } }
 
 /* Bordas invisíveis para redimensionar a janela sem moldura (wwwroot/js/interop.js) */
 .borda-janela { position: fixed; z-index: 300; }
@@ -1014,7 +1026,27 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
   .content { padding: 16px 16px calc(104px + env(safe-area-inset-bottom)); gap: 16px; }
   .pagina-cab h1 { font-size: 30px; }
   .toasts { bottom: calc(96px + env(safe-area-inset-bottom)); }
+
+  /* Menu na lateral no celular: a barra fina fica sempre no topo e a lateral vira uma gaveta que entra pela
+     esquerda por cima do conteúdo (fecha no fundo, no botão de ocultar ou ao navegar). Sem barra de abas embaixo */
+  .app.com-lateral, .app.com-lateral.lateral-oculta { flex-direction: column; }
+  .app.com-lateral:not(.lateral-oculta) .topo-lateral { display: grid; }
+  .app.com-lateral .palco, .app.com-lateral.lateral-oculta .palco { margin: 0; }
+  .app.com-lateral .content, .app.com-lateral.lateral-oculta .content { padding: 16px 16px calc(32px + env(safe-area-inset-bottom)); }
+  .app.com-lateral ~ .toasts { bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .app.com-lateral .lateral, .app.com-lateral.lateral-oculta .lateral {
+    display: flex; position: fixed; z-index: 60; top: 0; bottom: 0; left: 0; width: min(280px, 86vw); max-width: 100%;
+    padding: max(16px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    background: var(--glass-forte); backdrop-filter: blur(26px) saturate(180%); -webkit-backdrop-filter: blur(26px) saturate(180%);
+    box-shadow: inset -1px 0 0 var(--glass-line), var(--shadow-alto); border-radius: 0 18px 18px 0;
+    transform: translateX(-105%); visibility: hidden; transition: transform .22s ease, visibility 0s linear .22s;
+  }
+  .app.com-lateral.gaveta-aberta .lateral { transform: none; visibility: visible; transition: transform .22s ease; }
+  .app.com-lateral .lateral .semaforo { display: none; }
+  .app.com-lateral .lateral .marca { padding-top: 4px; }
+  .lateral-fundo { display: block; position: fixed; inset: 0; z-index: 59; background: rgba(0, 0, 0, .38); animation: fundo-entra .2s ease-out; }
 }
+@media (max-width: 860px) and (prefers-reduced-motion: reduce) { .app.com-lateral .lateral { transition: none !important; } }
 @media (max-width: 520px) {
   .form-grid { grid-template-columns: minmax(0, 1fr); }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
