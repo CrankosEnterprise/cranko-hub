@@ -1,4 +1,4 @@
-@namespace CrankoHub.Pages
+﻿@namespace CrankoHub.Pages
 @page "/"
 @implements IDisposable
 @inject ArmazenamentoService Store
@@ -156,7 +156,7 @@
             <p class="b-sub">Registre seu primeiro peso.</p>
         }
         <div class="b-graf">
-            <GraficoLinha Altura="170" FormatoY="new FormatoNumero(1)" Formato="FormatoNumero.Kg" MsgVazia="Sem pesos nos últimos 90 dias."
+            <GraficoLinha Compacto="true" Altura="250" FormatoY="new FormatoNumero(1)" Formato="FormatoNumero.Kg" MsgVazia="Sem pesos nos últimos 90 dias."
                           Series="@([new SerieLinha("Peso", m.Cor, rs.Where(r => r.Data > corte).Select(r => new PontoLinha(r.Data, r.Peso)).ToList(), Markers: false, Area: true)])" />
         </div>
     </a>

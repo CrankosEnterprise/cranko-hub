@@ -99,7 +99,20 @@ const Charts = (() => {
   const tipRow = (color, name, val) =>
     `<div class="tip-row"><i style="background:${color}"></i><span>${U.esc(name)}</span><b>${val}</b></div>`;
 
-  const empty = (root, msg) => { root.innerHTML = `<div class="chart-empty">${U.esc(msg)}</div>`; };
+  // Sem dados: em vez de uma caixa vazia, a silhueta apagada do gráfico com a mensagem por cima
+  const empty = (root, msg, tipo = 'linha', altura = 200) => {
+    const w = 600, h = 200;
+    const fantasma = tipo === 'barras'
+      ? [.45, .62, .5, .78, .58, .4, .7, .86, .6, .52, .74, .66].map((v, i) => {
+          const x = 14 + i * 48.5, alt = v * 150;
+          return `<rect x="${x}" y="${h - 14 - alt}" width="30" height="${alt}" rx="6" />`;
+        }).join('')
+      : `<path class="fantasma-area" d="M0,150 C60,140 90,96 150,104 C210,112 240,150 300,128 C360,106 390,60 450,70 C510,80 540,118 600,96 L600,200 L0,200 Z" />
+         <path class="fantasma-linha" d="M0,150 C60,140 90,96 150,104 C210,112 240,150 300,128 C360,106 390,60 450,70 C510,80 540,118 600,96" />`;
+    root.innerHTML = `<div class="chart-empty grafico-vazio" style="min-height:${Math.max(140, altura)}px">
+      <svg class="fantasma" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">${fantasma}</svg>
+      <span>${U.esc(msg)}</span></div>`;
+  };
 
   // Ids únicos para os degradês de cada gráfico
   let seq = 0;
@@ -155,16 +168,17 @@ const Charts = (() => {
    */
   function line(container, opts) {
     const {
-      series, refs = [], height = 260,
+      series, refs = [], height = 260, compact = false,
       yFmt = v => U.num(v, 0), fmt = v => U.num(v, 1), xFmt = U.dateShort,
       emptyMsg = 'Sem dados ainda.',
     } = opts;
 
     mount(container, (root, W) => {
       const all = series.flatMap(s => s.points);
-      if (!all.length) return empty(root, emptyMsg);
+      if (!all.length) return empty(root, emptyMsg, 'linha', height);
 
-      const H = height, m = { t: 18, r: 14, b: 28, l: 46 };
+      // Compacto (blocos do Início): sem eixos nem grade, a área vai até as bordas
+      const H = height, m = compact ? { t: 14, r: 8, b: 0, l: 0 } : { t: 18, r: 14, b: 28, l: 46 };
       const iw = W - m.l - m.r, ih = H - m.t - m.b;
       const xs = all.map(p => p.x);
       let x0 = Math.min(...xs), x1 = Math.max(...xs);
@@ -172,14 +186,16 @@ const Charts = (() => {
       const ys = all.map(p => p.y).concat(refs.map(r => r.y));
       const y0 = Math.min(...ys), y1 = Math.max(...ys);
       const pad = (y1 - y0) * 0.12 || Math.max(Math.abs(y1) * 0.05, 1);
-      const n = nice(y0 - pad, y1 + pad, 4);
+      // No compacto a linha fica no alto e a área preenche o resto do bloco
+      const n = compact ? { lo: y0 - (y1 - y0 || 1) * 1.1, hi: y1 + (y1 - y0 || 1) * 0.25, ticks: [] } : nice(y0 - pad, y1 + pad, 4);
 
       const X = v => m.l + (v - x0) / (x1 - x0) * iw;
       const Y = v => m.t + (1 - (v - n.lo) / (n.hi - n.lo)) * ih;
 
       const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': opts.label || 'Gráfico de linhas' }, root);
 
-      // Grade fraquinha e rótulos discretos
+      // Grade fraquinha e rótulos discretos (nada disso no compacto)
+      if (!compact) {
       const rotulos = rotulosY(n.ticks, yFmt);
       n.ticks.forEach((t, i) => {
         el('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: 'grid' }, svg);
@@ -189,6 +205,7 @@ const Charts = (() => {
       for (let i = 0; i < nx; i++) {
         const v = x0 + (x1 - x0) * i / (nx - 1);
         text(svg, X(v), H - 6, xFmt(v), 'axis', i === 0 ? 'start' : i === nx - 1 ? 'end' : 'middle');
+      }
       }
 
       // Linhas suaves; área com degradê da cor até sumir; pontinhos só com poucos dados; anel no último valor
@@ -201,10 +218,11 @@ const Charts = (() => {
           const base = (H - m.b).toFixed(1);
           el('path', { d: `${d}L${pts.at(-1)[0].toFixed(1)},${base}L${pts[0][0].toFixed(1)},${base}Z`, class: 'series-area', fill: degrade(svg, s.color, 'var(--area-topo)', 0) }, svg);
         }
-        el('path', { d, class: 'series-line', style: `stroke:${s.color};color:${s.color}` }, svg);
+        el('path', { d, class: `series-line${s.dashed ? ' tracejada' : ''}`, style: `stroke:${s.color};color:${s.color}` }, svg);
         if (s.markers !== false && s.points.length <= 24) {
           pts.slice(0, -1).forEach(p => el('circle', { cx: p[0], cy: p[1], r: 3, class: 'mark', style: `fill:${s.color}` }, svg));
         }
+        if (s.dashed) return;
         const fim = pts.at(-1);
         el('circle', { cx: fim[0], cy: fim[1], r: 4.5, class: 'end-dot', style: `stroke:${s.color}` }, svg);
       });
@@ -269,7 +287,7 @@ const Charts = (() => {
     } = opts;
 
     mount(container, (root, W) => {
-      if (!data.length || data.every(d => !d.value)) return empty(root, emptyMsg);
+      if (!data.length || data.every(d => !d.value)) return empty(root, emptyMsg, 'barras', height);
 
       const H = height, m = { t: 18, r: 8, b: 28, l: 46 };
       const iw = W - m.l - m.r, ih = H - m.t - m.b;
@@ -337,11 +355,12 @@ window.crankoCharts = {
   line(container, o) {
     Charts.line(container, {
       series: (o.series || []).map(s => ({
-        name: s.name, color: s.color, markers: s.markers, area: s.area,
+        name: s.name, color: s.color, markers: s.markers, area: s.area, dashed: !!s.tracejada,
         points: (s.points || []).map(p => ({ x: U.ts(p.x), y: p.y, note: p.note || undefined })),
       })),
       refs: o.refs || [],
       height: o.height || 260,
+      compact: !!o.compact,
       fmt: U.fmt(o.fmt, v => U.num(v, 1)),
       yFmt: U.fmt(o.yFmt, v => U.num(v, 0)),
       emptyMsg: o.emptyMsg || 'Sem dados ainda.',

@@ -5,7 +5,8 @@ namespace CrankoHub.Models;
 /// <summary>Ponto de um gráfico de linha. X é a data; Note aparece no tooltip.</summary>
 public record PontoLinha(DateOnly X, double Y, string? Note = null);
 
-public record SerieLinha(string Name, string Color, IReadOnlyList<PontoLinha> Points, bool Markers = true, bool Area = false);
+/// <param name="Tracejada">Linha tracejada e fina (séries de apoio, como uma média móvel).</param>
+public record SerieLinha(string Name, string Color, IReadOnlyList<PontoLinha> Points, bool Markers = true, bool Area = false, bool Tracejada = false);
 
 /// <summary>Linha de referência tracejada (ex.: meta, média).</summary>
 public record ReferenciaLinha(double Y, string Label);

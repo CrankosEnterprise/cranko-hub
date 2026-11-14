@@ -42,8 +42,8 @@
     var corte = _periodo > 0 && last is not null ? last.Data.AddDays(-_periodo) : DateOnly.MinValue;
     var seriesPeso = new List<SerieLinha>
     {
-        new("Peso", "var(--series-1)", rs.Where(r => r.Data >= corte).Select(r => new PontoLinha(r.Data, r.Peso, r.Obs)).ToList()),
-        new("Média 7 dias", "var(--series-2)", DietaCalculos.MediaMovel(rs).Where(p => p.X >= corte).ToList(), Markers: false),
+        new("Peso", "var(--series-1)", rs.Where(r => r.Data >= corte).Select(r => new PontoLinha(r.Data, r.Peso, r.Obs)).ToList(), Area: true),
+        new("Média 7 dias", "var(--series-2)", DietaCalculos.MediaMovel(rs).Where(p => p.X >= corte).ToList(), Markers: false, Tracejada: true),
     };
     var gordura = _medida == "gordura";
     var pontosMedida = rs.Where(r => (gordura ? r.Gordura : r.Cintura) is not null)
