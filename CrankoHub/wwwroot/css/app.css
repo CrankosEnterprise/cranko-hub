@@ -865,11 +865,19 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
 .coluna-seta { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin: 0 -2px 0 -4px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
 .coluna-seta:hover { background: var(--surface); color: var(--text); }
 .coluna-seta svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.coluna.recolhida { flex: 0 0 46px; align-self: stretch; min-height: 180px; padding: 10px 0; align-items: center; }
-.coluna.recolhida .coluna-head { flex-direction: column; gap: 10px; padding: 0; }
-.coluna.recolhida .coluna-seta { margin: 0; }
-.coluna.recolhida .coluna-head b { writing-mode: vertical-rl; white-space: nowrap; font-size: 13px; }
-.coluna.recolhida .coluna-cards { flex: 1; align-self: stretch; min-height: 40px; }
+/* Minimizada: mesma largura, sem cards, apagada e listrada como "bloqueada" */
+.coluna.recolhida { opacity: .62; transition: opacity .15s; }
+.coluna.recolhida:hover, .coluna.recolhida.alvo { opacity: 1; }
+.coluna.recolhida .coluna-head b { color: var(--text-2); }
+.coluna-bloqueada {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 120px; padding: 16px 12px;
+  border: 1px dashed var(--border); border-radius: 10px; color: var(--muted); font: inherit; text-align: center; cursor: pointer;
+  background: repeating-linear-gradient(-45deg, transparent 0 8px, color-mix(in srgb, var(--muted) 9%, transparent) 8px 9px);
+}
+.coluna-bloqueada:hover { color: var(--text-2); border-color: var(--axis); }
+.coluna-bloqueada svg { width: 20px; height: 20px; margin-bottom: 2px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.coluna-bloqueada span { font-size: 12.5px; font-weight: 650; }
+.coluna-bloqueada small { font-size: 11.5px; }
 /* Adicionar rápido */
 .coluna-rapido { display: flex; flex-direction: column; gap: 6px; }
 .coluna-rapido input { width: 100%; }

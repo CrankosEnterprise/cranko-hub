@@ -286,14 +286,20 @@
                 var recolhida = Recolhida(col.Id);
                 if (recolhida)
                 {
-                    @* Minimizada: só o nome em pé e a contagem; ainda recebe cards arrastados (vão para o fim) *@
+                    @* Minimizada: a coluna fica no lugar, vazia e apagada, com cara de bloqueada; ainda recebe cards arrastados (vão para o fim) *@
                     <div class="coluna recolhida" @key="col.Id" data-coluna="@col.Id">
                         <div class="coluna-head">
                             <button type="button" class="coluna-seta" title="Expandir coluna" aria-label="Expandir a coluna @col.Nome" aria-expanded="false" @onclick="() => AlternarRecolhida(col.Id)">@SetaColuna(false)</button>
-                            <span class="tab-count">@cards.Count</span>
                             <b>@col.Nome</b>
+                            <span class="tab-count">@cards.Count</span>
                         </div>
-                        <div class="coluna-cards"></div>
+                        <div class="coluna-cards">
+                            <button type="button" class="coluna-bloqueada" title="Expandir coluna" @onclick="() => AlternarRecolhida(col.Id)">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+                                <span>Coluna minimizada</span>
+                                <small>@(cards.Count == 0 ? "Nenhuma tarefa" : $"{cards.Count} {Plural(cards.Count, "tarefa escondida", "tarefas escondidas")}") · clique para mostrar</small>
+                            </button>
+                        </div>
                     </div>
                     continue;
                 }
