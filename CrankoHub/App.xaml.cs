@@ -46,6 +46,7 @@ public partial class App : Application
         bandeja.AoAbrir += MostrarJanela;
         bandeja.AoVerificarAvisos += () => avisos.Verificar(manual: true);
         bandeja.AoSair += Sair;
+        bandeja.Atalhos = () => Models.Modulo.Visiveis(store.Dados.Config).Select(m => (m.Nome, m.Link, m.Cor));
 
         // Atualiza o caminho do .exe no registro, caso ele tenha mudado de lugar
         if (ConfigLocal.Atual.IniciarComWindows == true)
