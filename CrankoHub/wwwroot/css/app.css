@@ -778,6 +778,20 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
 .tag-comb { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 650; color: var(--text-2); background: var(--surface-2); }
 :root[data-theme="dark"] .tag-comb { background: rgba(255, 255, 255, .06); }
 
+/* ---- Dieta: mesma visão do Carro (carro-visao / cv-*) ---- */
+.dv-graf-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.dv-graf-cab .legend { margin: 0; }
+.dv-graf-cab .chips { margin-left: auto; }
+.dv-graf { margin: 10px -8px 14px; }
+.dieta-visao .cv-tanque .rot { line-height: 1.45; }
+.dv-meta-link { margin-top: 6px; color: var(--c); font-size: 12.5px; font-weight: 650; }
+.dv-chips-dir { margin-left: auto; }
+.dv-tabela { overflow-x: auto; scrollbar-width: thin; }
+.dv-tabela .tabela-limpa td { padding: 9px 0; }
+.dv-tabela .dv-obs { padding-left: 24px; width: 100%; }
+.dv-tabela td.dv-obs { white-space: normal; min-width: 160px; color: var(--text-2); }
+.dv-tabela .row-actions { padding-left: 8px; }
+
 /* ---- Assinaturas ---- */
 .assin-grade { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; align-items: stretch; }
 .as-rosca { display: flex; flex-direction: column; }

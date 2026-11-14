@@ -42,15 +42,26 @@
     var corte = _periodo > 0 && last is not null ? last.Data.AddDays(-_periodo) : DateOnly.MinValue;
     var seriesPeso = new List<SerieLinha>
     {
-        new("Peso", "var(--series-1)", rs.Where(r => r.Data >= corte).Select(r => new PontoLinha(r.Data, r.Peso, r.Obs)).ToList(), Area: true),
-        new("Média 7 dias", "var(--series-2)", DietaCalculos.MediaMovel(rs).Where(p => p.X >= corte).ToList(), Markers: false, Tracejada: true),
+        new("Peso", Modulo.CorDe(Store.Dados.Config, Modulo.Dieta), rs.Where(r => r.Data >= corte).Select(r => new PontoLinha(r.Data, r.Peso, r.Obs)).ToList(), Area: true),
+        new("Média 7 dias", "var(--text-2)", DietaCalculos.MediaMovel(rs).Where(p => p.X >= corte).ToList(), Markers: false, Tracejada: true),
     };
     var gordura = _medida == "gordura";
     var pontosMedida = rs.Where(r => (gordura ? r.Gordura : r.Cintura) is not null)
         .Select(r => new PontoLinha(r.Data, (gordura ? r.Gordura : r.Cintura)!.Value)).ToList();
 }
 
-@{ var rotuloMeta = meta is not null ? $"Meta: {Num(meta)} kg" : "Definir meta"; }
+@{
+    var rotuloMeta = meta is not null ? $"Meta: {Num(meta)} kg" : "Definir meta";
+    var cor = Modulo.CorDe(Store.Dados.Config, Modulo.Dieta);
+    var variacaoTotal = first is not null && rs.Count > 1 ? last!.Peso - first.Peso : (double?)null;
+    var faltaMeta = last is not null && meta is not null ? Math.Abs(last.Peso - meta.Value) : (double?)null;
+    const double raio = 38, circ = 2 * Math.PI * raio;
+}
+
+@* Cabeçalho no padrão do Carro e das Assinaturas: o peso atual é o título *@
+<CabecalhoPagina Sobre="@(last is not null ? $"Último registro em {DataBR(last.Data)}" : "Nenhum registro ainda")"
+                 Titulo="@(last is not null ? $"{Num(last.Peso)} kg" : null)" />
+
 <AcoesTopo>
     <button class="btn" type="button" title="@rotuloMeta" aria-label="@rotuloMeta" @onclick="AbrirMeta">@Icones.Alvo<span class="rotulo">@rotuloMeta</span></button>
     <button class="btn primary" type="button" title="Registrar peso" aria-label="Registrar peso" @onclick="AbrirNovoRegistro">@Icones.Mais<span class="rotulo">Registrar peso</span></button>
@@ -58,92 +69,141 @@
     <button class="icon-btn" type="button" title="Configurações da Dieta" aria-label="Configurações da Dieta" @onclick="AbrirConfig">@Icones.Engrenagem</button>
 </AcoesTopo>
 
-<section class="kpis">
-    <div class="kpi"><span class="kpi-label">Peso atual</span>
-        <span class="kpi-value">@(last is not null ? Num(last.Peso) : Vazio)<small>kg</small></span>
-        <span class="kpi-sub">@(last is not null ? "em " + DataBR(last.Data) : "Nenhum registro ainda")</span></div>
-    <div class="kpi"><span class="kpi-label">Variação total</span>
-        <span class="kpi-value">@(first is not null && rs.Count > 1 ? ComSinal(last!.Peso - first.Peso) : Vazio)<small>kg</small></span>
-        <span class="kpi-sub">@(first is not null && rs.Count > 1 ? "desde " + DataBR(first.Data) : "Precisa de 2+ registros")</span></div>
-    <div class="kpi"><span class="kpi-label">Falta p/ meta</span>
-        <span class="kpi-value">@(last is not null && meta is not null ? Num(Math.Abs(last.Peso - meta.Value)) : Vazio)<small>kg</small></span>
-        <span class="kpi-sub">@(progresso is not null ? Num(progresso, 0) + "% do caminho" : "Defina uma meta")</span></div>
-    <div class="kpi"><span class="kpi-label">Ritmo</span>
-        <span class="kpi-value">@(semana is not null ? ComSinal(semana.Value, 2) : Vazio)<small>kg/sem</small></span>
-        <span class="kpi-sub">@(semana is not null ? "tendência dos últimos 30 dias" : "Precisa de mais registros")</span></div>
-    <div class="kpi"><span class="kpi-label">Previsão da meta</span>
-        <span class="kpi-value">@previsao</span>
-        <span class="kpi-sub">@previsaoSub</span></div>
-</section>
-
-<section class="card">
-    <div class="card-head">
-        <div><h2>Evolução do peso</h2><p>Passe o mouse no gráfico para ver os valores de cada dia.</p></div>
-        <div class="chips">
-            @foreach (var (dias, rotulo) in Periodos)
-            {
-                <button type="button" class="chip @(_periodo == dias ? "active" : "")" @onclick="() => _periodo = dias">@rotulo</button>
-            }
-        </div>
-    </div>
-    <Legenda Itens="@(rs.Count > 0 ? seriesPeso.Select(s => new ItemLegenda(s.Name, s.Color)).ToList() : [])" />
-    <GraficoLinha Series="seriesPeso" Altura="300" Formato="FormatoNumero.Kg" Rotulo="Evolução do peso"
-                  Referencias="@(meta is not null && rs.Count > 0 ? [new ReferenciaLinha(meta.Value, $"Meta {Num(meta)} kg")] : [])"
-                  MsgVazia="Adicione seu primeiro peso para ver o gráfico." />
-</section>
-
-<div class="grid-2">
-    <section class="card">
-        <div class="card-head"><div><h2>Variação semanal</h2><p>Diferença de peso entre o fim de cada semana (últimas 12).</p></div></div>
-        <GraficoBarras Dados="DietaCalculos.Semanal(rs)" Nome="Variação" Altura="240"
-                       FormatoY="new FormatoNumero(1)" Formato="@(new FormatoNumero(1, " kg", Sinal: true))"
-                       MsgVazia="Precisa de registros em pelo menos 2 semanas." />
-    </section>
-    <section class="card">
-        <div class="card-head">
-            <div><h2>Medidas corporais</h2><p>Registre de tempos em tempos para ver a composição mudar.</p></div>
-            <div class="chips">
-                <button type="button" class="chip @(gordura ? "active" : "")" @onclick="@(() => _medida = "gordura")">% Gordura</button>
-                <button type="button" class="chip @(!gordura ? "active" : "")" @onclick="@(() => _medida = "cintura")">Cintura</button>
+@*
+    Visão da Dieta (mesmo desenho da Visão geral do Carro): bloco grande com os números e a evolução do peso,
+    coluna com a meta, a variação semanal e as medidas, e o histórico embaixo.
+*@
+<div class="carro-visao dieta-visao">
+    <section class="card cv-hero brilho" style="--c:@cor">
+        <div class="cv-numeros">
+            <div>
+                <span class="rot">Variação total</span>
+                <div class="cv-v">@(variacaoTotal is double vt ? ComSinal(vt) : Vazio)<small>kg</small></div>
+                @if (variacaoTotal is double vt2 && Math.Abs(vt2) >= 0.05)
+                {
+                    <span class="cv-delta @((vt2 < 0) == perdendo ? "bom" : "ruim")">desde @DataBR(first!.Data)</span>
+                }
+                else
+                {
+                    <span class="rot">@(variacaoTotal is not null ? "desde " + DataBR(first!.Data) : "precisa de 2+ registros")</span>
+                }
+            </div>
+            <div>
+                <span class="rot">Ritmo</span>
+                <div class="cv-v">@(semana is not null ? ComSinal(semana.Value, 2) : Vazio)<small>kg/sem</small></div>
+                <span class="rot">@(semana is not null ? "tendência dos últimos 30 dias" : "precisa de mais registros")</span>
+            </div>
+            <div>
+                <span class="rot">Falta p/ meta</span>
+                <div class="cv-v">@(faltaMeta is not null ? Num(faltaMeta) : Vazio)<small>kg</small></div>
+                <span class="rot">@(progresso is not null ? Num(progresso, 0) + "% do caminho" : "defina uma meta")</span>
+            </div>
+            <div>
+                <span class="rot">Previsão da meta</span>
+                <div class="cv-v">@previsao</div>
+                <span class="rot">@previsaoSub</span>
             </div>
         </div>
-        <GraficoLinha Altura="240" Formato="@(new FormatoNumero(1, gordura ? "%" : " cm"))"
-                      Series="@([new SerieLinha(gordura ? "% Gordura" : "Cintura", "var(--series-3)", pontosMedida, Area: true)])"
-                      MsgVazia="@($"Sem registros de {(gordura ? "% de gordura" : "cintura")} ainda.")" />
+        <div class="dv-graf-cab">
+            <Legenda Itens="@(rs.Count > 0 ? seriesPeso.Select(s => new ItemLegenda(s.Name, s.Color)).ToList() : [])" />
+            <div class="chips">
+                @foreach (var (dias, rotulo) in Periodos)
+                {
+                    <button type="button" class="chip @(_periodo == dias ? "active" : "")" @onclick="() => _periodo = dias">@rotulo</button>
+                }
+            </div>
+        </div>
+        <div class="dv-graf">
+            <GraficoLinha Series="seriesPeso" Altura="280" Formato="FormatoNumero.Kg" Rotulo="Evolução do peso"
+                          Referencias="@(meta is not null && rs.Count > 0 ? [new ReferenciaLinha(meta.Value, $"Meta {Num(meta)} kg")] : [])"
+                          MsgVazia="Adicione seu primeiro peso para ver o gráfico." />
+        </div>
+    </section>
+
+    <div class="cv-lado">
+        <section class="card cv-tanque brilho" style="--c:@cor">
+            <div class="cv-anel">
+                <svg viewBox="0 0 92 92" aria-hidden="true">
+                    <circle cx="46" cy="46" r="@raio" class="cv-anel-fundo" />
+                    @if (progresso is double pg)
+                    {
+                        <circle cx="46" cy="46" r="@raio" class="cv-anel-valor" style="stroke:@cor"
+                                stroke-dasharray="@($"{(circ * pg / 100).ToString(System.Globalization.CultureInfo.InvariantCulture)} {circ.ToString(System.Globalization.CultureInfo.InvariantCulture)}")" />
+                    }
+                </svg>
+                <b>@(progresso is null ? "—" : Num(progresso, 0) + "%")</b>
+            </div>
+            <div>
+                <span class="rot">Meta</span>
+                @if (meta is not null)
+                {
+                    <div class="cv-tanque-km">@Num(meta) kg</div>
+                    <span class="rot">@(faltaMeta is double f ? (f < 0.05 ? "meta atingida!" : $"faltam {Num(f)} kg") : "registre seu peso")@(first is not null ? $" · início {Num(first.Peso)} kg" : "")</span>
+                }
+                else
+                {
+                    <div class="cv-tanque-km">—</div>
+                    <span class="rot">Sem meta definida</span>
+                }
+                <button type="button" class="b-link dv-meta-link" @onclick="AbrirMeta">@(meta is not null ? "Alterar meta" : "Definir meta")</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="b-cab"><span class="b-ic" style="--c:@cor">@Icones.Balanca</span>Variação semanal<span class="b-dir">últimas 12 semanas</span></div>
+            <GraficoBarras Dados="DietaCalculos.Semanal(rs)" Nome="Variação" Altura="180" Cor="@cor"
+                           FormatoY="new FormatoNumero(1)" Formato="@(new FormatoNumero(1, " kg", Sinal: true))"
+                           MsgVazia="Precisa de registros em pelo menos 2 semanas." />
+        </section>
+
+        <section class="card cv-docs">
+            <div class="b-cab"><span class="b-ic" style="--c:#34C759">@Icones.Alvo</span>Medidas
+                <div class="chips mini dv-chips-dir">
+                    <button type="button" class="chip @(gordura ? "active" : "")" @onclick="@(() => _medida = "gordura")">% Gordura</button>
+                    <button type="button" class="chip @(!gordura ? "active" : "")" @onclick="@(() => _medida = "cintura")">Cintura</button>
+                </div>
+            </div>
+            <GraficoLinha Altura="180" Formato="@(new FormatoNumero(1, gordura ? "%" : " cm"))"
+                          Series="@([new SerieLinha(gordura ? "% Gordura" : "Cintura", "#34C759", pontosMedida, Area: true)])"
+                          MsgVazia="@($"Sem registros de {(gordura ? "% de gordura" : "cintura")} ainda.")" />
+        </section>
+    </div>
+
+    <section class="card cv-tabela">
+        <div class="b-cab"><span class="b-ic" style="--c:@cor">@Icones.Dados</span>Histórico<span class="b-dir">@rs.Count @Plural(rs.Count, "registro", "registros")</span></div>
+        @if (rs.Count > 0)
+        {
+            <div class="dv-tabela">
+                <table class="tabela-limpa">
+                    <thead><tr><th>Data</th><th class="num">Peso</th><th class="num">Variação</th><th class="num">Gordura</th><th class="num">Cintura</th><th class="dv-obs">Observação</th><th></th></tr></thead>
+                    <tbody>
+                        @for (var i = rs.Count - 1; i >= 0; i--)
+                        {
+                            var r = rs[i];
+                            var anterior = i > 0 ? rs[i - 1] : null;
+                            <tr @key="r.Id">
+                                <td>@DataBR(r.Data)</td>
+                                <td class="num"><b>@Num(r.Peso) kg</b></td>
+                                <td class="num">@if (anterior is not null) { <Delta Valor="r.Peso - anterior.Peso" Unidade=" kg" BomQuandoCai="perdendo" /> } else { <span class="muted">—</span> }</td>
+                                <td class="num">@(r.Gordura is not null ? Num(r.Gordura) + "%" : Vazio)</td>
+                                <td class="num">@(r.Cintura is not null ? Num(r.Cintura) + " cm" : Vazio)</td>
+                                <td class="dv-obs">@r.Obs</td>
+                                <td><div class="row-actions">
+                                    <button type="button" title="Editar" @onclick="() => Editar(r)">@Icones.Editar</button>
+                                    <button type="button" class="del" title="Excluir" @onclick="() => Excluir(r)">@Icones.Excluir</button>
+                                </div></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="b-vazio">Nenhum registro ainda. Toque em "Registrar peso" no topo.</p>
+        }
     </section>
 </div>
-
-<section class="card">
-    <div class="card-head"><div><h2>Histórico</h2><p>@rs.Count @Plural(rs.Count, "registro", "registros")</p></div></div>
-    <div class="table-wrap">
-        <table>
-            <thead><tr><th>Data</th><th class="num">Peso</th><th class="num">Variação</th><th class="num">Gordura</th><th class="num">Cintura</th><th>Observação</th><th></th></tr></thead>
-            <tbody>
-                @if (rs.Count == 0)
-                {
-                    <tr><td colspan="7" class="empty-row">Nenhum registro ainda. Toque em "Registrar peso" no topo ⬆</td></tr>
-                }
-                @for (var i = rs.Count - 1; i >= 0; i--)
-                {
-                    var r = rs[i];
-                    var anterior = i > 0 ? rs[i - 1] : null;
-                    <tr @key="r.Id">
-                        <td>@DataBR(r.Data)</td>
-                        <td class="num"><b>@Num(r.Peso) kg</b></td>
-                        <td class="num">@if (anterior is not null) { <Delta Valor="r.Peso - anterior.Peso" Unidade=" kg" BomQuandoCai="perdendo" /> } else { <span class="muted">—</span> }</td>
-                        <td class="num">@(r.Gordura is not null ? Num(r.Gordura) + "%" : Vazio)</td>
-                        <td class="num">@(r.Cintura is not null ? Num(r.Cintura) + " cm" : Vazio)</td>
-                        <td class="obs">@r.Obs</td>
-                        <td><div class="row-actions">
-                            <button type="button" title="Editar" @onclick="() => Editar(r)">@Icones.Editar</button>
-                            <button type="button" class="del" title="Excluir" @onclick="() => Excluir(r)">@Icones.Excluir</button>
-                        </div></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</section>
 
 @* ---- Registro de peso (novo / editar) ---- *@
 @if (_registroAberto)
