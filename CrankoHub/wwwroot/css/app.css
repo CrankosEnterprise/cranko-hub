@@ -806,6 +806,38 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
 .ev-cat { width: 100%; border: 0; background: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
 .ev-cat:hover span, .ev-cat.ativa span { color: var(--c, var(--accent)); }
 .ev-cat.ativa span { text-decoration: underline; }
+/* Estante: status nos botões, busca e ordem na mesma linha; partes por status; etiquetas em cima da capa */
+.ev-filtro { gap: 6px; margin-left: 4px; border: 0; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: none; }
+.ev-filtro span { opacity: .7; }
+.ev-filtro:hover span { opacity: 1; }
+.ev-barra { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 20px; }
+.ev-barra .chips { flex-wrap: wrap; }
+.ev-conta { margin-left: 6px; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.chip.active .ev-conta { color: var(--c); }
+.ev-busca { display: flex; gap: 8px; margin-left: auto; flex: 1 1 320px; max-width: 460px; }
+.ev-busca input { flex: 1 1 auto; min-width: 0; }
+.ev-busca select { flex: 0 0 auto; width: auto; }
+.ev-grupo + .ev-grupo { margin-top: 26px; padding-top: 20px; box-shadow: 0 -1px 0 var(--card-line); }
+.ev-grupo-cab { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; font-size: 13.5px; }
+.ev-grupo-cab b { font-weight: 700; }
+.ev-grupo-cab span { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.ev-capa { position: relative; display: block; border-radius: 10px; }
+.ev-tag { position: absolute; top: 8px; padding: 2px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 700; line-height: 1.5; color: #fff; background: rgba(0, 0, 0, .5); backdrop-filter: blur(6px); white-space: nowrap; pointer-events: none; }
+.ev-tipo { left: 8px; max-width: calc(50% - 10px); overflow: hidden; text-overflow: ellipsis; }
+.ev-canto { right: 8px; max-width: calc(100% - 16px); }
+.ev-tipo + .ev-canto { max-width: calc(50% - 6px); overflow: hidden; text-overflow: ellipsis; }
+.ev-nota { color: #ffd60a; }
+.ev-andamento { background: color-mix(in srgb, var(--good) 85%, #000); }
+.ev-progresso { position: absolute; left: 8px; right: 8px; bottom: 6px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .3); overflow: hidden; pointer-events: none; }
+.ev-progresso i { display: block; height: 100%; border-radius: 2px; background: #fff; }
+.ev-estante .capa-item:hover .ev-capa .capa { transform: none; }
+.ev-estante .capa-item .ev-capa { transition: transform .18s ease; }
+.ev-estante .capa-item:hover .ev-capa, .ev-estante .capa-item:focus-visible .ev-capa { transform: translateY(-3px); }
+.ev-estante .capa-sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-vazio { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+@media (max-width: 600px) {
+  .ev-busca { margin-left: 0; max-width: none; flex-basis: 100%; }
+}
 
 /* ---- Assinaturas ---- */
 .assin-grade { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; align-items: stretch; }

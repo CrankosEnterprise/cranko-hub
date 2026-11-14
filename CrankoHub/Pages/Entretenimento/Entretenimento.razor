@@ -145,27 +145,37 @@
         </section>
     </div>
 
-    <section class="card ev-estante">
-        <div class="b-cab"><span class="b-ic" style="--c:@cor">@Icones.Layout</span>Estante<span class="b-dir">@lista.Count @Plural(lista.Count, "item", "itens")</span></div>
-        <div class="estante-filtros">
+    <section class="card ev-estante" style="--c:@cor">
+        @{
+            // Contagem de cada status com os outros filtros (categoria e busca) aplicados
+            var semStatus = todos
+                .Where(e => _filtroCategoria == "todas" || e.Categoria == _filtroCategoria)
+                .Where(e => termo.Length == 0 || e.Titulo.Contains(termo, StringComparison.CurrentCultureIgnoreCase)
+                            || (e.Criadores?.Contains(termo, StringComparison.CurrentCultureIgnoreCase) ?? false)).ToList();
+            var categoriaAtiva = _filtroCategoria == "todas" ? null : CategoriaEntretenimento.Buscar(_filtroCategoria);
+            // Em "Tudo", a estante é separada por status; com um status escolhido, uma grade só
+            var grupos = _filtroStatus == "todos"
+                ? GruposEstante.Select(g => (g.Chave, g.Titulo, Itens: lista.Where(e => e.Status == g.Chave).ToList())).Where(g => g.Itens.Count > 0).ToList()
+                : [(_filtroStatus, "", lista)];
+        }
+        <div class="b-cab"><span class="b-ic">@Icones.Layout</span>Estante
+            @if (categoriaAtiva is not null)
+            {
+                <button type="button" class="pilula ev-filtro" title="Mostrar todas as categorias" @onclick='() => _filtroCategoria = "todas"'>@categoriaAtiva.Nome<span aria-hidden="true">✕</span></button>
+            }
+            <span class="b-dir">@lista.Count @Plural(lista.Count, "item", "itens")</span>
+        </div>
+        <div class="ev-barra">
             <div class="chips">
-                <button type="button" class="chip @(_filtroCategoria == "todas" ? "active" : "")" @onclick='() => _filtroCategoria = "todas"'>Tudo</button>
-                @foreach (var c in CategoriaEntretenimento.Todas)
+                @foreach (var (chave, rotulo) in FiltrosStatus)
                 {
-                    var n = todos.Count(e => e.Categoria == c.Chave);
-                    <button type="button" class="chip @(_filtroCategoria == c.Chave ? "active" : "")" @onclick="() => _filtroCategoria = c.Chave">@c.Nome@(n > 0 ? $" · {n}" : "")</button>
+                    var n = chave == "todos" ? semStatus.Count : semStatus.Count(e => e.Status == chave);
+                    <button type="button" class="chip @(_filtroStatus == chave ? "active" : "")" @onclick="() => _filtroStatus = chave">@rotulo<span class="ev-conta">@n</span></button>
                 }
             </div>
-            <div class="estante-busca">
-                <input class="select" type="search" placeholder="Buscar título ou autor..." @bind="_filtroTexto" @bind:event="oninput">
-                <select class="select" @bind="_filtroStatus">
-                    <option value="todos">Todos os status</option>
-                    @foreach (var s in StatusEntretenimento.Todos)
-                    {
-                        <option value="@s.Chave">@s.Nome</option>
-                    }
-                </select>
-                <select class="select" @bind="_ordem">
+            <div class="ev-busca">
+                <input class="select" type="search" placeholder="Buscar título ou autor..." aria-label="Buscar na estante" @bind="_filtroTexto" @bind:event="oninput">
+                <select class="select" aria-label="Ordenar" @bind="_ordem">
                     <option value="recentes">Mais recentes</option>
                     <option value="nota">Maior nota</option>
                     <option value="ano">Lançamento</option>
@@ -176,42 +186,59 @@
 
         @if (lista.Count == 0)
         {
-            <p class="b-vazio">@(todos.Count == 0 ? "Sua estante está vazia. Clique em \"Adicionar\" no topo para colocar o primeiro item." : "Nada encontrado com esses filtros.")</p>
+            <div class="b-vazio ev-vazio">
+                @if (todos.Count == 0)
+                {
+                    <span>Sua estante está vazia. Clique em "Adicionar" no topo para colocar o primeiro item.</span>
+                }
+                else
+                {
+                    <span>Nada encontrado com esses filtros.</span>
+                    <button type="button" class="btn sm" @onclick="LimparFiltros">Limpar filtros</button>
+                }
+            </div>
         }
         else
         {
-            <div class="estante">
-                @foreach (var e in lista)
-                {
-                    <button type="button" class="capa-item" @key="e.Id" @onclick="() => AbrirDetalhe(e)">
-                        <Capa Item="e" />
-                        @if (e.Status == "andamento" && e.TotalEpisodios() is > 0 and var totalEp)
+            @foreach (var (chave, titulo, itens) in grupos)
+            {
+                <div class="ev-grupo" @key="chave">
+                    @if (titulo.Length > 0)
+                    {
+                        <div class="ev-grupo-cab"><b>@titulo</b><span>@itens.Count</span></div>
+                    }
+                    <div class="estante">
+                        @foreach (var e in itens)
                         {
-                            var vistosEp = e.EpisodiosAssistidos();
-                            <span class="capa-progresso" title="@vistosEp de @totalEp episódios"><span style="width:@(Pct(vistosEp, totalEp))%"></span></span>
+                            var total = e.TotalEpisodios();
+                            var prox = e.ProximoEpisodio();
+                            <button type="button" class="capa-item" @key="e.Id" @onclick="() => AbrirDetalhe(e)" title="@e.Titulo">
+                                <span class="ev-capa">
+                                    <Capa Item="e" />
+                                    @if (categoriaAtiva is null)
+                                    {
+                                        <span class="ev-tag ev-tipo">@Maiuscula(CategoriaEntretenimento.Buscar(e.Categoria).Singular)</span>
+                                    }
+                                    @if (e.Status == "concluido" && e.Nota is double nota)
+                                    {
+                                        <span class="ev-tag ev-canto ev-nota">★ @Num(nota, nota % 1 == 0 ? 0 : 1)</span>
+                                    }
+                                    else if (e.Status == "andamento")
+                                    {
+                                        <span class="ev-tag ev-canto ev-andamento" title="@(prox is not null ? "Próximo episódio" : "Em andamento")">@(prox is (var pt, var pe) ? CodigoEp(pt, pe) : "Em andamento")</span>
+                                    }
+                                    @if (e.Status == "andamento" && total > 0)
+                                    {
+                                        <span class="ev-progresso" title="@e.EpisodiosAssistidos() de @total episódios"><i style="width:@(Math.Max(3, Pct(e.EpisodiosAssistidos(), total)))%"></i></span>
+                                    }
+                                </span>
+                                <span class="capa-titulo">@e.Titulo</span>
+                                <span class="capa-sub">@SubDaCapa(e)</span>
+                            </button>
                         }
-                        <span class="capa-titulo">@e.Titulo</span>
-                        <span class="capa-sub">
-                            @if (e.Status == "concluido" && e.Nota is not null)
-                            {
-                                <Estrelas Valor="e.Nota" />
-                            }
-                            else if (e.Status == "andamento" && e.ProximoEpisodio() is (var pt, var pe))
-                            {
-                                <span class="badge good" title="Próximo episódio">@CodigoEp(pt, pe)</span>
-                            }
-                            else if (e.Status != "concluido")
-                            {
-                                <span class="badge @(e.Status == "andamento" ? "good" : "")">@StatusEntretenimento.Buscar(e.Status).Nome</span>
-                            }
-                            else
-                            {
-                                @(e.Ano?.ToString() ?? CategoriaEntretenimento.Buscar(e.Categoria).Singular)
-                            }
-                        </span>
-                    </button>
-                }
-            </div>
+                    </div>
+                </div>
+            }
         }
     </section>
 </div>
@@ -649,6 +676,26 @@
 
     private static string Inicial(string titulo) => titulo.Length > 0 ? titulo[..1].ToUpperInvariant() : "?";
 
+    // Botões de status da estante e a ordem das partes em "Tudo"
+    private static readonly (string Chave, string Rotulo)[] FiltrosStatus =
+        [("todos", "Tudo"), ("andamento", "Em andamento"), ("quero", "Quero ver"), ("concluido", "Concluídos")];
+
+    private static readonly (string Chave, string Titulo)[] GruposEstante =
+        [("andamento", "Em andamento"), ("quero", "Quero ver"), ("concluido", "Concluídos")];
+
+    private void LimparFiltros()
+    {
+        _filtroCategoria = "todas";
+        _filtroStatus = "todos";
+        _filtroTexto = "";
+    }
+
+    // Linha embaixo do título da capa: ano e o primeiro criador (diretor, autor, estúdio)
+    private static string SubDaCapa(ItemEntretenimento e)
+    {
+        var criador = e.Criadores?.Split(',')[0].Trim();
+        return string.Join(" · ", new[] { e.Ano?.ToString(), criador }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
     // Clicar na categoria da coluna filtra a estante; clicar de novo volta para Tudo
     private static void AlternarCategoria(string chave) => _filtroCategoria = _filtroCategoria == chave ? "todas" : chave;
 
