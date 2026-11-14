@@ -33,21 +33,16 @@
             case 0:
                 <h3 class="rl-pergunta">O que você quer?</h3>
                 <div class="rl-opcoes">
-                    <button type="button" class="rl-opcao @(_tipo == Surpresa ? "ativa" : "")" disabled="@(Busca.CategoriasRoleta().Count == 0)" @onclick="() => EscolherTipo(Surpresa)">
+                    <button type="button" class="rl-opcao @(_tipo == Surpresa ? "ativa" : "")" @onclick="() => EscolherTipo(Surpresa)">
                         <span class="rl-emoji">🎲</span><b>Surpresa</b><small>Qualquer tipo</small>
                     </button>
                     @foreach (var c in CategoriaEntretenimento.Todas)
                     {
-                        var motivo = Busca.RoletaIndisponivel(c.Chave);
-                        <button type="button" class="rl-opcao @(_tipo == c.Chave ? "ativa" : "")" disabled="@(motivo is not null)" title="@motivo" @onclick="() => EscolherTipo(c.Chave)">
-                            <span class="rl-emoji">@EmojiDe(c.Chave)</span><b>@c.Nome</b><small>@(motivo is null ? DescricaoDe(c.Chave) : "precisa de chave")</small>
+                        <button type="button" class="rl-opcao @(_tipo == c.Chave ? "ativa" : "")" @onclick="() => EscolherTipo(c.Chave)">
+                            <span class="rl-emoji">@EmojiDe(c.Chave)</span><b>@c.Nome</b><small>@DescricaoDe(c.Chave)</small>
                         </button>
                     }
                 </div>
-                @if (CategoriaEntretenimento.Todas.Any(c => Busca.RoletaIndisponivel(c.Chave) is not null))
-                {
-                    <p class="muted rl-nota">Filmes, séries e animações usam o TMDB, e jogos o RAWG. As chaves são grátis: cole em <a href="configuracoes?aba=integracoes">Configurações › Integrações</a>.</p>
-                }
                 break;
 
             case 1:
@@ -75,7 +70,7 @@
                 break;
 
             case 3:
-                IReadOnlyList<(string Chave, string Nome)> generos = _tipo == Surpresa ? [] : EntretenimentoBusca.GenerosRoleta(_tipo);
+                IReadOnlyList<(string Chave, string Nome)> generos = _tipo == Surpresa ? [] : Busca.GenerosRoleta(_tipo);
                 var tempo = OpcoesTempo(_tipo).FirstOrDefault(o => o.Chave == _tempo);
                 var clima = OpcoesClima.FirstOrDefault(o => o.Chave == _clima);
                 <h3 class="rl-pergunta">Tudo pronto</h3>
@@ -166,7 +161,7 @@
                 </div>
                 @if (_carregando)
                 {
-                    <p class="muted rl-nota">Procurando sugestões...</p>
+                    <p class="muted rl-nota">Procurando sugestões... Sem as chaves do TMDB/RAWG, a primeira vez pode levar até meio minuto.</p>
                 }
                 else if (_erro is not null)
                 {
@@ -209,7 +204,7 @@
                     <button class="btn" type="button" @onclick="Fechar">Cancelar</button>
                     break;
                 case 1 or 2:
-                    <button class="btn" type="button" @onclick="() => _passo--">Voltar</button>
+                    <button class="btn" type="button" @onclick="() => _passo = _passo == 2 && !Busca.RoletaFiltraTempo(_tipo) ? 0 : _passo - 1">Voltar</button>
                     <button class="btn" type="button" @onclick="() => { if (_passo == 1) _tempo = TantoFaz; else _clima = TantoFaz; _passo++; }">Pular</button>
                     break;
                 case 3:
@@ -278,10 +273,14 @@
     protected override void OnInitialized()
     {
         _favoritos = EntretenimentoBusca.GenerosFavoritos(Store.Dados.Entretenimento);
-        // Reabrindo: começa do resumo com as últimas respostas (se o tipo ainda estiver disponível)
-        if (_ultimos is { } u && (u.Tipo == Surpresa || Busca.RoletaIndisponivel(u.Tipo) is null))
+        // Sem as chaves, o catálogo da Wikidata demora: já começa a baixar enquanto o quiz é respondido
+        Busca.PreCarregarRoleta();
+        // Reabrindo: começa do resumo com as últimas respostas
+        if (_ultimos is { } u)
         {
             (_tipo, _tempo, _clima, _genero, _epoca, _nota) = (u.Tipo, u.Tempo, u.Clima, u.Genero, u.Epoca, (int)Math.Round(u.NotaMin * 10));
+            // O gênero guardado pode ser de outra fonte (a chave foi colada ou tirada depois)
+            if (_genero is not null && _tipo != Surpresa && Busca.GenerosRoleta(_tipo).All(g => g.Chave != _genero)) _genero = null;
             _passo = 3;
         }
     }
@@ -300,6 +299,12 @@
         if (tipo != _tipo) _genero = null;
         _tipo = tipo;
         _passo = 1;
+        // Sem a chave do RAWG não há a duração dos jogos: pula a pergunta do tempo
+        if (!Busca.RoletaFiltraTempo(tipo))
+        {
+            _tempo = TantoFaz;
+            _passo = 2;
+        }
     }
 
     private void RefazerPerguntas()

@@ -16,30 +16,18 @@ public record FiltrosRoleta(string Tipo, string Tempo, string Clima, string? Gen
 
 /// <summary>
 /// Roleta do Entretenimento: descobre títulos novos (que não estão na estante) nas mesmas fontes da busca.
-/// Filmes, séries e animações precisam da chave do TMDB e jogos da chave do RAWG; animes (AniList) e livros (Open Library) não pedem chave.
+/// Com as chaves, filmes/séries/animações vêm do TMDB e jogos do RAWG; sem elas, de um catálogo da Wikidata
+/// (ver EntretenimentoRoletaWikidata.cs). Animes (AniList) e livros (Open Library) não pedem chave.
 /// </summary>
 public partial class EntretenimentoBusca
 {
-    /// <summary>Por que a categoria não entra na roleta (falta de chave), ou null se entra.</summary>
-    public string? RoletaIndisponivel(string categoria) => CategoriaEntretenimento.Buscar(categoria).Api switch
-    {
-        "tmdb-filme" or "tmdb-serie" or "tmdb-animacao" when ChaveTmdb() is null => "Precisa da chave do TMDB (Configurações › Integrações).",
-        "rawg" when ChaveRawg() is null => "Precisa da chave do RAWG (Configurações › Integrações).",
-        _ => null,
-    };
-
-    /// <summary>Categorias que podem entrar na roleta agora.</summary>
-    public List<CategoriaEntretenimento> CategoriasRoleta() =>
-        CategoriaEntretenimento.Todas.Where(c => RoletaIndisponivel(c.Chave) is null).ToList();
-
     /// <summary>
     /// Uma leva de títulos para a roleta (de uma página sorteada da fonte, para variar), sem o que já está na estante.
-    /// Na "surpresa", junta todas as categorias disponíveis.
+    /// Na "surpresa", junta todas as categorias.
     /// </summary>
     public async Task<List<ResultadoBusca>> Descobrir(FiltrosRoleta f, CancellationToken ct = default)
     {
-        var cats = f.Tipo == "surpresa" ? CategoriasRoleta() : [CategoriaEntretenimento.Buscar(f.Tipo)];
-        if (cats.Count == 0) throw new BuscaException("Nenhuma fonte disponível. Animes e livros funcionam sem chave.");
+        var cats = f.Tipo == "surpresa" ? CategoriaEntretenimento.Todas.ToList() : [CategoriaEntretenimento.Buscar(f.Tipo)];
 
         var respostas = await Task.WhenAll(cats.Select(async c =>
         {
@@ -65,6 +53,8 @@ public partial class EntretenimentoBusca
 
     private Task<List<ResultadoBusca>> DescobrirCategoria(CategoriaEntretenimento c, FiltrosRoleta f, CancellationToken ct) => c.Api switch
     {
+        "tmdb-filme" or "tmdb-serie" or "tmdb-animacao" when ChaveTmdb() is null => WikidataDescobrir(c.Chave, f, ct),
+        "rawg" when ChaveRawg() is null => WikidataDescobrir(c.Chave, f, ct),
         "tmdb-filme" => TmdbDescobrir("movie", f, animacao: false, ct),
         "tmdb-serie" => TmdbDescobrir("tv", f, animacao: false, ct),
         "tmdb-animacao" => AnimacaoDescobrir(f, ct),
@@ -75,8 +65,19 @@ public partial class EntretenimentoBusca
 
     // ---- Gêneros (filtro avançado e o clima de cada fonte) ----
 
-    /// <summary>Gêneros do filtro avançado de uma categoria (chave enviada à fonte, nome mostrado).</summary>
-    public static IReadOnlyList<(string Chave, string Nome)> GenerosRoleta(string categoria) => categoria switch
+    /// <summary>Gêneros do filtro avançado de uma categoria (chave enviada à fonte, nome mostrado), conforme a fonte em uso.</summary>
+    public IReadOnlyList<(string Chave, string Nome)> GenerosRoleta(string categoria) =>
+        UsaWikidata(categoria) ? GenerosWikidata(categoria).Select(g => (string.Join(",", g.Ids), g.Nome)).ToList() : GenerosComChave(categoria);
+
+    /// <summary>A categoria sai do catálogo da Wikidata (falta a chave do TMDB/RAWG).</summary>
+    private bool UsaWikidata(string categoria) => CategoriaEntretenimento.Buscar(categoria).Api switch
+    {
+        "tmdb-filme" or "tmdb-serie" or "tmdb-animacao" => ChaveTmdb() is null,
+        "rawg" => ChaveRawg() is null,
+        _ => false,
+    };
+
+    private static IReadOnlyList<(string Chave, string Nome)> GenerosComChave(string categoria) => categoria switch
     {
         "filme" => [("28", "Ação"), ("12", "Aventura"), ("35", "Comédia"), ("80", "Crime"), ("99", "Documentário"), ("18", "Drama"),
             ("10751", "Família"), ("14", "Fantasia"), ("878", "Ficção científica"), ("10752", "Guerra"), ("36", "História"),
