@@ -103,4 +103,46 @@ public static class CarroCalculos
         var a = lista.LastOrDefault(a => a.Combustivel == combustivel && a.Valor > 0 && a.Litros > 0);
         return a is null ? null : a.Valor!.Value / a.Litros;
     }
+
+    /// <summary>km/l de um conjunto de trechos (km rodados ÷ litros gastos). Null sem trechos.</summary>
+    public static double? Consumo(IEnumerable<Abastecimento> lista)
+    {
+        var trechos = ComConsumo(lista);
+        var litros = trechos.Sum(a => a.Consumidos);
+        return litros > 0 ? trechos.Sum(a => a.Km) / litros : null;
+    }
+
+    /// <summary>
+    /// Consumo dos últimos 90 dias comparado com os 90 anteriores, em fração (0,05 = 5% melhor).
+    /// Null quando falta algum dos dois períodos.
+    /// </summary>
+    public static double? VariacaoTrimestre(IReadOnlyCollection<Abastecimento> lista, DateOnly hoje)
+    {
+        var atual = Consumo(lista.Where(a => a.Data > hoje.AddDays(-90)));
+        var antes = Consumo(lista.Where(a => a.Data <= hoje.AddDays(-90) && a.Data > hoje.AddDays(-180)));
+        return atual is double x && antes is double y && y > 0 ? x / y - 1 : null;
+    }
+
+    /// <summary>Consumo médio de cada um dos últimos meses (um ponto no meio do mês; meses sem trechos ficam de fora).</summary>
+    public static List<PontoLinha> ConsumoMensal(IReadOnlyCollection<Abastecimento> lista, int meses = 12) =>
+        Formatacao.UltimosMeses(meses)
+            .Select(m => (m, kml: Consumo(lista.Where(a => a.Data.Year == m.Ano && a.Data.Month == m.Mes))))
+            .Where(x => x.kml is not null)
+            .Select(x => new PontoLinha(new DateOnly(x.m.Ano, x.m.Mes, 15), x.kml!.Value, Formatacao.MesLabel(x.m.Ano, x.m.Mes)))
+            .ToList();
+
+    /// <summary>
+    /// Combustível estimado no tanque agora: o nível depois do último abastecimento menos o que foi gasto desde então
+    /// (km por dia × dias ÷ consumo médio). Null sem a capacidade do tanque ou sem saber o nível do último.
+    /// </summary>
+    public static (double Litros, double Fracao)? TanqueAgora(IReadOnlyList<Abastecimento> lista, double? tanque, double? kmPorDia, double? consumo, DateOnly hoje)
+    {
+        if (tanque is not > 0 || lista.Count == 0) return null;
+        var ultimo = lista[^1];
+        if (NivelDepois(ultimo, tanque.Value) is not double depois) return null;
+        var km = (kmPorDia ?? 0) * Math.Max(0, hoje.DayNumber - ultimo.Data.DayNumber);
+        var gasto = consumo is > 0 ? km / consumo.Value : 0;
+        var litros = Math.Clamp(depois - gasto, 0, tanque.Value);
+        return (litros, litros / tanque.Value);
+    }
 }

@@ -8,6 +8,7 @@
 @inject ToastService Toast
 @inject SincronizacaoService Sincronizacao
 @inject BandejaService Bandeja
+@inject CabecalhoService Cabecalho
 @using Microsoft.AspNetCore.Components.Sections
 
 @*
@@ -91,8 +92,8 @@
             {
                 <header class="pagina-cab">
                     <div class="pagina-titulo">
-                        <p class="pagina-sobre">@DescricaoDaPagina</p>
-                        <h1>@TituloDaPagina</h1>
+                        <p class="pagina-sobre">@(Cabecalho.Sobre ?? DescricaoDaPagina)</p>
+                        <h1>@(Cabecalho.Titulo ?? TituloDaPagina)@if (Cabecalho.Selo is { } selo) { <span class="pagina-selo">@selo</span> }</h1>
                     </div>
                     @* Botões da página aberta: adicionar, veículo, configurações da seção... *@
                     <div class="topo-acoes"><SectionOutlet SectionName="@AcoesTopo.Nome" /></div>
@@ -163,6 +164,7 @@
         Store.ModulosMudaram += AtualizarMenu;
         Janela.Mudou += AtualizarMenu;
         ConfigLocal.Mudou += AtualizarMenu;
+        Cabecalho.Mudou += AtualizarMenu;
         Sincronizacao.NaTela = acao => InvokeAsync(acao);
         Sincronizacao.Recebeu += RecebeuDaConta;
     }
@@ -232,6 +234,7 @@
         Store.ModulosMudaram -= AtualizarMenu;
         Janela.Mudou -= AtualizarMenu;
         ConfigLocal.Mudou -= AtualizarMenu;
+        Cabecalho.Mudou -= AtualizarMenu;
         Sincronizacao.Recebeu -= RecebeuDaConta;
         Sincronizacao.NaTela = null;
         _ponte?.Dispose();

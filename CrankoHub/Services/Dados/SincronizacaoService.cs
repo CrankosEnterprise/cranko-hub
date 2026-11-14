@@ -216,6 +216,9 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
     public void Iniciar()
     {
         if (!ArmazenamentoService.PorConta || !SupabaseConfig.Configurado) return;
+#if DEBUG
+        if (DadosDemo.Ativo) return; // modo demonstração: não mexe na conta
+#endif
         Ativa = true;
         _espera = new Timer(_ => _ = Sincronizar());
         _periodico = new Timer(_ => _ = Sincronizar(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));

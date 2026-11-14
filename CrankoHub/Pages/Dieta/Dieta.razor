@@ -233,6 +233,18 @@
 
     private RegistroPeso? Editando() => _editId is null ? null : Registros.FirstOrDefault(r => r.Id == _editId);
 
+    /// <summary>dieta?novo=1 abre direto a janela de registrar peso (botão Registrar do Início).</summary>
+    [SupplyParameterFromQuery(Name = "novo")] public string? NovoDoLink { get; set; }
+
+    private string? _novoDoLink;
+
+    protected override void OnParametersSet()
+    {
+        if (NovoDoLink == _novoDoLink) return;
+        _novoDoLink = NovoDoLink;
+        if (NovoDoLink is not null) AbrirNovoRegistro();
+    }
+
     private void AbrirNovoRegistro()
     {
         LimparFormulario();

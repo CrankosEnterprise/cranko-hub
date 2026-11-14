@@ -48,6 +48,34 @@ public static class AssinaturasCalculos
             .OrderByDescending(b => b.Value)
             .ToList();
 
+    // Cores das marcas mais comuns (o nome é comparado sem acento e em minúsculas, por "contém")
+    private static readonly (string Trecho, string Cor)[] CoresMarcas =
+    [
+        ("netflix", "#E50914"), ("spotify", "#1DB954"), ("icloud", "#3693F3"), ("apple", "#5E5E63"),
+        ("chatgpt", "#10A37F"), ("openai", "#10A37F"), ("claude", "#D97757"), ("amazon", "#00A8E1"), ("prime", "#00A8E1"),
+        ("game pass", "#107C10"), ("xbox", "#107C10"), ("playstation", "#0070D1"), ("psn", "#0070D1"),
+        ("youtube", "#FF0033"), ("smart fit", "#FFB800"), ("smartfit", "#FFB800"), ("disney", "#113CCF"),
+        ("hbo", "#5822B4"), ("max", "#002BE7"), ("globoplay", "#FB0234"), ("deezer", "#A238FF"), ("paramount", "#0064FF"),
+        ("crunchyroll", "#F47521"), ("google", "#4285F4"), ("microsoft", "#D83B01"), ("office", "#D83B01"),
+        ("nubank", "#820AD1"), ("ifood", "#EA1D2C"), ("uber", "#1F1F1F"), ("canva", "#00C4CC"), ("notion", "#2F2F2F"),
+        ("adobe", "#FA0F00"), ("duolingo", "#58CC02"), ("twitch", "#9146FF"), ("discord", "#5865F2"),
+    ];
+
+    /// <summary>
+    /// Cor do serviço: o quadradinho com a inicial, a rosca e os cartões. A da marca, se conhecida;
+    /// senão uma cor estável a partir do nome.
+    /// </summary>
+    public static string CorDe(Assinatura a)
+    {
+        var nome = Formatacao.SemAcentos(a.Nome).ToLowerInvariant();
+        foreach (var (trecho, cor) in CoresMarcas)
+            if (nome.Contains(trecho)) return cor;
+        return Formatacao.CorEstavel(nome);
+    }
+
+    /// <summary>Letra do quadradinho do serviço.</summary>
+    public static string InicialDe(Assinatura a) => a.Nome.Trim() is { Length: > 0 } n ? n[..1].ToUpperInvariant() : "?";
+
     /// <summary>Texto e classe CSS do selo "faltam X dias".</summary>
     public static (string Texto, string Classe) Prazo(int dias) => dias switch
     {

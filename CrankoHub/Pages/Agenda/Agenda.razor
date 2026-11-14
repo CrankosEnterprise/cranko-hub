@@ -237,6 +237,11 @@
     [SupplyParameterFromQuery(Name = "dia")] public string? DiaDoLink { get; set; }
     [SupplyParameterFromQuery(Name = "visao")] public string? VisaoDoLink { get; set; }
 
+    /// <summary>agenda?novo=1 abre direto a janela de novo compromisso (botão Registrar do Início).</summary>
+    [SupplyParameterFromQuery(Name = "novo")] public string? NovoDoLink { get; set; }
+
+    private string? _novoDoLink;
+
     private enum Alcance { SoEste, Todos }
 
     private DadosAgenda A => Store.Dados.Agenda;
@@ -285,11 +290,20 @@
     protected override void OnParametersSet()
     {
         // Link de uma notificação ou do Início (agenda?dia=2026-11-06&visao=dia)
+        AbrirNovoDoLink();
         var link = $"{DiaDoLink}|{VisaoDoLink}";
         if (link == _linkAplicado) return;
         _linkAplicado = link;
         if (LerIso(DiaDoLink) is DateOnly d) IrPara(d);
         if (VisaoDoLink is VisaoAgenda.Dia or VisaoAgenda.Semana or VisaoAgenda.Mes) _visao = VisaoDoLink;
+    }
+
+    // Separado do link do dia: o "novo" abre a janela uma vez por link
+    private void AbrirNovoDoLink()
+    {
+        if (NovoDoLink == _novoDoLink) return;
+        _novoDoLink = NovoDoLink;
+        if (NovoDoLink is not null) NovoPeloBotao();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

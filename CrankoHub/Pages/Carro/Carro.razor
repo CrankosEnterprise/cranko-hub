@@ -22,11 +22,16 @@
     var kmDia = ManutencaoCalculos.KmPorDia(list, hoje);
     var lembretes = ManutencaoCalculos.Lembretes(manut, odoAtual, kmDia, hoje);
     var alertas = lembretes.Count(s => s.Vencida || s.EmBreve);
-    var docsAtencao = DocumentosCalculos.DoVeiculo(c, v.Id).Where(x => DocumentosCalculos.PrecisaAtencao(x, hoje)).ToList();
+    var documentos = DocumentosCalculos.DoVeiculo(c, v.Id);
+    var docsAtencao = documentos.Where(x => DocumentosCalculos.PrecisaAtencao(x, hoje)).ToList();
+    // Cabeçalho do protótipo: "Honda Civic EXL 2.0 · 2019" em cima, o nome grande e a placa ao lado
+    var sobre = string.Join(" · ", new[] { string.Join(" ", new[] { v.Marca, v.Nome, v.Ficha?.Versao }.Where(s => !string.IsNullOrWhiteSpace(s))), v.Ano?.ToString() }.Where(s => !string.IsNullOrWhiteSpace(s)));
 }
 
+<CabecalhoPagina Sobre="@sobre" Titulo="@v.Nome" Selo="@v.Ficha?.Placa" />
+
 <AcoesTopo>
-    @* Só o veículo em uso; cadastrar, editar e excluir ficam na aba Veículos *@
+    @* Com mais de um veículo, a troca fica aqui; cadastrar, editar e excluir ficam na aba Veículos *@
     @if (c.Veiculos.Count > 1)
     {
         <select class="select veh-topo" aria-label="Veículo em uso" title="Veículo em uso" value="@v.Id" @onchange="TrocarVeiculo">
@@ -36,14 +41,11 @@
             }
         </select>
     }
-    else
-    {
-        <button type="button" class="veh-nome veh-topo" title="Ver a ficha do veículo" @onclick="@(() => Abrir("veiculo"))">@Icones.Carro<span>@v.Nome</span></button>
-    }
     @if (ModoCarro.Disponivel)
     {
-        <a class="btn primary" href="carro/modo" title="Modo carro" aria-label="Modo carro">@Icones.Navegacao<span class="rotulo">Modo carro</span></a>
+        <a class="btn" href="carro/modo" title="Modo Carro" aria-label="Modo Carro">@Icones.Carro<span class="rotulo">Modo Carro</span></a>
     }
+    <button class="btn primary" type="button" title="Novo abastecimento" aria-label="Novo abastecimento" @onclick="NovoAbastecimento">@Icones.Bomba<span class="rotulo">Novo abastecimento</span></button>
 </AcoesTopo>
 
 <nav class="tabs" role="tablist" aria-label="Seções do carro">
@@ -77,235 +79,187 @@
         <AbaManutencao @key="v.Id" Veiculo="v" Alterado="StateHasChanged" />
         break;
     default:
-        // Cards com período (Mês / 6M / 1A / Tudo): cada um guarda a sua escolha
-        var combPeriodo = list.Where(a => NoPeriodo(a.Data, _periodoComb, hoje)).ToList();
-        var gastoComb = combPeriodo.Sum(a => a.Valor ?? 0);
-        var kmPeriodo = list.Where(a => NoPeriodo(a.Data, _periodoKm, hoje)).ToList();
-        var kmRodados = kmPeriodo.Sum(a => a.Km);
-        // Odômetro: o valor é sempre a leitura atual; o período mostra quanto ele subiu e a média por mês
-        var primeiroRegistro = list.Select(a => a.Data).Concat(manut.Select(m => m.Data)).DefaultIfEmpty(hoje).Min();
-        var inicioOdo = InicioPeriodo(_periodoOdo, hoje) ?? primeiroRegistro;
-        var odoInicio = ManutencaoCalculos.OdometroAtual(list.Where(a => a.Data < inicioOdo), manut.Where(m => m.Data < inicioOdo))
-                        ?? list.Where(a => a.Data >= inicioOdo).Select(a => a.Odometro is double o ? o - a.Km : (double?)null)
-                               .Concat(manut.Where(m => m.Data >= inicioOdo).Select(m => m.Odometro)).Min();
-        double? subiu = odoAtual is double oa && odoInicio is double oi && oa >= oi ? oa - oi : null;
-        var diasOdo = Math.Max(1, hoje.DayNumber - inicioOdo.DayNumber);
-        var manutPeriodo = _manutAno ? manut.Where(m => m.Data.Year == hoje.Year).ToList() : manut;
-        var gastoManut = manutPeriodo.Sum(m => m.Valor ?? 0);
-        var proximos = lembretes.Where(s => s.TemLembrete).Take(5).ToList();
-        var recentes = list.Select(a => (a.Data, Icone: Icones.Bomba, Texto: $"{Combustivel.NomeDe(a.Combustivel)} · {Num(a.Litros, 1)} L",
-                                         Sub: $"{(a.Inicial ? "ponto de partida" : Num(a.Kml, 2) + " km/l")} · {Money(a.Valor)}"))
-            .Concat(manut.Select(m => (m.Data, Icone: Icones.Ferramenta, Texto: TipoManutencao.NomeDe(m),
-                                       Sub: string.Join(" · ", new[] { m.Descricao, m.Valor is not null ? Money(m.Valor) : null }.Where(s => !string.IsNullOrEmpty(s))))))
-            .OrderByDescending(x => x.Data).Take(6).ToList();
-        var gastosMensais = Formatacao.UltimosMeses(12).Select(m =>
-        {
-            var comb = list.Where(a => a.Data.Year == m.Ano && a.Data.Month == m.Mes).Sum(a => a.Valor ?? 0);
-            var serv = manut.Where(x => x.Data.Year == m.Ano && x.Data.Month == m.Mes).Sum(x => x.Valor ?? 0);
-            var rotulo = MesLabel(m.Ano, m.Mes);
-            return new BarraDado(rotulo, comb + serv, $"{rotulo} · combustível {Money(comb)} · manutenção {Money(serv)}");
-        }).ToList();
+        // ---- Visão geral (protótipo "Fusão"): bloco grande com os números e o consumo mês a mês,
+        //      coluna com tanque, manutenção e documentos, e a tabela dos últimos abastecimentos ----
+        var cor = Modulo.CorDe(Store.Dados.Config, Modulo.Carro);
+        var variacao = CarroCalculos.VariacaoTrimestre(list, hoje);
+        var inicioMes = new DateOnly(hoje.Year, hoje.Month, 1);
+        var doMes = list.Where(a => a.Data >= inicioMes).ToList();
+        var gastoMes = doMes.Sum(a => a.Valor ?? 0) + manut.Where(m => m.Data >= inicioMes).Sum(m => m.Valor ?? 0);
+        var odoInicioMes = ManutencaoCalculos.OdometroAtual(list.Where(a => a.Data < inicioMes), manut.Where(m => m.Data < inicioMes));
+        var kmNoMes = odoAtual is double oa && odoInicioMes is double oi && oa >= oi ? oa - oi : doMes.Sum(a => a.Km);
+        var consumoMensal = CarroCalculos.ConsumoMensal(list);
+        var tanqueLitros = v.Ficha?.TanqueLitros;
+        var tanque = CarroCalculos.TanqueAgora(list, tanqueLitros, kmDia, st.Media, hoje);
+        var comLembrete = lembretes.Where(s => s.TemLembrete).OrderByDescending(s => s.Progresso).Take(3).ToList();
+        var ultimos = list.AsEnumerable().Reverse().Take(5).ToList();
+        var nomeMes = Formatacao.NomeDoMes(hoje.Month);
 
-        <section class="kpis k6">
-            <div class="kpi com-dica">
-                <div class="kpi-head">
-                    <span class="kpi-label">@(_consumoUltimo ? "Último consumo" : "Consumo médio")
-                        <button type="button" class="dica" aria-label="O que é este número?" aria-describedby="dica-consumo">@Icones.Info</button>
-                    <span class="dica-balao" role="tooltip" id="dica-consumo">
-                        @if (_consumoUltimo)
+        <div class="carro-visao">
+            <section class="card cv-hero brilho" style="--c:@cor">
+                <div class="cv-numeros">
+                    <div>
+                        <span class="rot">Consumo médio</span>
+                        <div class="cv-v">@Num(st.Media, 1)<small>km/l</small></div>
+                        @if (variacao is double x)
                         {
-                            <b>Último consumo</b><br />
-                            <span>Quanto o carro fez entre o abastecimento anterior e o último: km rodados nesse trecho ÷ litros gastos (os colocados no último abastecimento, ou o que você informou ou marcou no ponteiro).</span><br />
-                            <span>Mostra como o carro está agora (trânsito, estrada, combustível). Fica mais preciso quando você enche o tanque nos dois abastecimentos; sem encher, use o marcador de combustível.</span><br />
-                            <span>O selo compara com o trecho anterior.</span>
+                            <span class="cv-delta @(x >= 0 ? "bom" : "ruim")">@(x >= 0 ? "↑" : "↓") @Num(Math.Abs(x) * 100, 0)% vs. trimestre anterior</span>
                         }
                         else
                         {
-                            <b>Consumo médio</b><br />
-                            <span>Média de todos os abastecimentos: total de km rodados ÷ total de litros gastos.</span><br />
-                            <span>Mostra o consumo geral do carro ao longo do tempo, sem oscilar a cada abastecimento.</span>
+                            <span class="rot">@(st.N > 0 ? $"melhor {Num(st.Melhor, 1)} · pior {Num(st.Pior, 1)}" : "nenhum trecho ainda")</span>
                         }
-                    </span>
-                    </span>
-                    <div class="chips mini" role="group" aria-label="Consumo a mostrar">
-                        <button type="button" class="chip @(_consumoUltimo ? "active" : "")" aria-pressed="@_consumoUltimo" title="Entre o último abastecimento e o anterior" @onclick="() => _consumoUltimo = true">Último</button>
-                        <button type="button" class="chip @(!_consumoUltimo ? "active" : "")" aria-pressed="@(!_consumoUltimo)" title="Média de todos os abastecimentos" @onclick="() => _consumoUltimo = false">Média</button>
+                    </div>
+                    <div>
+                        <span class="rot">Custo por km</span>
+                        <div class="cv-v">@(st.CustoKm > 0 ? Num(st.CustoKm, 2) : "—")<small>R$</small></div>
+                        <span class="rot">@(st.CustoKm > 0 ? Money(st.CustoKm * 100) + " a cada 100 km" : "informe os valores pagos")</span>
+                    </div>
+                    <div>
+                        <span class="rot">Gasto em @nomeMes</span>
+                        <div class="cv-v">@Num(gastoMes, 2)<small>R$</small></div>
+                        <span class="rot">@doMes.Count @Plural(doMes.Count, "abastecimento", "abastecimentos")</span>
+                    </div>
+                    <div>
+                        <span class="rot">Odômetro</span>
+                        <div class="cv-v">@Num(odoAtual, 0)<small>km</small></div>
+                        <span class="rot">@(odoAtual is null ? "informe nos abastecimentos" : $"+{Num(kmNoMes, 0)} km no mês")</span>
                     </div>
                 </div>
-                @if (_consumoUltimo)
-                {
-                    // Cada abastecimento guarda os km desde o anterior: o km/l dele é o consumo daquele trecho
-                    var trechos = CarroCalculos.ComConsumo(list);
-                    var ultimo = trechos.LastOrDefault();
-                    var penultimo = trechos.Count > 1 ? trechos[^2] : null;
-                    <span class="kpi-value">@Num(ultimo?.Kml, 2)<small>km/l</small></span>
-                    <span class="kpi-sub">
-                        @if (ultimo is null)
-                        {
-                            <span>@(list.Count > 0 ? "Aparece no próximo abastecimento" : "Nenhum abastecimento ainda")</span>
-                        }
-                        else
-                        {
-                            <span>@Num(ultimo.Km, 0) km em @DataBR(ultimo.Data)</span>
-                            @if (penultimo is not null)
-                            {
-                                <span> · </span><Delta Valor="ultimo.Kml - penultimo.Kml" Unidade=" km/l" Casas="1" BomQuandoCai="false" /><span> vs anterior</span>
-                            }
-                        }
-                    </span>
-                }
-                else
-                {
-                    <span class="kpi-value">@Num(st.Media, 2)<small>km/l</small></span>
-                    <span class="kpi-sub">@(st.N > 0 ? $"melhor {Num(st.Melhor, 1)} · pior {Num(st.Pior, 1)}" : "Nenhum abastecimento ainda")</span>
-                }
-            </div>
-            <div class="kpi"><span class="kpi-label">Custo por km</span>
-                <span class="kpi-value">@Money(st.CustoKm)</span>
-                <span class="kpi-sub">@(st.CustoKm > 0 ? Money(st.CustoKm * 100) + " a cada 100 km" : "Informe os valores pagos")</span></div>
-            <div class="kpi">
-                <div class="kpi-head">
-                    <span class="kpi-label">Combustível</span>
-                    @BotoesPeriodo(_periodoComb, p => _periodoComb = p, "Período do gasto com combustível")
+                <div class="cv-graf">
+                    <GraficoLinha Compacto="true" EixoMeses="true" Altura="190" FormatoY="new FormatoNumero(1)" Formato="@(new FormatoNumero(1, " km/l"))"
+                                  MsgVazia="O consumo de cada mês aparece aqui a partir do segundo abastecimento."
+                                  Series="@([new SerieLinha("Consumo", cor, consumoMensal, Markers: false, Area: true)])" />
                 </div>
-                <span class="kpi-value">@Money(gastoComb, gastoComb >= 1000 ? 0 : 2)</span>
-                <span class="kpi-sub">@TextoPeriodo(_periodoComb, primeiroRegistro) · @combPeriodo.Count @Plural(combPeriodo.Count, "abastecimento", "abastecimentos")</span></div>
-            <div class="kpi">
-                <div class="kpi-head">
-                    <span class="kpi-label">Manutenção</span>
-                    <div class="chips mini" role="group" aria-label="Período do gasto com manutenção">
-                        <button type="button" class="chip @(_manutAno ? "active" : "")" aria-pressed="@_manutAno" title="Só @hoje.Year" @onclick="() => _manutAno = true">@hoje.Year</button>
-                        <button type="button" class="chip @(!_manutAno ? "active" : "")" aria-pressed="@(!_manutAno)" title="Todo o período cadastrado" @onclick="() => _manutAno = false">Tudo</button>
-                    </div>
-                </div>
-                <span class="kpi-value">@Money(gastoManut, gastoManut >= 1000 ? 0 : 2)</span>
-                <span class="kpi-sub">@(_manutAno ? $"em {hoje.Year}" : manut.Count > 0 ? "desde " + DataBR(manut.Min(m => m.Data)) : "todo o período") · @manutPeriodo.Count @Plural(manutPeriodo.Count, "serviço", "serviços")</span></div>
-            <div class="kpi">
-                <div class="kpi-head">
-                    <span class="kpi-label">Km rodados</span>
-                    @BotoesPeriodo(_periodoKm, p => _periodoKm = p, "Período dos km rodados")
-                </div>
-                <span class="kpi-value">@Num(kmRodados, 0)<small>km</small></span>
-                <span class="kpi-sub">@TextoPeriodo(_periodoKm, primeiroRegistro) · @kmPeriodo.Count @Plural(kmPeriodo.Count, "abastecimento", "abastecimentos")@(kmPeriodo.Count > 0 ? " · ~" + Num(kmRodados / kmPeriodo.Count, 0) + " km cada" : "")</span></div>
-            <div class="kpi">
-                <div class="kpi-head">
-                    <span class="kpi-label">Odômetro</span>
-                    @BotoesPeriodo(_periodoOdo, p => _periodoOdo = p, "Período do odômetro")
-                </div>
-                <span class="kpi-value">@Num(odoAtual, 0)<small>km</small></span>
-                <span class="kpi-sub">
-                    @if (odoAtual is null)
-                    {
-                        <span>Informe o odômetro nos abastecimentos</span>
+            </section>
+
+            <div class="cv-lado">
+                <section class="card cv-tanque brilho" style="--c:@cor">
+                    @{
+                        var fracao = tanque?.Fracao ?? 0;
+                        const double raio = 38, circ = 2 * Math.PI * raio;
                     }
-                    else if (subiu is null)
+                    <div class="cv-anel">
+                        <svg viewBox="0 0 92 92" aria-hidden="true">
+                            <circle cx="46" cy="46" r="@raio" class="cv-anel-fundo" />
+                            @if (tanque is not null)
+                            {
+                                <circle cx="46" cy="46" r="@raio" class="cv-anel-valor" style="stroke:@cor"
+                                        stroke-dasharray="@($"{(circ * fracao).ToString(System.Globalization.CultureInfo.InvariantCulture)} {circ.ToString(System.Globalization.CultureInfo.InvariantCulture)}")" />
+                            }
+                        </svg>
+                        <b>@(tanque is null ? "—" : Num(fracao * 100, 0) + "%")</b>
+                    </div>
+                    <div>
+                        <span class="rot">Tanque</span>
+                        @if (tanque is { } t)
+                        {
+                            <div class="cv-tanque-km">≈ @Num(st.Media is double md ? t.Litros * md : null, 0) km</div>
+                            <span class="rot">@Num(t.Litros, 0) de @Num(tanqueLitros, 0) litros · estimado</span>
+                        }
+                        else
+                        {
+                            <div class="cv-tanque-km">—</div>
+                            <span class="rot">@(tanqueLitros is null ? "Informe a capacidade na ficha (aba Veículos)" : "Complete o tanque ou marque o ponteiro no abastecimento")</span>
+                        }
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="b-cab"><span class="b-ic" style="--c:#FF9500">@Icones.Ferramenta</span>Manutenção<button type="button" class="b-dir b-link" @onclick="@(() => Abrir("manutencao"))">@comLembrete.Count @Plural(comLembrete.Count, "lembrete", "lembretes")</button></div>
+                    @if (comLembrete.Count > 0)
                     {
-                        <span>Sem leituras para comparar @TextoPeriodo(_periodoOdo, primeiroRegistro)</span>
+                        @foreach (var s in comLembrete)
+                        {
+                            var alerta = s.Vencida || s.EmBreve;
+                            <div class="cv-lemb">
+                                <div class="cv-lemb-linha"><span>@s.Tipo.Nome</span>
+                                    <b class="@(s.Vencida ? "ruim" : alerta ? "atencao" : "")">@(s.KmRestantes is double km && km >= 0 ? $"em {Num(km, 0)} km" : s.Restante)</b></div>
+                                <div class="cv-barra @(s.Vencida ? "ruim" : alerta ? "atencao" : "")"><i style="width:@(Math.Clamp((s.Progresso ?? 0) * 100, 2, 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture))%"></i></div>
+                            </div>
+                        }
                     }
                     else
                     {
-                        <span>+@Num(subiu, 0) km @TextoPeriodo(_periodoOdo, primeiroRegistro)@(_periodoOdo != "mes" ? $" · ~{Num(subiu / diasOdo * 30.4, 0)} km/mês" : "")</span>
+                        <p class="b-vazio">Registre um serviço com intervalo de km ou meses para receber lembretes.</p>
                     }
-                </span></div>
-        </section>
+                </section>
 
-        <div class="grid-2">
-            <section class="card">
-                <div class="card-head">
-                    <div><h2>Manutenção</h2><p>Manutenção e documentos que estão para vencer.</p></div>
-                    <button class="btn sm" type="button" @onclick="@(() => Abrir("manutencao"))">Ver tudo</button>
-                </div>
-                @if (proximos.Count > 0 || docsAtencao.Count > 0)
+                <section class="card cv-docs">
+                    <div class="b-cab"><span class="b-ic" style="--c:#34C759">@Icones.Dados</span>Documentos<button type="button" class="b-dir b-link" @onclick="@(() => Abrir("documentos"))">@hoje.Year</button></div>
+                    @if (documentos.Count > 0)
+                    {
+                        @foreach (var d in documentos.Take(5))
+                        {
+                            var (texto, classe) = DocumentosCalculos.Situacao(d, hoje);
+                            var atencao = DocumentosCalculos.PrecisaAtencao(d, hoje);
+                            <div class="cv-doc">
+                                <span>@(string.IsNullOrWhiteSpace(d.Descricao) ? TipoDocumento.NomeDe(d.Tipo) : d.Descricao)</span>
+                                <b class="@(atencao ? (classe is "critical" ? "ruim" : "atencao") : "")">@(d.Pago || atencao ? char.ToUpper(texto[0]) + texto[1..] : "Até " + DataBR(d.Vencimento))</b>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="b-vazio">IPVA, licenciamento, seguro e CNH aparecem aqui.</p>
+                    }
+                </section>
+            </div>
+
+            <section class="card cv-tabela">
+                <div class="b-cab"><span class="b-ic" style="--c:@cor">@Icones.Bomba</span>Últimos abastecimentos<button type="button" class="b-dir b-link" @onclick="@(() => Abrir("consumo"))">Ver histórico</button></div>
+                @if (ultimos.Count > 0)
                 {
-                    <ul class="activity">
-                        @foreach (var x in docsAtencao)
-                        {
-                            var (texto, classe) = DocumentosCalculos.Situacao(x, hoje);
-                            <li>
-                                <span class="a-icon">@Icones.Dados</span>
-                                <div class="a-text">@TipoDocumento.NomeDe(x.Tipo)<small>@DataBR(x.Vencimento)@(x.Valor is not null ? $" · {Money(x.Valor)}" : "")@(x.Descricao is not null ? $" · {x.Descricao}" : "")</small></div>
-                                <span class="badge @classe">@texto</span>
-                            </li>
-                        }
-                        @foreach (var s in proximos)
-                        {
-                            var (texto, classe) = s.Situacao;
-                            <li>
-                                <span class="a-icon">@Icones.Ferramenta</span>
-                                <div class="a-text">@s.Tipo.Nome<small>@s.Restante</small></div>
-                                <span class="badge @classe">@texto</span>
-                            </li>
-                        }
-                    </ul>
+                    <table class="tabela-limpa">
+                        <thead><tr><th>Data</th><th>Posto</th><th>Combustível</th><th class="num">Litros</th><th class="num">km/l</th><th class="num">Valor</th></tr></thead>
+                        <tbody>
+                            @foreach (var a in ultimos)
+                            {
+                                <tr>
+                                    <td>@DataCurta(a.Data)</td>
+                                    <td>@(a.Posto ?? "—")</td>
+                                    <td><span class="tag-comb" style="--c:@Combustivel.CorDe(a.Combustivel)">@Combustivel.NomeDe(a.Combustivel)</span></td>
+                                    <td class="num">@Num(a.Litros, 1) L</td>
+                                    <td class="num">@(a.Inicial ? "—" : Num(a.Kml, 1))</td>
+                                    <td class="num"><b>@Money(a.Valor)</b></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                 }
                 else
                 {
-                    <div class="chart-empty"><span>Nada vencendo por enquanto.</span></div>
-                }
-            </section>
-
-            <section class="card">
-                <div class="card-head">
-                    <div><h2>Últimos registros</h2><p>Abastecimentos e serviços mais recentes.</p></div>
-                    <button class="btn sm" type="button" @onclick="NovoAbastecimento">+ Abastecimento</button>
-                </div>
-                @if (recentes.Count > 0)
-                {
-                    <ul class="activity">
-                        @foreach (var r in recentes)
-                        {
-                            <li>
-                                <span class="a-icon">@r.Icone</span>
-                                <div class="a-text">@r.Texto<small>@r.Sub</small></div>
-                                <time>@DataBR(r.Data)</time>
-                            </li>
-                        }
-                    </ul>
-                }
-                else
-                {
-                    <div class="chart-empty"><span>Nada registrado ainda para @v.Nome.</span></div>
+                    <p class="b-vazio">Nenhum abastecimento ainda. Use "Novo abastecimento" no topo.</p>
                 }
             </section>
         </div>
-
-        <section class="card">
-            <div class="card-head"><div><h2>Gasto mensal com o carro</h2><p>Combustível + manutenção nos últimos 12 meses.</p></div></div>
-            <GraficoBarras RealcarUltimo="true" Dados="gastosMensais" Nome="Gasto" Altura="230"
-                           FormatoY="@(new FormatoNumero(0, Prefixo: "R$ "))" Formato="FormatoNumero.Real"
-                           MsgVazia="Sem gastos nos últimos 12 meses." />
-        </section>
         break;
 }
 
 @code {
     private static readonly (string Chave, string Rotulo)[] Abas =
     [
-        ("resumo", "Resumo"),
-        ("veiculo", "Veículos"),
-        ("consumo", "Consumo"),
-        ("calculadoras", "Calculadoras"),
+        ("resumo", "Visão geral"),
+        ("consumo", "Abastecimentos e consumo"),
         ("manutencao", "Manutenção"),
         ("documentos", "Documentos"),
+        ("calculadoras", "Calculadoras"),
+        ("veiculo", "Veículos"),
     ];
 
     // Aba aberta, mantida enquanto o app estiver aberto
     private static string _aba = "resumo";
-
-    // Card de consumo do Resumo: último trecho (padrão) ou média geral; mantido enquanto o app estiver aberto
-    private static bool _consumoUltimo = true;
-
-    // Cards do Resumo com período, cada um com a sua escolha (mantida enquanto o app estiver aberto)
-    private static readonly (string Chave, string Rotulo, string Titulo)[] Periodos =
-        [("mes", "Mês", "Este mês"), ("6m", "6M", "Últimos 6 meses"), ("1a", "1A", "Últimos 12 meses"), ("tudo", "Tudo", "Todo o período cadastrado")];
-    private static string _periodoComb = "mes", _periodoKm = "mes", _periodoOdo = "6m";
-    private static bool _manutAno = true;   // true = ano atual, false = todo o período
 
     /// <summary>Permite abrir uma aba direto pelo link (ex.: carro?aba=manutencao).</summary>
     [SupplyParameterFromQuery(Name = "aba")] public string? AbaInicial { get; set; }
 
     /// <summary>Permite abrir um veículo direto pelo link (ex.: carro?veiculo=abc123).</summary>
     [SupplyParameterFromQuery(Name = "veiculo")] public string? VeiculoDoLink { get; set; }
+
+    /// <summary>carro?novo=abastecimento abre direto a janela de novo abastecimento (botão Registrar do Início).</summary>
+    [SupplyParameterFromQuery(Name = "novo")] public string? NovoDoLink { get; set; }
+
+    private string? _novoDoLink;
 
     private string? _abaDoLink, _veiculoDoLink;
     private bool _novoAbastecimento; // abrir Consumo já com a janela de novo abastecimento
@@ -316,6 +270,11 @@
 
     protected override void OnParametersSet()
     {
+        if (NovoDoLink != _novoDoLink)
+        {
+            _novoDoLink = NovoDoLink;
+            if (NovoDoLink == "abastecimento" && CarroCalculos.VeiculoAtivo(Dados) is not null) NovoAbastecimento();
+        }
         // Só quando o link muda, para não desfazer a aba escolhida a cada nova renderização
         if (VeiculoDoLink != _veiculoDoLink)
         {
@@ -335,45 +294,13 @@
         _novoAbastecimento = false;
     }
 
-    // "+ Abastecimento" do Resumo: abre Consumo já com a janela de novo abastecimento
+    // "Novo abastecimento" (topo, ou o link do Início): abre Consumo já com a janela de novo abastecimento
     private void NovoAbastecimento()
     {
         Abrir("consumo");
         _novoAbastecimento = true;
         _pedidoAbastecimento++;
     }
-
-    /// <summary>Primeiro dia do período ("mes", "6m", "1a"); null = todo o período.</summary>
-    private static DateOnly? InicioPeriodo(string periodo, DateOnly hoje) => periodo switch
-    {
-        "mes" => new DateOnly(hoje.Year, hoje.Month, 1),
-        "6m" => hoje.AddMonths(-6).AddDays(1),
-        "1a" => hoje.AddYears(-1).AddDays(1),
-        _ => null,
-    };
-
-    private static bool NoPeriodo(DateOnly data, string periodo, DateOnly hoje) =>
-        InicioPeriodo(periodo, hoje) is not DateOnly inicio || data >= inicio;
-
-    /// <summary>"neste mês", "em 6 meses", "em 12 meses" ou "desde 12/03/2025".</summary>
-    private static string TextoPeriodo(string periodo, DateOnly primeiro) => periodo switch
-    {
-        "mes" => "neste mês",
-        "6m" => "em 6 meses",
-        "1a" => "em 12 meses",
-        _ => "desde " + DataBR(primeiro),
-    };
-
-    /// <summary>Botõezinhos Mês / 6M / 1A / Tudo no canto de um card.</summary>
-    private RenderFragment BotoesPeriodo(string atual, Action<string> escolher, string rotulo) => __builder =>
-    {
-        <div class="chips mini" role="group" aria-label="@rotulo">
-            @foreach (var (chave, texto, titulo) in Periodos)
-            {
-                <button type="button" class="chip @(atual == chave ? "active" : "")" aria-pressed="@(atual == chave)" title="@titulo" @onclick="() => escolher(chave)">@texto</button>
-            }
-        </div>
-    };
 
     // ---- Veículos ----
 

@@ -16,6 +16,9 @@ public class GraficoBarras : GraficoBase
     /// <summary>Séries mensais: a última barra (o mês atual) fica cheia e as outras esmaecidas.</summary>
     [Parameter] public bool RealcarUltimo { get; set; }
 
+    /// <summary>Séries que começam no mês atual (ex.: cobranças previstas): a primeira barra fica cheia.</summary>
+    [Parameter] public bool RealcarPrimeiro { get; set; }
+
     [Parameter] public FormatoNumero? Formato { get; set; }
 
     [Parameter] public FormatoNumero? FormatoY { get; set; }
@@ -29,6 +32,7 @@ public class GraficoBarras : GraficoBase
         height = Altura,
         color = Cor,
         highlightLast = RealcarUltimo,
+        highlightFirst = RealcarPrimeiro,
         fmt = Formato,
         yFmt = FormatoY,
         emptyMsg = MsgVazia,

@@ -1,0 +1,20 @@
+@namespace CrankoHub.Components
+@* Troca o título do cabeçalho da página (Layout/LayoutPrincipal.razor) enquanto a página está aberta.
+   Uso: <CabecalhoPagina Sobre="Honda Civic EXL 2.0 · 2019" Titulo="Civic" Selo="FHK-2B47" /> *@
+@implements IDisposable
+@inject CabecalhoService Cabecalho
+
+@code {
+    /// <summary>Linha pequena acima do título (null = a descrição do módulo).</summary>
+    [Parameter] public string? Sobre { get; set; }
+
+    /// <summary>Título grande (null = o nome do módulo).</summary>
+    [Parameter] public string? Titulo { get; set; }
+
+    /// <summary>Etiqueta ao lado do título (ex.: a placa do carro).</summary>
+    [Parameter] public string? Selo { get; set; }
+
+    protected override void OnParametersSet() => Cabecalho.Definir(this, Sobre, Titulo, Selo);
+
+    public void Dispose() => Cabecalho.Limpar(this);
+}

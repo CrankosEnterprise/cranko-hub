@@ -19,6 +19,9 @@ public class GraficoLinha : GraficoBase
     /// <summary>Gráfico de bloco (Início): sem eixos e sem grade, a área vai até as bordas.</summary>
     [Parameter] public bool Compacto { get; set; }
 
+    /// <summary>Com Compacto: o nome de cada mês embaixo e duas linhas de grade (séries mensais).</summary>
+    [Parameter] public bool EixoMeses { get; set; }
+
     protected override string FuncaoJs => "crankoCharts.line";
 
     protected override object Opcoes() => new
@@ -31,5 +34,6 @@ public class GraficoLinha : GraficoBase
         emptyMsg = MsgVazia,
         label = Rotulo,
         compact = Compacto,
+        months = EixoMeses,
     };
 }

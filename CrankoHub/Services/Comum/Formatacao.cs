@@ -79,4 +79,22 @@ public static class Formatacao
     }
 
     public static string Plural(int n, string singular, string plural) => n == 1 ? singular : plural;
+
+    // Cores para dar a cada coisa sem cor própria uma cor estável a partir do nome
+    private static readonly string[] CoresEstaveis = ["#5E5CE6", "#FF9F0A", "#30B0C7", "#FF375F", "#34C759", "#AF52DE", "#FF6B35", "#0A84FF"];
+
+    /// <summary>Sempre a mesma cor para o mesmo texto (capas sem imagem, serviços sem marca conhecida).</summary>
+    public static string CorEstavel(string texto)
+    {
+        var h = 0;
+        foreach (var c in SemAcentos(texto).ToLowerInvariant()) h = (h * 31 + c) & 0x7FFFFFFF;
+        return CoresEstaveis[h % CoresEstaveis.Length];
+    }
+
+    /// <summary>"novembro" (minúsculo, como no meio de uma frase).</summary>
+    public static string NomeDoMes(int mes) => CultureInfo.GetCultureInfo("pt-BR").DateTimeFormat.GetMonthName(mes);
+
+    /// <summary>O texto sem acentos (ex.: "Saúde" → "Saude"), para comparar nomes.</summary>
+    public static string SemAcentos(string texto) => new(texto.Normalize(System.Text.NormalizationForm.FormD)
+        .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray());
 }

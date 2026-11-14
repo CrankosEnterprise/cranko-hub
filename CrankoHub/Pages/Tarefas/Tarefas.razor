@@ -280,6 +280,11 @@
     /// <summary>Abre o editor deste card (link vindo da Agenda).</summary>
     [SupplyParameterFromQuery(Name = "card")] public string? CardDoLink { get; set; }
 
+    /// <summary>tarefas?novo=1 (ou novo=hoje, com prazo para hoje) abre direto a janela de nova tarefa (Início).</summary>
+    [SupplyParameterFromQuery(Name = "novo")] public string? NovoDoLink { get; set; }
+
+    private string? _novoDoLink;
+
     private string? _cardAberto;
 
     // Filtros mantidos enquanto o app estiver aberto
@@ -337,6 +342,18 @@
     {
         if (QuadroDoLink is not null && (QuadroDoLink == Quadro.Hoje || Dados.Quadros.Any(q => q.Id == QuadroDoLink)))
             Dados.Ativo = QuadroDoLink;
+        if (NovoDoLink != _novoDoLink)
+        {
+            _novoDoLink = NovoDoLink;
+            // No quadro aberto (ou no primeiro, se o aberto for o "Hoje"), na primeira coluna
+            var q = Dados.Quadros.FirstOrDefault(x => x.Id == Dados.Ativo) ?? Dados.Quadros.FirstOrDefault();
+            if (NovoDoLink is not null && q is { Colunas.Count: > 0 })
+            {
+                _novo = true;
+                _editando = new CardTarefa { Prazo = NovoDoLink == "hoje" ? Hoje : null };
+                PreencherForm(_editando, q.Id, q.Colunas[0].Id);
+            }
+        }
         if (CardDoLink is not null && CardDoLink != _cardAberto && Dados.Cards.FirstOrDefault(c => c.Id == CardDoLink) is { } card)
         {
             _cardAberto = CardDoLink;

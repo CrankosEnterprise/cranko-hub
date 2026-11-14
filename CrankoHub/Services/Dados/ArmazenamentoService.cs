@@ -151,6 +151,9 @@ public class ArmazenamentoService
     public void Salvar()
     {
         if (!PorConta) return; // tela de login: não há conta para guardar
+#if DEBUG
+        if (DadosDemo.Ativo) return; // modo demonstração: nada é gravado nem enviado
+#endif
         try
         {
             Directory.CreateDirectory(PastaDados);
@@ -169,6 +172,9 @@ public class ArmazenamentoService
 
     private static EstadoApp Carregar()
     {
+#if DEBUG
+        if (DadosDemo.Ativo) return Normalizar(DadosDemo.Criar()); // dados de exemplo, só na memória
+#endif
         if (!PorConta) return Novo();
         try
         {

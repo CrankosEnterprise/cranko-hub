@@ -168,7 +168,7 @@ const Charts = (() => {
    */
   function line(container, opts) {
     const {
-      series, refs = [], height = 260, compact = false,
+      series, refs = [], height = 260, compact = false, months = false,
       yFmt = v => U.num(v, 0), fmt = v => U.num(v, 1), xFmt = U.dateShort,
       emptyMsg = 'Sem dados ainda.',
     } = opts;
@@ -178,7 +178,7 @@ const Charts = (() => {
       if (!all.length) return empty(root, emptyMsg, 'linha', height);
 
       // Compacto (blocos do Início): sem eixos nem grade, a área vai até as bordas
-      const H = height, m = compact ? { t: 14, r: 8, b: 0, l: 0 } : { t: 18, r: 14, b: 28, l: 46 };
+      const H = height, m = compact ? { t: 14, r: 8, b: months ? 26 : 0, l: months ? 8 : 0 } : { t: 18, r: 14, b: 28, l: 46 };
       const iw = W - m.l - m.r, ih = H - m.t - m.b;
       const xs = all.map(p => p.x);
       let x0 = Math.min(...xs), x1 = Math.max(...xs);
@@ -194,6 +194,16 @@ const Charts = (() => {
 
       const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': opts.label || 'Gráfico de linhas' }, root);
 
+      // Compacto com os meses (gráfico grande do Carro): duas linhas de grade e o nome de cada mês embaixo
+      if (compact && months) {
+        [1 / 3, 2 / 3].forEach(f => el('line', { x1: 0, x2: W, y1: m.t + f * ih, y2: m.t + f * ih, class: 'grid' }, svg));
+        const ux = [...new Set(xs)].sort((a, b) => a - b);
+        const passo = Math.max(1, Math.ceil(ux.length / Math.max(1, Math.floor(iw / 44))));
+        ux.forEach((v, i) => {
+          if ((ux.length - 1 - i) % passo === 0)
+            text(svg, X(v), H - 6, U.MESES[new Date(v).getMonth()], 'axis', i === 0 ? 'start' : i === ux.length - 1 ? 'end' : 'middle');
+        });
+      }
       // Grade fraquinha e rótulos discretos (nada disso no compacto)
       if (!compact) {
       const rotulos = rotulosY(n.ticks, yFmt);
@@ -282,7 +292,7 @@ const Charts = (() => {
    */
   function bar(container, opts) {
     const {
-      data, name = '', height = 240, color = 'var(--series-1)', highlightLast = false,
+      data, name = '', height = 240, color = 'var(--series-1)', highlightLast = false, highlightFirst = false,
       yFmt = v => U.num(v, 0), fmt = v => U.num(v, 1), emptyMsg = 'Sem dados ainda.',
     } = opts;
 
@@ -312,10 +322,11 @@ const Charts = (() => {
       const bars = data.map((d, i) => {
         const x = m.l + i * bw + (bw - barW) / 2;
         const yTop = Y(Math.max(d.value, 0)), yBot = Y(Math.min(d.value, 0));
-        const ultima = i === data.length - 1;
-        if ((data.length - 1 - i) % every === 0) text(svg, m.l + i * bw + bw / 2, H - 6, d.label, `axis${highlightLast && ultima ? ' atual' : ''}`);
-        const preenchimento = !highlightLast || ultima ? cheia : fraca;
-        return el('path', { d: barPath(x, yTop, barW, yBot - yTop, 6, d.value >= 0), class: `bar${highlightLast && ultima ? ' atual' : ''}`, fill: preenchimento, style: `color:${color}` }, svg);
+        const ultima = highlightFirst ? i === 0 : i === data.length - 1;
+        const realce = highlightLast || highlightFirst;
+        if ((data.length - 1 - i) % every === 0) text(svg, m.l + i * bw + bw / 2, H - 6, d.label, `axis${realce && ultima ? ' atual' : ''}`);
+        const preenchimento = !realce || ultima ? cheia : fraca;
+        return el('path', { d: barPath(x, yTop, barW, yBot - yTop, 6, d.value >= 0), class: `bar${realce && ultima ? ' atual' : ''}`, fill: preenchimento, style: `color:${color}` }, svg);
       });
       el('line', { x1: m.l, x2: W - m.r, y1: Y(0), y2: Y(0), class: 'baseline' }, svg);
 
@@ -361,6 +372,7 @@ window.crankoCharts = {
       refs: o.refs || [],
       height: o.height || 260,
       compact: !!o.compact,
+      months: !!o.months,
       fmt: U.fmt(o.fmt, v => U.num(v, 1)),
       yFmt: U.fmt(o.yFmt, v => U.num(v, 0)),
       emptyMsg: o.emptyMsg || 'Sem dados ainda.',
@@ -374,6 +386,7 @@ window.crankoCharts = {
       height: o.height || 240,
       color: o.color || 'var(--series-1)',
       highlightLast: !!o.highlightLast,
+      highlightFirst: !!o.highlightFirst,
       fmt: U.fmt(o.fmt, v => U.num(v, 1)),
       yFmt: U.fmt(o.yFmt, v => U.num(v, 0)),
       emptyMsg: o.emptyMsg || 'Sem dados ainda.',

@@ -4,7 +4,7 @@ namespace CrankoHub.Models;
 public class Configuracoes
 {
     /// <summary>Cor de destaque: chave da paleta (ver <see cref="Models.CorDestaque"/>) ou "#RRGGBB".</summary>
-    public string CorDestaque { get; set; } = "azul";
+    public string CorDestaque { get; set; } = "marinho";
 
     /// <summary>O X da janela esconde o app na bandeja (perto do relógio) em vez de fechar.</summary>
     public bool MinimizarParaBandeja { get; set; } = true;

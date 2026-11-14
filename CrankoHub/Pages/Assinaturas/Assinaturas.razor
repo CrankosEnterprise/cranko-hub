@@ -4,217 +4,166 @@
 @inject ToastService Toast
 @inject IDialogoService Dialogo
 
+@*
+    Assinaturas (protótipo "Fusão"): o total por mês no título; à esquerda a rosca de para onde vai o dinheiro e as
+    próximas cobranças; à direita os dias de cobrança do mês, um cartão por serviço (clicar edita) e as cobranças
+    previstas mês a mês. Cada serviço tem a cor da sua marca (AssinaturasCalculos.CorDe).
+*@
 @{
     var hoje = Hoje;
     var todas = Lista;
     var ativas = todas.Where(a => a.Ativa).ToList();
-    var canceladas = todas.Count - ativas.Count;
+    var pausadas = todas.Count - ativas.Count;
     var porMes = ativas.Sum(AssinaturasCalculos.PorMes);
-    var proximas30 = AssinaturasCalculos.CobrancasAte(ativas, hoje, 30);
-    var proxima = ativas.Select(a => (Assinatura: a, Data: AssinaturasCalculos.ProximaCobranca(a, hoje)))
-        .OrderBy(x => x.Data).ThenBy(x => x.Assinatura.Nome).FirstOrDefault();
-    var maisCara = ativas.MaxBy(AssinaturasCalculos.PorMes);
     var ed = Editando();
     var categorias = AssinaturasCalculos.CategoriasSugeridas.Union(todas.Select(a => a.Categoria).OfType<string>()).Distinct().Order().ToList();
+    var porValor = ativas.OrderByDescending(AssinaturasCalculos.PorMes).ThenBy(a => a.Nome).ToList();
 
-    // Próximas cobranças: período e ciclo escolhidos, uma linha por assinatura
-    var ciclosAtivos = CicloCobranca.Todos.Where(c => ativas.Any(a => a.Ciclo == c.Chave)).ToList();
-    if (_cicloProximas != "" && !ciclosAtivos.Any(c => c.Chave == _cicloProximas)) _cicloProximas = "";
-    var diasPeriodo = hoje.AddMonths(_mesesProximas).DayNumber - hoje.DayNumber;
-    var cobrancasPeriodo = AssinaturasCalculos.CobrancasAte(ativas.Where(a => _cicloProximas == "" || a.Ciclo == _cicloProximas), hoje, diasPeriodo);
-    var proximasPorAssinatura = cobrancasPeriodo.GroupBy(c => c.Assinatura)
-        .Select(g => (Assinatura: g.Key, Data: g.First().Data, Vezes: g.Count(), Total: g.Sum(c => c.Assinatura.Valor)))
-        .OrderBy(x => x.Data).ThenBy(x => x.Assinatura.Nome).ToList();
-    var rotuloPeriodo = PeriodosProximas.First(p => p.Meses == _mesesProximas).Texto;
+    // Próximas cobranças: a primeira de cada serviço nos próximos 60 dias
+    var proximas = AssinaturasCalculos.CobrancasAte(ativas, hoje, 60)
+        .GroupBy(c => c.Assinatura).Select(g => g.First()).OrderBy(c => c.Data).ThenBy(c => c.Assinatura.Nome).Take(4).ToList();
+
+    // Dias de cobrança do mês atual (do dia 1 ao último)
+    var inicioMes = new DateOnly(hoje.Year, hoje.Month, 1);
+    var diasNoMes = DateTime.DaysInMonth(hoje.Year, hoje.Month);
+    var cobrancasMes = AssinaturasCalculos.CobrancasAte(ativas, inicioMes, diasNoMes - 1);
+    var nomeMes = Formatacao.NomeDoMes(hoje.Month);
 
     // Cobranças previstas mês a mês (do mês atual em diante)
-    var inicioMes = new DateOnly(hoje.Year, hoje.Month, 1);
     var meses = Enumerable.Range(0, 12).Select(i => inicioMes.AddMonths(i)).ToList();
     var cobrancasAno = AssinaturasCalculos.CobrancasAte(ativas, hoje, meses[^1].AddMonths(1).DayNumber - 1 - hoje.DayNumber);
     var previsaoMensal = meses.Select(m =>
     {
         var doMes = cobrancasAno.Where(c => c.Data.Year == m.Year && c.Data.Month == m.Month).ToList();
         var rotulo = MesLabel(m.Year, m.Month);
-        return new BarraDado(rotulo, doMes.Sum(c => c.Assinatura.Valor), $"{rotulo} · {doMes.Count} {Plural(doMes.Count, "cobrança", "cobranças")}");
+        return new BarraDado(rotulo.Split('/')[0], doMes.Sum(c => c.Assinatura.Valor), $"{rotulo} · {doMes.Count} {Plural(doMes.Count, "cobrança", "cobranças")}");
     }).ToList();
 
-    var tabela = (_filtro switch
-    {
-        "ativas" => todas.Where(a => a.Ativa),
-        "canceladas" => todas.Where(a => !a.Ativa),
-        _ => todas,
-    })
-    .OrderByDescending(a => a.Ativa)
-    .ThenBy(a => AssinaturasCalculos.ProximaCobranca(a, hoje))
-    .ThenBy(a => a.Nome)
-    .ToList();
+    var cartoes = (_mostrarPausadas ? todas.Where(a => !a.Ativa) : porValor).ToList();
+    const double raio = 92, circ = 2 * Math.PI * raio;
 }
 
+<CabecalhoPagina Sobre="@($"{ativas.Count} {Plural(ativas.Count, "serviço ativo", "serviços ativos")}{(pausadas > 0 ? $" · {pausadas} {Plural(pausadas, "pausado", "pausados")}" : "")}")"
+                 Titulo="@($"{Money(porMes)} por mês")" />
+
 <AcoesTopo>
+    @if (pausadas > 0)
+    {
+        <button class="btn @(_mostrarPausadas ? "ligado" : "")" type="button" aria-pressed="@_mostrarPausadas" title="Mostrar as assinaturas pausadas ou canceladas"
+                @onclick="() => _mostrarPausadas = !_mostrarPausadas">@Icones.Pausar<span class="rotulo">Pausadas (@pausadas)</span></button>
+    }
     <button class="btn primary" type="button" title="Nova assinatura" aria-label="Nova assinatura" @onclick="AbrirNova">@Icones.Mais<span class="rotulo">Nova assinatura</span></button>
 </AcoesTopo>
 
-<section class="kpis">
-    <div class="kpi">
-        <div class="kpi-topo">
-            <span class="kpi-label">Custo @(_custoAnual ? "anual" : "mensal")</span>
-            <div class="chips mini" role="group" aria-label="Ver custo por mês ou por ano">
-                <button type="button" class="chip @(!_custoAnual ? "active" : "")" aria-pressed="@(!_custoAnual)" @onclick="() => _custoAnual = false">Mês</button>
-                <button type="button" class="chip @(_custoAnual ? "active" : "")" aria-pressed="@_custoAnual" @onclick="() => _custoAnual = true">Ano</button>
+<div class="assin-grade">
+    <section class="card as-rosca brilho" style="--c:@Modulo.CorDe(Store.Dados.Config, Modulo.Assinaturas)">
+        <div class="b-cab"><span class="b-ic">@Icones.Dinheiro</span>Para onde vai o dinheiro</div>
+        <div class="as-rosca-svg">
+            <svg viewBox="0 0 230 230" aria-hidden="true">
+                <circle cx="115" cy="115" r="@raio" class="as-rosca-fundo" />
+                @{ var acumulado = 0.0; }
+                @foreach (var a in porValor)
+                {
+                    var fatia = porMes > 0 ? AssinaturasCalculos.PorMes(a) / porMes : 0;
+                    var traco = Math.Max(0, circ * fatia - (porValor.Count > 1 ? 4 : 0));
+                    <circle cx="115" cy="115" r="@raio" class="as-fatia" style="stroke:@AssinaturasCalculos.CorDe(a)"
+                            stroke-dasharray="@($"{Inv(traco)} {Inv(circ)}")" stroke-dashoffset="@Inv(-circ * acumulado)"><title>@a.Nome · @Money(AssinaturasCalculos.PorMes(a))/mês</title></circle>
+                    acumulado += fatia;
+                }
+            </svg>
+            <div class="as-rosca-centro">
+                <span>Por ano</span>
+                <b>@Num(porMes * 12, 0)</b>
+                <span>reais</span>
             </div>
         </div>
-        <span class="kpi-value">@Money(_custoAnual ? porMes * 12 : porMes)</span>
-        <span class="kpi-sub">@(ativas.Count == 0 ? "Nenhuma assinatura ativa" : _custoAnual ? "somando 12 meses das ativas" : "anuais divididas por 12")</span></div>
-    <div class="kpi"><span class="kpi-label">Ativas</span>
-        <span class="kpi-value">@ativas.Count</span>
-        <span class="kpi-sub">@(canceladas > 0 ? $"{canceladas} {Plural(canceladas, "cancelada", "canceladas")}" : "nenhuma cancelada")</span></div>
-    <div class="kpi"><span class="kpi-label">Próxima cobrança</span>
-        <span class="kpi-value">@(proxima.Assinatura?.Nome ?? Vazio)</span>
-        <span class="kpi-sub">
-            @if (proxima.Assinatura is not null)
+        <div class="as-prox">
+            <div class="as-prox-titulo">Próximas cobranças</div>
+            @if (proximas.Count > 0)
             {
-                var (texto, classe) = AssinaturasCalculos.Prazo(proxima.Data.DayNumber - hoje.DayNumber);
-                <span>@Money(proxima.Assinatura.Valor) · </span><span class="badge @classe">@texto</span>
+                @foreach (var (a, data) in proximas)
+                {
+                    var (prazo, _) = AssinaturasCalculos.Prazo(data.DayNumber - hoje.DayNumber);
+                    <button type="button" class="as-prox-item" @onclick="() => Editar(a)">
+                        <span class="as-logo mini" style="--c:@AssinaturasCalculos.CorDe(a)">@AssinaturasCalculos.InicialDe(a)</span>
+                        <span class="as-prox-nome">@a.Nome</span>
+                        <span class="as-prox-dia">dia @data.Day@(data.DayNumber - hoje.DayNumber <= 1 ? $" · {prazo}" : "")</span>
+                        <b>@Money(a.Valor)</b>
+                    </button>
+                }
             }
             else
             {
-                @("Nenhuma assinatura ativa")
+                <p class="b-vazio">Nenhuma cobrança nos próximos 60 dias.</p>
             }
-        </span></div>
-    <div class="kpi"><span class="kpi-label">Próximos 30 dias</span>
-        <span class="kpi-value">@Money(proximas30.Sum(c => c.Assinatura.Valor))</span>
-        <span class="kpi-sub">@proximas30.Count @Plural(proximas30.Count, "cobrança", "cobranças")</span></div>
-    <div class="kpi"><span class="kpi-label">Mais cara</span>
-        <span class="kpi-value">@(maisCara?.Nome ?? Vazio)</span>
-        <span class="kpi-sub">@(maisCara is not null ? Money(AssinaturasCalculos.PorMes(maisCara)) + "/mês" : "Nenhuma assinatura ativa")</span></div>
-</section>
-
-<section class="card">
-    <div class="card-head">
-        <div>
-            <h2>Próximas cobranças</h2>
-            <p>@(cobrancasPeriodo.Count > 0
-                ? $"{Money(cobrancasPeriodo.Sum(c => c.Assinatura.Valor))} em {cobrancasPeriodo.Count} {Plural(cobrancasPeriodo.Count, "cobrança", "cobranças")} nos próximos {rotuloPeriodo}"
-                : $"O que vence nos próximos {rotuloPeriodo}.")</p>
         </div>
-        <div class="filtros-linha">
-            @if (ciclosAtivos.Count > 1)
-            {
-                <div class="chips" role="group" aria-label="Filtrar por ciclo">
-                    <button type="button" class="chip @(_cicloProximas == "" ? "active" : "")" @onclick="@(() => _cicloProximas = "")">Todas</button>
-                    @foreach (var c in ciclosAtivos)
-                    {
-                        <button type="button" class="chip @(_cicloProximas == c.Chave ? "active" : "")" @onclick="() => _cicloProximas = c.Chave">@NomePlural(c)</button>
-                    }
-                </div>
-            }
-            <div class="chips" role="group" aria-label="Período">
-                @foreach (var p in PeriodosProximas)
+    </section>
+
+    <div class="as-direita">
+        <section class="card">
+            <div class="b-cab"><span class="b-ic" style="--c:@Modulo.CorDe(Store.Dados.Config, Modulo.Assinaturas)">@Icones.Agenda</span>Cobranças de @nomeMes<span class="b-dir">Hoje é dia @hoje.Day</span></div>
+            <div class="as-mes">
+                @for (var dia = 1; dia <= diasNoMes; dia++)
                 {
-                    <button type="button" class="chip @(_mesesProximas == p.Meses ? "active" : "")" @onclick="() => _mesesProximas = p.Meses">@p.Rotulo</button>
+                    var d = dia;
+                    var doDia = cobrancasMes.Where(x => x.Data.Day == d).ToList();
+                    <div class="as-dia @(d == hoje.Day ? "hoje" : d < hoje.Day ? "passou" : "")"
+                         title="@(doDia.Count > 0 ? string.Join(", ", doDia.Select(x => $"{x.Assinatura.Nome} {Money(x.Assinatura.Valor)}")) : null)">
+                        @d
+                        @if (doDia.Count > 0)
+                        {
+                            <span class="as-pontos">@foreach (var x in doDia.Take(3)) { <i style="--c:@AssinaturasCalculos.CorDe(x.Assinatura)"></i> }</span>
+                        }
+                    </div>
                 }
             </div>
+        </section>
+
+        <div class="as-cartoes">
+            @foreach (var a in cartoes)
+            {
+                var proximaData = AssinaturasCalculos.ProximaCobranca(a, hoje);
+                var dias = proximaData.DayNumber - hoje.DayNumber;
+                var corA = AssinaturasCalculos.CorDe(a);
+                <button type="button" class="as-cartao @(a.Ativa ? "" : "pausada")" style="--c:@corA" @key="a.Id" @onclick="() => Editar(a)" title="Editar @a.Nome">
+                    <span class="as-cartao-topo">
+                        <span class="as-logo" style="--c:@corA">@AssinaturasCalculos.InicialDe(a)</span>
+                        @if (!a.Ativa)
+                        {
+                            <span class="pilula">Pausada</span>
+                        }
+                        else if (dias <= 1)
+                        {
+                            <span class="pilula atencao">@(dias == 0 ? "Hoje" : "Amanhã")</span>
+                        }
+                        else
+                        {
+                            <span class="pilula">@(CicloCobranca.Buscar(a.Ciclo).Meses == 1 ? $"Dia {proximaData.Day}" : DataCurta(proximaData))</span>
+                        }
+                    </span>
+                    <b class="as-cartao-nome">@a.Nome</b>
+                    <span class="as-cartao-sub">@CicloCobranca.Buscar(a.Ciclo).Nome · @AssinaturasCalculos.CategoriaDe(a)</span>
+                    <span class="as-cartao-valor">@Money(a.Valor)<small>@Sufixo(a.Ciclo)</small></span>
+                </button>
+            }
+            @if (!_mostrarPausadas && todas.Count == 0)
+            {
+                <button type="button" class="as-cartao novo" @onclick="AbrirNova">
+                    <span class="as-novo-mais">@Icones.Mais</span>
+                    <b>Nova assinatura</b>
+                    <span class="as-cartao-sub">@(todas.Count == 0 ? "Comece pelo streaming ou pela academia" : "Adicionar outro serviço")</span>
+                </button>
+            }
         </div>
+
+        <section class="card">
+            <div class="b-cab"><span class="b-ic" style="--c:@Modulo.CorDe(Store.Dados.Config, Modulo.Assinaturas)">@Icones.Dinheiro</span>Cobranças previstas<span class="b-dir">@Money(previsaoMensal.Sum(b => b.Value)) nos próximos 12 meses</span></div>
+            <GraficoBarras RealcarPrimeiro="true" Dados="previsaoMensal" Nome="Cobranças" Altura="210" Cor="@Modulo.CorDe(Store.Dados.Config, Modulo.Assinaturas)"
+                           FormatoY="@(new FormatoNumero(0, Prefixo: "R$ "))" Formato="FormatoNumero.Real"
+                           MsgVazia="As cobranças de cada mês aparecem aqui." />
+        </section>
     </div>
-    @if (proximasPorAssinatura.Count > 0)
-    {
-        <ul class="activity">
-            @foreach (var (a, data, vezes, total) in proximasPorAssinatura)
-            {
-                var (texto, classe) = AssinaturasCalculos.Prazo(data.DayNumber - hoje.DayNumber);
-                <li @key="a.Id">
-                    <span class="a-icon">@Icones.Assinaturas</span>
-                    <div class="a-text">@a.Nome · <b>@Money(a.Valor)</b>
-                        <small>@DataBR(data) · @CicloCobranca.Buscar(a.Ciclo).Nome.ToLowerInvariant()@(vezes > 1 ? $" · {vezes}× no período = {Money(total)}" : "")@(string.IsNullOrEmpty(a.Pagamento) ? "" : " · " + a.Pagamento)</small></div>
-                    <span class="badge @classe">@texto</span>
-                </li>
-            }
-        </ul>
-    }
-    else
-    {
-        <div class="chart-empty">
-            @if (ativas.Count == 0)
-            {
-                <span>Nenhuma assinatura ainda. Toque em "Nova assinatura" no topo ⬆</span>
-            }
-            else
-            {
-                <span>Nenhuma cobrança nos próximos @rotuloPeriodo.</span>
-                @if (proxima.Assinatura is not null)
-                {
-                    <span> A próxima é <b>@proxima.Assinatura.Nome</b> em @DataBR(proxima.Data).</span>
-                }
-            }
-        </div>
-    }
-</section>
-
-<div class="grid-2">
-    <section class="card">
-        <div class="card-head"><div><h2>Custo mensal por categoria</h2><p>Quanto cada tipo de serviço pesa por mês (assinaturas anuais divididas por 12).</p></div></div>
-        <GraficoBarras Dados="AssinaturasCalculos.PorCategoria(ativas)" Nome="Por mês" Altura="240" Cor="var(--series-3)"
-                       FormatoY="@(new FormatoNumero(0, Prefixo: "R$ "))" Formato="FormatoNumero.Real"
-                       MsgVazia="Sem assinaturas ativas." />
-    </section>
-    <section class="card">
-        <div class="card-head"><div><h2>Cobranças previstas</h2><p>Quanto vai sair em cada um dos próximos 12 meses — é aqui que as anuais aparecem.</p></div></div>
-        <GraficoBarras Dados="previsaoMensal" Nome="Cobranças" Altura="240"
-                       FormatoY="@(new FormatoNumero(0, Prefixo: "R$ "))" Formato="FormatoNumero.Real"
-                       MsgVazia="Sem cobranças previstas." />
-    </section>
 </div>
-
-<section class="card">
-    <div class="card-head">
-        <div><h2>Todas as assinaturas</h2><p>@todas.Count @Plural(todas.Count, "assinatura", "assinaturas")</p></div>
-        <div class="chips">
-            @foreach (var (chave, rotulo) in Filtros)
-            {
-                <button type="button" class="chip @(_filtro == chave ? "active" : "")" @onclick="() => _filtro = chave">@rotulo</button>
-            }
-        </div>
-    </div>
-    <div class="table-wrap">
-        <table>
-            <thead><tr><th>Assinatura</th><th>Categoria</th><th>Ciclo</th><th class="num">Valor</th><th class="num">Por mês</th><th>Próxima cobrança</th><th>Pagamento</th><th>Observação</th><th></th></tr></thead>
-            <tbody>
-                @if (tabela.Count == 0)
-                {
-                    <tr><td colspan="9" class="empty-row">@(todas.Count == 0 ? "Nenhuma assinatura ainda. Toque em \"Nova assinatura\" no topo ⬆" : "Nenhuma assinatura neste filtro.")</td></tr>
-                }
-                @foreach (var a in tabela)
-                {
-                    var proximaData = AssinaturasCalculos.ProximaCobranca(a, hoje);
-                    <tr @key="a.Id" class="@(a.Ativa ? "" : "inativa")">
-                        <td><b>@a.Nome</b></td>
-                        <td>@AssinaturasCalculos.CategoriaDe(a)</td>
-                        <td>@CicloCobranca.Buscar(a.Ciclo).Nome</td>
-                        <td class="num">@Money(a.Valor)</td>
-                        <td class="num">@Money(AssinaturasCalculos.PorMes(a))</td>
-                        <td>
-                            @if (a.Ativa)
-                            {
-                                var (texto, classe) = AssinaturasCalculos.Prazo(proximaData.DayNumber - hoje.DayNumber);
-                                <span>@DataBR(proximaData) </span><span class="badge @classe">@texto</span>
-                            }
-                            else
-                            {
-                                <span class="badge">cancelada</span>
-                            }
-                        </td>
-                        <td>@a.Pagamento</td>
-                        <td class="obs">@a.Obs</td>
-                        <td><div class="row-actions">
-                            <button type="button" title="Editar" @onclick="() => Editar(a)">@Icones.Editar</button>
-                            <button type="button" class="del" title="Excluir" @onclick="() => Excluir(a)">@Icones.Excluir</button>
-                        </div></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-</section>
 
 @* ---- Nova / editar assinatura ---- *@
 @if (_formAberto)
@@ -258,6 +207,10 @@
                 </div>
             }
             <div class="form-actions">
+                @if (ed is not null)
+                {
+                    <button class="btn danger" type="button" style="margin-right:auto" @onclick="() => Excluir(ed)">@Icones.Excluir Excluir</button>
+                }
                 <button class="btn" type="button" @onclick="Fechar">Cancelar</button>
                 <button class="btn primary" type="submit">@(ed is not null ? "Salvar alterações" : "Adicionar assinatura")</button>
             </div>
@@ -266,16 +219,36 @@
 }
 
 @code {
-    private static readonly (string Chave, string Rotulo)[] Filtros = [("ativas", "Ativas"), ("canceladas", "Canceladas"), ("todas", "Todas")];
-    private static readonly (int Meses, string Rotulo, string Texto)[] PeriodosProximas =
-        [(1, "30 dias", "30 dias"), (3, "3 meses", "3 meses"), (12, "12 meses", "12 meses")];
     private const string OutraCategoria = "__outra";
 
-    // Preferências de visualização mantidas enquanto o app estiver aberto
-    private static string _filtro = "todas";
-    private static bool _custoAnual;            // card de custo: false = por mês, true = por ano
-    private static int _mesesProximas = 1;      // período do card "Próximas cobranças"
-    private static string _cicloProximas = "";  // filtro por ciclo ("" = todas)
+    // Mostrar as pausadas no lugar das ativas (mantido enquanto o app estiver aberto)
+    private static bool _mostrarPausadas;
+
+    /// <summary>assinaturas?novo=1 abre direto a janela de nova assinatura (botão Registrar do Início).</summary>
+    [SupplyParameterFromQuery(Name = "novo")] public string? NovoDoLink { get; set; }
+
+    private string? _novoDoLink;
+
+    protected override void OnParametersSet()
+    {
+        if (NovoDoLink == _novoDoLink) return;
+        _novoDoLink = NovoDoLink;
+        if (NovoDoLink is not null) AbrirNova();
+    }
+
+    // "/mês", "/ano", "/semana" ou "/trimestre"...
+    private static string Sufixo(string ciclo) => CicloCobranca.Buscar(ciclo) switch
+    {
+        { Dias: 7 } => "/semana",
+        { Meses: 1 } => "/mês",
+        { Meses: 12 } => "/ano",
+        { Meses: 3 } => "/trimestre",
+        { Meses: 6 } => "/semestre",
+        var c => "/" + c.Nome.ToLowerInvariant(),
+    };
+
+    // Número com ponto (atributos do SVG)
+    private static string Inv(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
     private string? _editId;
     private bool _formAberto;
@@ -287,9 +260,6 @@
     private List<Assinatura> Lista => Store.Dados.Assinaturas;
 
     private Assinatura? Editando() => _editId is null ? null : Lista.FirstOrDefault(a => a.Id == _editId);
-
-    // Todos os ciclos terminam em "-al": Mensal → Mensais, Anual → Anuais
-    private static string NomePlural(CicloCobranca c) => c.Nome.EndsWith("al") ? c.Nome[..^2] + "ais" : c.Nome;
 
     private void AbrirNova()
     {
@@ -333,6 +303,7 @@
         if (!await Dialogo.Confirmar($"Excluir a assinatura \"{a.Nome}\"?\n\nSe você só cancelou o serviço, prefira editar e desmarcar \"Assinatura ativa\" para manter o histórico.")) return;
         Lista.Remove(a);
         Store.Salvar();
+        if (_editId == a.Id) Fechar();
         Toast.Ok("Assinatura excluída.");
     }
 
