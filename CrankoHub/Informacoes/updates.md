@@ -25,28 +25,28 @@ O CrankoHub não tem mapa nem rota próprios: a navegação fica com o **Google 
 - **14/11/2026 (3ª versão):** o mapa e as rotas próprios (MapLibre, Valhalla, Google Maps com chave, visor da central) davam umas 3 mil linhas e competiam com o Maps/Waze. Saíram; ficou uma barra da música por cima deles.
 - **14/11/2026 (4ª versão):** a barra da música cobria a manobra e o trajeto do Maps/Waze e não tinha utilidade. Saiu (sessões de mídia, acesso às notificações, reserva do Spotify); a janela sobreposta agora é o **aviso de radar**.
 
-### Fonte dos radares (pesquisado)
-- **CET-SP:** só a capital; o site tem lista de endereços e um mapa, sem API pública com coordenadas (e o site não respondeu da rede usada no desenvolvimento).
-- **DER-SP:** rodovias estaduais (cerca de 650 radares) por rodovia + km + velocidade, **sem lat/lon**.
-- **OpenStreetMap** (`highway=speed_camera`): o estado inteiro com coordenadas. Em 14/11/2026: **2.982 radares em SP, 2.495 com `maxspeed`**, 319 com `direction` (a maioria "forward/backward", que não dá para usar sem a linha da via). É a fonte usada.
+### Fonte dos radares (as três juntas, testado em 14/11/2026)
+- **DER-SP** (rodovias estaduais, inclusive as de concessão como SP 330, SP 348 e Rodoanel): `https://dersp.der.sp.gov.br/Upload/XML/radares.xml` (~3 MB), o XML que a página "Pesquisa de Radares" do DER carrega. Tem coordenadas, `rad_vel_regul` ("100/080 Km/h" = leves/pesados) e `Orientacao` (Norte/Sul/Leste/Oeste). Entram Controlador (radar) e Redutor (lombada eletrônica) com `trc_em_operacao=true`: **1.257**. Os Portáteis e os não metrológicos ficam de fora.
+- **CET-SP** (capital): `https://raw.githubusercontent.com/cetsp-dados/dados-fiscalizacao-eletronica/main/Base_Locais_Fiscalizados.csv`, do repositório oficial da CET no GitHub. Entram os ativos (sem DESATIVAÇÃO) que medem velocidade (METROLÓGICO = SIM ou "V" no ENQUADRAMENTO): **837**.
+- **OpenStreetMap** (`highway=speed_camera`, Overpass): o resto do estado. O radar a menos de 60 m de um oficial sai: **1.618** de 2.982.
+- Total: **3.712**. Projeto parecido que junta tudo do Brasil: [Pardal](https://github.com/murkiriel/pardal) (de terceiros, não usado).
 
 ### Como funciona
 - **Tela rápida** (`Pages/Carro/ModoCarro.razor`, `/carro/modo`): escolhe **Google Maps** ou **Waze** (`Config.AppNavegacaoCarro`), busca **"Para onde?"** pelo Photon (`Services/Carro/ModoCarro/BuscaLugares.cs`) e os 6 **recentes**. Abre o app **já navegando** (`google.navigation:q=lat,lng` / `waze://?ll=lat,lng&navigate=yes`). Mostra o que falta liberar (sobrepor e localização).
-- **Radares** (`Services/Carro/ModoCarro/RadaresSp.cs`): uma consulta do Overpass para o estado inteiro (`area["ISO3166-2"="BR-SP"]`), com 4 servidores de reserva e User-Agent próprio (sem ele o Overpass responde 406). Fica em `radares-sp.json` no aparelho; baixa de novo ao entrar no Modo Carro se tiver mais de 7 dias, ou no botão "Atualizar agora" da engrenagem. `Proximo(lat, lon, rumo)` devolve o mais perto até 1,5 km dentro de um cone de 40° do rumo do GPS (com `direction` em graus, também na mesma via).
-- **Aviso** (`Android/Plataforma/RadarCarroService.cs`): serviço em primeiro plano (`specialUse` + `location`) com a notificação **"Modo Carro ativo"** e o botão **Sair**. GPS a cada 1 s / 3 m (`LocationManager`); abaixo de ~10 km/h mantém o radar que já estava e só atualiza os metros. A pílula (placa de velocidade + "Radar 350 m") é uma janela `TYPE_APPLICATION_OVERLAY` **sem foco e sem toques**, na borda esquerda (em cima, no meio ou embaixo: `Config.AvisoRadarPosicao`), visível só com radar a até **1 km**; fica vermelha acima do limite + 2 km/h; bipe curto ao aparecer um radar novo (`Config.AvisoRadarSom`, volume das notificações). Some com o CrankoHub na tela.
+- **Radares** (`Services/Carro/ModoCarro/RadaresSp.cs`): as três fontes baixadas em paralelo, cada uma com o próprio cache e a própria data (se uma falha, fica a anterior). O Overpass é consultado para o estado inteiro (`area["ISO3166-2"="BR-SP"]`), com 4 servidores de reserva e User-Agent próprio (sem ele o Overpass responde 406). Fica em `radares-sp.json` no aparelho; baixa de novo ao entrar no Modo Carro se tiver mais de 7 dias, ou no botão "Atualizar agora" da engrenagem. `Proximo(lat, lon, rumo)` devolve o mais perto até 2 km dentro de um cone de 40° do rumo do GPS. Com o `direction` do OSM, o radar tem de estar na mesma via; com o sentido do DER, sai o da pista contrária (rumo a mais de 120° do sentido).
+- **Aviso** (`Android/Plataforma/RadarCarroService.cs`): serviço em primeiro plano (`specialUse` + `location`) com a notificação **"Modo Carro ativo"** e o botão **Sair**. GPS a cada 1 s / 3 m (`LocationManager`); abaixo de ~10 km/h mantém o radar que já estava e só atualiza os metros. A pílula (placa de velocidade + "Radar 350 m") é uma janela `TYPE_APPLICATION_OVERLAY` **sem foco e sem toques**, na borda esquerda (em cima, no meio ou embaixo: `Config.AvisoRadarPosicao`), visível com o radar a até `Config.AvisoRadarDistancia` (300 m a 2 km, padrão 1 km) e por `Config.AvisoRadarTempo` (até passar, ou 5/10/15/30 s). Mostra "Lombada" nos redutores do DER e fica vermelha acima do limite + 2 km/h. Ao aparecer um radar novo, toca o som `Config.AvisoRadarTom` (bipe curto, bipe duplo, alerta ou o som de notificação do celular; `SomRadar`, no volume das notificações), com o botão "Testar" na engrenagem. Some com o CrankoHub na tela.
 - **Bluetooth do carro** (`Android/Plataforma/CarroBluetoothService.cs`): ao ligar o carro, notificação "Modo Carro pronto" ou abre a tela rápida; ao desligar, guarda **onde estacionou** (GPS liberado pelo serviço do aviso) e sai do Modo Carro (`Config.SairAoDesconectar`).
 - **Onde ficam as opções:** na **engrenagem da página Carro** (`Components/Carro/ConfigModoCarro.razor`: aviso de radar, Bluetooth do carro, onde estacionei). As **permissões** continuam em Configurações → Modo Carro.
 
 **Como testar**
 1. ✅ `dotnet build` dos três projetos sem erros nem avisos.
-2. ⏳ No celular: liberar "Sobrepor a outros apps" e "Localização"; Carro → Modo Carro → escolher um destino no Waze. Na engrenagem do Carro aparece "2.9xx radares no estado de SP".
+2. ⏳ No celular: liberar "Sobrepor a outros apps" e "Localização"; Carro → Modo Carro → escolher um destino no Waze. Na engrenagem do Carro aparecem "3.7xx radares no estado de SP" e a contagem por fonte; "Testar" toca cada som.
 3. ⏳ Dirigindo (ou com um app de GPS falso): a pílula aparece a ~1 km de um radar com a velocidade, conta os metros, fica vermelha acima do limite e some depois de passar; sem radar perto nada fica por cima do Maps/Waze.
 4. ⏳ No carro: ligar (notificação/abrir), desligar ("Carro estacionado" com o endereço e o aviso some).
 5. `adb logcat -s CrankoHub.Carro` mostra os erros do GPS, da pílula e do bipe.
 
 ### Mais para frente
-- **CET na capital:** se aparecer o endpoint do mapa de "Locais fiscalizados" com coordenadas, juntar aos do OSM (radares que faltam no OSM).
-- **Radares do DER pelo km:** cruzar rodovia + km com a linha da rodovia no OSM (`ref=SP xxx`) para preencher os que faltam.
+- **Outras prefeituras** (Campinas, Santos...) com dados abertos de radares, para ter fonte oficial também fora da capital.
 - **Favoritos:** Casa e Trabalho na tela rápida.
 - **Fase 2, imagem e toque na tela da central (pesquisa):**
   - Vídeo: o dashboard numa tela secundária (`Presentation` API) → HDMI → adaptador Pioneer CD-AH200 → entrada RGB (modo AppRadio). Exige um celular com saída de vídeo.

@@ -5,6 +5,7 @@
 @inject ArmazenamentoService Store
 @inject CarroBluetoothService Bluetooth
 @inject RadaresSp Radares
+@inject ModoCarroService Modo
 @inject ToastService Toast
 
 @{
@@ -27,7 +28,26 @@
 
         <section class="cfg-carro-bloco">
             <h3>Aviso de radar</h3>
-            <p class="muted">Com o Modo Carro ativo, aparece por cima do Google Maps ou do Waze quando há um radar a até 1 km à frente: a velocidade dele e quantos metros faltam. Fica vermelho se você estiver acima do limite.</p>
+            <p class="muted">Com o Modo Carro ativo, aparece por cima do Google Maps ou do Waze quando há um radar a até @Distancia(cfg.AvisoRadarDistancia) à frente: a velocidade dele e quantos metros faltam. Fica vermelho se você estiver acima do limite.</p>
+
+            <span class="lc-rotulo">Avisar a partir de</span>
+            <div class="chips" role="radiogroup" aria-label="Distância do aviso de radar">
+                @foreach (var m in Distancias)
+                {
+                    var metros = m;
+                    <button type="button" role="radio" aria-checked="@(cfg.AvisoRadarDistancia == metros)" class="chip @(cfg.AvisoRadarDistancia == metros ? "active" : "")" @onclick="() => MudarInt(v => cfg.AvisoRadarDistancia = v, metros)">@Distancia(metros)</button>
+                }
+            </div>
+
+            <span class="lc-rotulo">Tempo na tela</span>
+            <div class="chips" role="radiogroup" aria-label="Tempo do aviso de radar na tela">
+                @foreach (var (seg, rotulo) in Tempos)
+                {
+                    var segundos = seg;
+                    <button type="button" role="radio" aria-checked="@(cfg.AvisoRadarTempo == segundos)" class="chip @(cfg.AvisoRadarTempo == segundos ? "active" : "")" @onclick="() => MudarInt(v => cfg.AvisoRadarTempo = v, segundos)">@rotulo</button>
+                }
+            </div>
+
             <span class="lc-rotulo">Posição na borda esquerda</span>
             <div class="chips" role="radiogroup" aria-label="Posição do aviso de radar">
                 @foreach (var (valor, rotulo) in Posicoes)
@@ -36,12 +56,26 @@
                     <button type="button" role="radio" aria-checked="@ativa" class="chip @(ativa ? "active" : "")" @onclick="() => MudarPosicao(valor)">@rotulo</button>
                 }
             </div>
+
             <div class="opcoes">
-                <label class="check"><input type="checkbox" checked="@cfg.AvisoRadarSom" @onchange="@(e => Mudar(e, v => cfg.AvisoRadarSom = v))"> <span>Bipe quando aparece um radar <span class="muted">· não pausa a música</span></span></label>
+                <label class="check"><input type="checkbox" checked="@cfg.AvisoRadarSom" @onchange="@(e => Mudar(e, v => cfg.AvisoRadarSom = v))"> <span>Tocar um som quando aparece um radar <span class="muted">· não pausa a música</span></span></label>
             </div>
+            @if (cfg.AvisoRadarSom)
+            {
+                var tom = TonsAvisoRadar.Valido(cfg.AvisoRadarTom);
+                <div class="chips" role="radiogroup" aria-label="Som do aviso de radar">
+                    @foreach (var (valor, nome) in TonsAvisoRadar.Todos)
+                    {
+                        var opcao = valor;
+                        <button type="button" role="radio" aria-checked="@(tom == opcao)" class="chip @(tom == opcao ? "active" : "")" @onclick="() => MudarTom(opcao)">@nome</button>
+                    }
+                    <button type="button" class="btn" @onclick="() => Modo.TocarAviso(tom)">Testar</button>
+                </div>
+            }
+
             <div class="lc-linha">
                 <span><b>@(Radares.Total > 0 ? $"{Radares.Total:N0} radares no estado de SP" : "Radares ainda não baixados")</b>
-                    <span class="muted">· @(Radares.Baixando ? "baixando…" : Radares.Atualizado is { } quando ? $"atualizado em {quando:dd/MM}" : "baixa ao entrar no Modo Carro") · OpenStreetMap</span></span>
+                    <span class="muted">· @(Radares.Baixando ? "baixando…" : string.Join(" · ", FontesRadar.Todas.Select(Resumo)))</span></span>
                 <button type="button" class="btn" disabled="@Radares.Baixando" @onclick="AtualizarRadares">Atualizar agora</button>
             </div>
         </section>
@@ -138,6 +172,29 @@
     private static readonly (string Valor, string Rotulo)[] AcoesAoConectar =
         [(AcoesConexao.Nada, "Nada"), (AcoesConexao.Notificar, "Notificação"), (AcoesConexao.Abrir, "Abrir direto")];
 
+    private static readonly int[] Distancias = [300, 500, 1000, 1500, 2000];
+
+    private static readonly (int Segundos, string Rotulo)[] Tempos = [(0, "Até passar pelo radar"), (5, "5 s"), (10, "10 s"), (15, "15 s"), (30, "30 s")];
+
+    private static string Distancia(int metros) => metros >= 1000 ? $"{metros / 1000.0:0.#} km" : $"{metros} m";
+
+    /// <summary>"DER (rodovias) 1.257, 13/11" — ou "não baixado".</summary>
+    private string Resumo(string fonte) =>
+        $"{FontesRadar.Nome(fonte)} {(Radares.Atualizado(fonte) is { } quando ? $"{Radares.Contagem(fonte):N0}, {quando:dd/MM}" : "não baixado")}";
+
+    private void MudarInt(Action<int> aplicar, int valor)
+    {
+        aplicar(valor);
+        Store.Salvar();
+    }
+
+    private void MudarTom(string tom)
+    {
+        Store.Dados.Config.AvisoRadarTom = tom;
+        Store.Salvar();
+        Modo.TocarAviso(tom);
+    }
+
     private static readonly (string Valor, string Rotulo)[] Posicoes =
         [(PosicoesAvisoRadar.Cima, "Em cima"), (PosicoesAvisoRadar.Meio, "No meio"), (PosicoesAvisoRadar.Baixo, "Embaixo")];
 
@@ -173,8 +230,9 @@
     private async Task AtualizarRadares()
     {
         await Radares.Atualizar(forcar: true);
-        if (Radares.Atualizado is { } quando && DateTime.Now - quando < TimeSpan.FromMinutes(1)) Toast.Ok($"{Radares.Total:N0} radares atualizados.");
-        else Toast.Erro("Não foi possível baixar os radares agora. Os que já estavam continuam valendo.");
+        var falharam = FontesRadar.Todas.Where(f => Radares.Atualizado(f) is not { } q || DateTime.Now - q > TimeSpan.FromMinutes(2)).ToList();
+        if (falharam.Count == 0) Toast.Ok($"{Radares.Total:N0} radares atualizados.");
+        else Toast.Erro($"Não deu para baixar agora: {string.Join(", ", falharam.Select(FontesRadar.Nome))}. Os que já estavam continuam valendo.");
     }
 
     private void MarcarCarro(AparelhoBluetooth aparelho, bool marcado)

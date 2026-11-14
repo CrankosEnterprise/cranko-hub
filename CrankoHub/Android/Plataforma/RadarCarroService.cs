@@ -23,7 +23,8 @@ namespace CrankoHub.Services;
 /// <summary>
 /// Aviso de radar do Modo Carro: uma pílula pequena por cima do Google Maps e do Waze, na borda esquerda (em cima, no meio
 /// ou embaixo, engrenagem do Carro), com a velocidade do radar à frente e quantos metros faltam. Só aparece com um radar a
-/// até <see cref="Mostrar"/> metros e some depois de passar por ele; no resto do tempo não cobre nada.
+/// até <see cref="Configuracoes.AvisoRadarDistancia"/> metros e some depois de passar por ele (ou depois de
+/// <see cref="Configuracoes.AvisoRadarTempo"/> segundos); no resto do tempo não cobre nada.
 /// É uma janela do tipo "sobrepor a outros apps" dentro de um serviço em primeiro plano do tipo "localização" (o GPS segue
 /// com o Maps/Waze na frente), com a notificação "Modo Carro ativo" e o botão Sair. Some enquanto o CrankoHub está na tela.
 /// Liga e desliga pelo <see cref="ModoCarroService"/>; os radares vêm do <see cref="RadaresSp"/>.
@@ -36,9 +37,6 @@ public sealed class RadarCarroService : Service
     private const string Canal = "modo-carro-ativo";
     private const int IdNotificacao = 9103;
 
-    /// <summary>A pílula aparece com o radar a até 1 km.</summary>
-    private const double Mostrar = 1000;
-
     /// <summary>Abaixo disso (≈ 10 km/h) o rumo do GPS não vale: mantém o radar que já estava.</summary>
     private const float Parado = 2.8f;
 
@@ -49,12 +47,13 @@ public sealed class RadarCarroService : Service
     private LinearLayout? _pilula;
     private WindowManagerLayoutParams? _posicao;
     private string? _posicaoAtual;
-    private TextView? _placa, _metros;
+    private TextView? _placa, _metros, _rotulo;
     private GradientDrawable? _fundo;
     private Handler? _principal;
     private LocationManager? _gps;
     private OuvinteGps? _ouvinte;
-    private long? _avisado;
+    private string? _avisado;
+    private DateTime _avisadoEm;
     private double _kmhAgora;
 
     public override IBinder? OnBind(Intent? intent) => null;
@@ -193,30 +192,19 @@ public sealed class RadarCarroService : Service
                 ? r with { Metros = RadaresSp.Distancia(l.Latitude, l.Longitude, r.Radar.Lat, r.Radar.Lon) }
                 : null;
         }
-        if (radar is { Metros: > Mostrar }) radar = null;
+        var cfg = _store?.Dados.Config;
+        if (radar is not null && radar.Metros > Math.Clamp(cfg?.AvisoRadarDistancia ?? 1000, 100, (int)RadaresSp.Alcance)) radar = null;
 
         if (radar is not null && radar.Radar.Id != _avisado)
         {
             _avisado = radar.Radar.Id;
-            if (_store?.Dados.Config.AvisoRadarSom != false) Bipe();
+            _avisadoEm = DateTime.Now;
+            if (cfg?.AvisoRadarSom != false) SomRadar.Tocar(cfg?.AvisoRadarTom);
+            // Tempo fixo: some sozinha mesmo que o GPS não mande posição nova (parado no trânsito)
+            if (cfg is { AvisoRadarTempo: > 0 } c) _principal?.PostDelayed(Atualizar, c.AvisoRadarTempo * 1000L + 100);
         }
         _modo.Radar = radar;
         Atualizar();
-    }
-
-    /// <summary>Bipe curto no volume das notificações (não pausa a música do carro).</summary>
-    private static void Bipe()
-    {
-        try
-        {
-            var tom = new ToneGenerator(global::Android.Media.Stream.Notification, 90);
-            tom.StartTone(Tone.PropBeep2, 400);
-            new Handler(Looper.MainLooper!).PostDelayed(tom.Release, 800);
-        }
-        catch (Exception ex)
-        {
-            Log.Warn(Tag, $"Bipe: {ex.Message}");
-        }
     }
 
     private sealed class OuvinteGps(RadarCarroService servico) : Java.Lang.Object, ILocationListener
@@ -244,17 +232,20 @@ public sealed class RadarCarroService : Service
         if (_pilula is null && !Criar()) return;
 
         var radar = _modo.Radar;
-        _pilula!.Visibility = radar is not null && !_modo.AppNaTela ? ViewStates.Visible : ViewStates.Gone;
+        var tempo = _store?.Dados.Config.AvisoRadarTempo ?? 0;
+        var noTempo = tempo <= 0 || DateTime.Now - _avisadoEm < TimeSpan.FromSeconds(tempo);
+        _pilula!.Visibility = radar is not null && noTempo && !_modo.AppNaTela ? ViewStates.Visible : ViewStates.Gone;
         // A posição mudou na engrenagem do Carro (enquanto o CrankoHub estava na tela)
         if (_posicaoAtual != PosicaoEscolhida) Posicionar();
         if (radar is null) return;
 
         var kmh = radar.Radar.Kmh;
         _placa!.Text = kmh?.ToString() ?? "?";
+        _rotulo!.Text = radar.Radar.Lombada ? "Lombada" : "Radar";
         _metros!.Text = radar.Metros < 50 ? "agora" : $"{Math.Round(radar.Metros / 10) * 10:0} m";
         var acima = kmh is { } limite && _kmhAgora > limite + 2;
         _fundo!.SetColor(acima ? Color.Argb(245, 200, 30, 30) : Color.Argb(240, 22, 22, 24));
-        _pilula.ContentDescription = $"Radar de {(kmh is null ? "velocidade desconhecida" : $"{kmh} quilômetros por hora")} a {_metros.Text}";
+        _pilula.ContentDescription = $"{_rotulo.Text} de {(kmh is null ? "velocidade desconhecida" : $"{kmh} quilômetros por hora")} a {_metros.Text}";
     }
 
     /// <summary>Monta a pílula (só com a permissão de sobrepor a outros apps). false = sem a permissão ainda.</summary>
@@ -288,7 +279,7 @@ public sealed class RadarCarroService : Service
 
         var textos = new LinearLayout(this) { Orientation = global::Android.Widget.Orientation.Vertical };
         textos.SetPadding(Dp(10), 0, 0, 0);
-        var rotulo = new TextView(this) { Text = "Radar" };
+        var rotulo = _rotulo = new TextView(this) { Text = "Radar" };
         rotulo.SetTextSize(ComplexUnitType.Sp, 12);
         rotulo.SetTextColor(Color.Argb(190, 255, 255, 255));
         _metros = new TextView(this);
@@ -343,5 +334,36 @@ public sealed class RadarCarroService : Service
         if (_pilula is null || _posicao is null || _janelas is null) return;
         Medir(_posicao);
         try { _janelas.UpdateViewLayout(_pilula, _posicao); } catch { }
+    }
+}
+
+/// <summary>Som do aviso de radar (<see cref="TonsAvisoRadar"/>), no volume das notificações: não pausa a música do carro.</summary>
+public static class SomRadar
+{
+    public static void Tocar(string? tom)
+    {
+        try
+        {
+            var escolhido = TonsAvisoRadar.Valido(tom);
+            if (escolhido == TonsAvisoRadar.Notificacao)
+            {
+                var ctx = global::Android.App.Application.Context;
+                RingtoneManager.GetRingtone(ctx, RingtoneManager.GetDefaultUri(RingtoneType.Notification))?.Play();
+                return;
+            }
+            var (tipo, ms) = escolhido switch
+            {
+                TonsAvisoRadar.Curto => (Tone.PropBeep, 250),
+                TonsAvisoRadar.Alerta => (Tone.CdmaAlertCallGuard, 900),
+                _ => (Tone.PropBeep2, 400),
+            };
+            var gerador = new ToneGenerator(global::Android.Media.Stream.Notification, 90);
+            gerador.StartTone(tipo, ms);
+            new Handler(Looper.MainLooper!).PostDelayed(gerador.Release, ms + 500);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("CrankoHub.Carro", $"Som do radar: {ex.Message}");
+        }
     }
 }

@@ -29,6 +29,9 @@ public sealed class ModoCarroService
     /// </summary>
     public bool Navegar(string app, LugarBusca? destino) => false;
 
+    /// <summary>Toca o som do aviso de radar (<see cref="TonsAvisoRadar"/>), para testar na engrenagem do Carro.</summary>
+    public void TocarAviso(string tom) { }
+
     /// <summary>Desliga o Modo Carro: tira o aviso e a notificação.</summary>
     public void Sair() { }
 

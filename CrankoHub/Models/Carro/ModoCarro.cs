@@ -1,9 +1,40 @@
 namespace CrankoHub.Models;
 
-/// <summary>Radar fixo do estado de São Paulo (OpenStreetMap, <c>highway=speed_camera</c>).</summary>
-/// <param name="Kmh">Velocidade fiscalizada (tag <c>maxspeed</c>), ou null quando o OSM não informa.</param>
-/// <param name="Direcao">Para onde o radar olha, em graus (0 = norte), quando o OSM informa em número.</param>
-public sealed record RadarSp(long Id, double Lat, double Lon, int? Kmh, double? Direcao);
+/// <summary>Radar fixo do estado de São Paulo (DER, CET ou OpenStreetMap: ver <see cref="FontesRadar"/>).</summary>
+/// <param name="Id">Único entre as fontes (o código da fonte com um prefixo).</param>
+/// <param name="Kmh">Velocidade fiscalizada para carros, ou null quando a fonte não informa.</param>
+/// <param name="Direcao">Eixo da via em graus (0 = norte), quando o OSM informa: vale para os dois sentidos.</param>
+/// <param name="Fonte">Ver <see cref="FontesRadar"/>.</param>
+/// <param name="Lombada">Lombada eletrônica (redutor do DER), em vez de radar.</param>
+/// <param name="Sentido">Sentido do trânsito fiscalizado em graus (DER: Norte 0, Leste 90...), ou null para os dois.</param>
+public sealed record RadarSp(string Id, double Lat, double Lon, int? Kmh, double? Direcao, string Fonte = FontesRadar.Osm,
+    bool Lombada = false, double? Sentido = null);
+
+/// <summary>De onde vêm os radares: os oficiais primeiro, e o OpenStreetMap preenche o resto do estado.</summary>
+public static class FontesRadar
+{
+    public const string Der = "DER", Cet = "CET", Osm = "OSM";
+
+    public static readonly IReadOnlyList<string> Todas = [Der, Cet, Osm];
+
+    public static string Nome(string fonte) => fonte switch
+    {
+        Der => "DER (rodovias)",
+        Cet => "CET (capital)",
+        _ => "OpenStreetMap (outras cidades)",
+    };
+}
+
+/// <summary>Som do aviso de radar (engrenagem do Carro).</summary>
+public static class TonsAvisoRadar
+{
+    public const string Curto = "curto", Duplo = "duplo", Alerta = "alerta", Notificacao = "notificacao";
+
+    public static readonly IReadOnlyList<(string Valor, string Nome)> Todos =
+        [(Curto, "Bipe curto"), (Duplo, "Bipe duplo"), (Alerta, "Alerta"), (Notificacao, "Som de notificação do celular")];
+
+    public static string Valido(string? tom) => tom is Curto or Alerta or Notificacao ? tom : Duplo;
+}
 
 /// <summary>O radar mais perto à frente do carro e quantos metros faltam.</summary>
 public sealed record RadarProximo(RadarSp Radar, double Metros);

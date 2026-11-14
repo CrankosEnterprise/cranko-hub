@@ -45,6 +45,9 @@ public sealed class ModoCarroService(RadaresSp radares)
 
     internal void Avisar() => Mudou?.Invoke();
 
+    /// <summary>Toca o som do aviso de radar (botão "Testar" da engrenagem do Carro).</summary>
+    public void TocarAviso(string tom) => SomRadar.Tocar(tom);
+
     // ===== Abrir os apps =====
 
     public bool AbrirApp(string app)

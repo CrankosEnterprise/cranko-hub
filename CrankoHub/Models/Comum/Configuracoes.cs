@@ -57,8 +57,17 @@ public class Configuracoes
     /// <summary>Modo Carro: onde fica o aviso de radar por cima do Maps/Waze, na borda esquerda (ver <see cref="PosicoesAvisoRadar"/>). Engrenagem do Carro.</summary>
     public string AvisoRadarPosicao { get; set; } = PosicoesAvisoRadar.Meio;
 
-    /// <summary>Modo Carro: bipe curto quando aparece um radar novo à frente.</summary>
+    /// <summary>Modo Carro: tocar um som quando aparece um radar novo à frente.</summary>
     public bool AvisoRadarSom { get; set; } = true;
+
+    /// <summary>Modo Carro: qual som (ver <see cref="TonsAvisoRadar"/>).</summary>
+    public string AvisoRadarTom { get; set; } = TonsAvisoRadar.Duplo;
+
+    /// <summary>Modo Carro: a quantos metros do radar o aviso aparece (300 a 2.000).</summary>
+    public int AvisoRadarDistancia { get; set; } = 1000;
+
+    /// <summary>Modo Carro: segundos que o aviso fica na tela (0 = até passar pelo radar).</summary>
+    public int AvisoRadarTempo { get; set; }
 
     /// <summary>Modo Carro: aparelhos Bluetooth marcados como "o meu carro" (centrais). Fones e caixinhas não entram.</summary>
     public List<CarroPareado> CarrosBluetooth { get; set; } = [];
