@@ -1414,6 +1414,8 @@ tbody tr:hover td { background: color-mix(in srgb, var(--surface-2) 70%, transpa
 .field input, .field select, .select, .field textarea { border-radius: 10px; border-color: var(--border); background: var(--surface); }
 :root[data-theme="dark"] :is(.field input, .field select, .select, .field textarea) { background: rgba(255, 255, 255, .04); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.field input, .field select, .select, .field textarea) { background: rgba(255, 255, 255, .04); } }
+/* As opções da lista não herdam o fundo translúcido do campo (o WebView pinta a lista de branco e o texto claro some). */
+select option, select optgroup { background-color: var(--surface); color: var(--text); }
 .field > span { font-weight: 600; color: var(--text-2); }
 
 /* Abas: sublinhadas, numa linha fina (como as do Carro) */
