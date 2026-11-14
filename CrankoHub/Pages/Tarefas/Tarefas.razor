@@ -24,22 +24,143 @@
     <button class="icon-btn" type="button" title="Configurações das Tarefas" aria-label="Configurações das Tarefas" @onclick="AbrirConfig">@Icones.Engrenagem</button>
 </AcoesTopo>
 
-<section class="kpis">
-    <div class="kpi"><span class="kpi-label">Concluídas hoje</span>
-        <span class="kpi-value">@resumo.ConcluidosHoje.Count</span>
-        <span class="kpi-sub">em todos os quadros</span></div>
-    <div class="kpi"><span class="kpi-label">Para hoje</span>
-        <span class="kpi-value">@resumo.ParaHoje.Count</span>
-        <span class="kpi-sub">prazo hoje ou em foco</span></div>
-    <div class="kpi"><span class="kpi-label">Atrasadas</span>
-        <span class="kpi-value">@resumo.Atrasados.Count</span>
-        <span class="kpi-sub">@(resumo.Atrasados.Count == 0 ? "nada atrasado ✓" : "prazo já passou")</span></div>
-    <div class="kpi"><span class="kpi-label">Em aberto</span>
-        <span class="kpi-value">@t.Cards.Count(TarefasCalculos.Aberto)</span>
-        <span class="kpi-sub">@t.Quadros.Count @Plural(t.Quadros.Count, "quadro", "quadros")</span></div>
-</section>
+@{
+    var cor = Modulo.CorDe(Store.Dados.Config, Modulo.Tarefas);
+    var agoraT = DateTime.Now;
+    var deHoje = resumo.ParaHoje.Count + resumo.Atrasados.Count;
+    var emAberto = t.Cards.Count(TarefasCalculos.Aberto);
+    var ontem = t.Cards.Count(c => c.Concluido == hoje.AddDays(-1));
+    var semana = t.Cards.Count(c => c.Concluido is DateOnly f && hoje.DayNumber - f.DayNumber is >= 0 and < 7);
+    var semanaAnterior = t.Cards.Count(c => c.Concluido is DateOnly f && hoje.DayNumber - f.DayNumber is >= 7 and < 14);
 
-<section class="card" @ref="_raiz">
+    // Concluídas por dia: últimos 14 dias, até hoje
+    var porDia = Enumerable.Range(0, 14).Select(i => hoje.AddDays(i - 13)).Select(d =>
+    {
+        var n = t.Cards.Count(c => c.Concluido == d);
+        var nome = d == hoje ? "Hoje" : d == hoje.AddDays(-1) ? "Ontem" : DataCurta(d);
+        return new BarraDado(d.Day.ToString(), n, $"{nome} · {n} {Plural(n, "concluída", "concluídas")}");
+    }).ToList();
+
+    // Progresso do dia: o que foi feito hoje sobre tudo o que era de hoje
+    var totalDia = resumo.ConcluidosHoje.Count + deHoje;
+    double? fracaoDia = totalDia > 0 ? (double)resumo.ConcluidosHoje.Count / totalDia : null;
+    const double raio = 38, circ = 2 * Math.PI * raio;
+
+    // Próximos prazos: atrasadas primeiro, depois os próximos 7 dias
+    var proximos = t.Cards.Where(c => TarefasCalculos.Aberto(c) && c.Prazo is DateOnly p && p.DayNumber - hoje.DayNumber <= 7)
+        .OrderBy(c => c.Prazo).ThenBy(c => c.PrazoHora ?? TimeOnly.MaxValue).ThenBy(c => TarefasCalculos.PrioridadeIndice(c.Prioridade)).Take(5).ToList();
+}
+
+@* Cabeçalho no padrão do Carro e das Assinaturas: quanto falta fazer hoje é o título *@
+<CabecalhoPagina Sobre="@($"{emAberto} {Plural(emAberto, "tarefa em aberto", "tarefas em aberto")} · {t.Quadros.Count} {Plural(t.Quadros.Count, "quadro", "quadros")}")"
+                 Titulo="@(deHoje > 0 ? $"{deHoje} para hoje" : "Tudo em dia")" />
+
+@*
+    Visão das Tarefas (mesmo desenho da Visão geral do Carro): bloco grande com os números e as concluídas dia a dia,
+    coluna com o progresso do dia e os próximos prazos; os quadros ficam embaixo, na largura toda.
+*@
+<div class="carro-visao tarefas-visao">
+    <section class="card cv-hero brilho" style="--c:@cor">
+        <div class="cv-numeros">
+            <div>
+                <span class="rot">Concluídas hoje</span>
+                <div class="cv-v">@resumo.ConcluidosHoje.Count</div>
+                @if (resumo.ConcluidosHoje.Count != ontem)
+                {
+                    <span class="cv-delta @(resumo.ConcluidosHoje.Count > ontem ? "bom" : "ruim")">@(resumo.ConcluidosHoje.Count > ontem ? "↑" : "↓") @Math.Abs(resumo.ConcluidosHoje.Count - ontem) vs. ontem</span>
+                }
+                else
+                {
+                    <span class="rot">igual a ontem</span>
+                }
+            </div>
+            <div>
+                <span class="rot">Para hoje</span>
+                <div class="cv-v">@resumo.ParaHoje.Count</div>
+                <span class="rot">prazo hoje ou em foco</span>
+            </div>
+            <div>
+                <span class="rot">Atrasadas</span>
+                <div class="cv-v @(resumo.Atrasados.Count > 0 ? "tv-ruim" : "")">@resumo.Atrasados.Count</div>
+                @if (resumo.Atrasados.Count > 0)
+                {
+                    <span class="cv-delta ruim">prazo já passou</span>
+                }
+                else
+                {
+                    <span class="rot">nada atrasado ✓</span>
+                }
+            </div>
+            <div>
+                <span class="rot">Em aberto</span>
+                <div class="cv-v">@emAberto</div>
+                <span class="rot">em @t.Quadros.Count @Plural(t.Quadros.Count, "quadro", "quadros")</span>
+            </div>
+        </div>
+        <div class="ev-graf">
+            <div class="b-cab ev-graf-cab">Concluídas por dia
+                <span class="b-dir">@semana nos últimos 7 dias@(semanaAnterior > 0 || semana > 0 ? $" · {(semana >= semanaAnterior ? "↑" : "↓")} {Math.Abs(semana - semanaAnterior)} vs. semana anterior" : "")</span>
+            </div>
+            <GraficoBarras RealcarUltimo="true" Dados="porDia" Nome="Concluídas" Altura="170" Cor="@cor"
+                           FormatoY="new FormatoNumero(0)" Formato="new FormatoNumero(0)"
+                           MsgVazia="As tarefas que você concluir aparecem aqui, dia a dia." />
+        </div>
+    </section>
+
+    <div class="cv-lado">
+        <section class="card cv-tanque brilho" style="--c:@cor">
+            <div class="cv-anel">
+                <svg viewBox="0 0 92 92" aria-hidden="true">
+                    <circle cx="46" cy="46" r="@raio" class="cv-anel-fundo" />
+                    @if (fracaoDia is double fd && fd > 0)
+                    {
+                        <circle cx="46" cy="46" r="@raio" class="cv-anel-valor" style="stroke:@cor"
+                                stroke-dasharray="@($"{(circ * fd).ToString(System.Globalization.CultureInfo.InvariantCulture)} {circ.ToString(System.Globalization.CultureInfo.InvariantCulture)}")" />
+                    }
+                </svg>
+                <b>@(fracaoDia is double f2 ? Num(f2 * 100, 0) + "%" : "—")</b>
+            </div>
+            <div>
+                <span class="rot">Progresso de hoje</span>
+                @if (totalDia > 0)
+                {
+                    <div class="cv-tanque-km">@resumo.ConcluidosHoje.Count de @totalDia</div>
+                    <span class="rot">@(deHoje == 0 ? "tudo feito por hoje!" : $"{deHoje} {Plural(deHoje, "falta", "faltam")}{(resumo.Atrasados.Count > 0 ? $" · {resumo.Atrasados.Count} {Plural(resumo.Atrasados.Count, "atrasada", "atrasadas")}" : "")}")</span>
+                }
+                else
+                {
+                    <div class="cv-tanque-km">—</div>
+                    <span class="rot">Nada marcado para hoje</span>
+                }
+                @if (!emHoje)
+                {
+                    <button type="button" class="b-link dv-meta-link" @onclick="() => Abrir(Quadro.Hoje)">Ver as de hoje</button>
+                }
+            </div>
+        </section>
+
+        <section class="card cv-docs">
+            <div class="b-cab"><span class="b-ic" style="--c:#FF9500">@Icones.Relogio</span>Próximos prazos<span class="b-dir">próximos 7 dias</span></div>
+            @if (proximos.Count > 0)
+            {
+                @foreach (var c in proximos)
+                {
+                    var (texto, classe) = TarefasCalculos.Prazo(c, agoraT);
+                    <button type="button" class="cv-doc ev-cat tv-prazo" @key="c.Id" @onclick="() => AbrirEdicao(c)" title="Abrir a tarefa">
+                        <span class="ev-titulo">@c.Titulo</span>
+                        <b class="@(classe is "critical" ? "ruim" : classe is "serious" or "warning" ? "atencao" : "")">@texto</b>
+                    </button>
+                }
+            }
+            else
+            {
+                <p class="b-vazio">Nenhum prazo nos próximos 7 dias.</p>
+            }
+        </section>
+    </div>
+</div>
+
+<section class="card tarefas-quadros" @ref="_raiz">
     <div class="quadros-barra">
         <div class="tabs">
             <button type="button" class="tab @(emHoje ? "active" : "")" @onclick="() => Abrir(Quadro.Hoje)">Hoje

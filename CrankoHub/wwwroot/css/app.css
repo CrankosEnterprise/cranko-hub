@@ -840,6 +840,13 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
   .ev-busca select { flex: 1 1 0; min-width: 0; }
 }
 
+/* ---- Tarefas: mesma visão do Carro; os quadros ficam embaixo, na largura toda ---- */
+.tarefas-visao { grid-template-rows: auto; align-items: stretch; }
+.tarefas-visao .cv-hero { padding-bottom: 16px; }
+.tarefas-visao .cv-lado { grid-row: 1; }
+.cv-v.tv-ruim { color: var(--bad); }
+.tv-prazo b { margin-left: auto; }
+
 /* ---- Assinaturas ---- */
 .assin-grade { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; align-items: stretch; }
 .as-rosca { display: flex; flex-direction: column; }
