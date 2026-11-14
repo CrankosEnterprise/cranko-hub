@@ -45,7 +45,6 @@
     {
         <a class="btn" href="carro/modo" title="Modo Carro" aria-label="Modo Carro">@Icones.Carro<span class="rotulo">Modo Carro</span></a>
     }
-    <button class="btn primary" type="button" title="Novo abastecimento" aria-label="Novo abastecimento" @onclick="NovoAbastecimento">@Icones.Bomba<span class="rotulo">Novo abastecimento</span></button>
 </AcoesTopo>
 
 <nav class="tabs" role="tablist" aria-label="Seções do carro">
@@ -229,7 +228,7 @@
                 }
                 else
                 {
-                    <p class="b-vazio">Nenhum abastecimento ainda. Use "Novo abastecimento" no topo.</p>
+                    <p class="b-vazio">Nenhum abastecimento ainda. Registre na aba Abastecimentos e consumo.</p>
                 }
             </section>
         </div>
@@ -294,7 +293,7 @@
         _novoAbastecimento = false;
     }
 
-    // "Novo abastecimento" (topo, ou o link do Início): abre Consumo já com a janela de novo abastecimento
+    // "Novo abastecimento" (link do Início): abre Consumo já com a janela de novo abastecimento
     private void NovoAbastecimento()
     {
         Abrir("consumo");
