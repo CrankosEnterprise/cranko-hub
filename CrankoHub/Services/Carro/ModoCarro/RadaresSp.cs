@@ -19,7 +19,9 @@ namespace CrankoHub.Services;
 /// tirada do endereço, e os das <b>rodovias federais</b> (ANTT, DNIT, PRF).</item>
 /// <item><b>OpenStreetMap</b> (<c>highway=speed_camera</c>, pelo Overpass): o resto do estado.</item>
 /// </list>
-/// Dentro da cidade de São Paulo vale só a CET (<see cref="CapitalSp"/>): o OSM e o Inmetro podem ter radares já desligados.
+/// Mais a lista de <b>Piracicaba</b> que vem dentro do app (<see cref="RadaresPiracicaba"/>).
+/// Dentro da cidade de São Paulo vale só a CET, e dentro de Piracicaba só a lista da prefeitura (<see cref="Municipios"/>):
+/// o OSM e o Inmetro podem ter radares já desligados ou fora do lugar. O DER vale em todo lugar (rodovias).
 /// Fora dela, o radar do OSM que repete um oficial sai (ver <see cref="Juntar"/>).
 /// Cada fonte tem a própria lista e data, e todas ficam no aparelho (radares-sp.json). Atualiza no máximo 1x por semana;
 /// se uma fonte falhar, fica a lista anterior dela.
@@ -330,8 +332,9 @@ public sealed partial class RadaresSp
     /// Junta as fontes:
     /// <list type="bullet">
     /// <item>DER e CET entram inteiros.</item>
-    /// <item>Pardal: só fora da capital, e sem os que estão a menos de <see cref="Duplicado"/> m de um oficial.</item>
-    /// <item>OSM: só fora da capital, e sem os que estão a menos de <see cref="Duplicado"/> m de qualquer outro. Também sai o
+    /// <item>Piracicaba (lista da prefeitura) entra inteira.</item>
+    /// <item>Pardal: só fora de São Paulo e de Piracicaba, e sem os que estão a menos de <see cref="Duplicado"/> m de um oficial.</item>
+    /// <item>OSM: só fora de São Paulo e de Piracicaba, e sem os que estão a menos de <see cref="Duplicado"/> m de qualquer outro. Também sai o
     /// que estiver a até <see cref="DuplicadoRodovia"/> m de um do DER com a mesma velocidade (ou sem velocidade): é o mesmo
     /// radar marcado em outro ponto da rodovia.</item>
     /// </list>
@@ -341,17 +344,20 @@ public sealed partial class RadaresSp
         var dados = _dados!;
         List<RadarSp> De(string f) => dados.Fontes.TryGetValue(f, out var x) ? x.Radares : [];
         var der = De(FontesRadar.Der);
-        var oficiais = der.Concat(De(FontesRadar.Cet)).ToList();
+        var oficiais = der.Concat(De(FontesRadar.Cet)).Concat(RadaresPiracicaba.Lista()).ToList();
         var porOficiais = Grade(oficiais);
-        var pardal = De(FontesRadar.Pardal).Where(p => !CapitalSp.Contem(p.Lat, p.Lon) && !Perto(porOficiais, p, Duplicado, null)).ToList();
+        var pardal = De(FontesRadar.Pardal).Where(p => !ListaPropria(p) && !Perto(porOficiais, p, Duplicado, null)).ToList();
 
         var porTodos = Grade([.. oficiais, .. pardal]);
         var porDer = Grade(der);
-        var osm = De(FontesRadar.Osm).Where(o => !CapitalSp.Contem(o.Lat, o.Lon)
+        var osm = De(FontesRadar.Osm).Where(o => !ListaPropria(o)
             && !Perto(porTodos, o, Duplicado, null)
             && !Perto(porDer, o, DuplicadoRodovia, r => o.Kmh is null || r.Kmh is null || o.Kmh == r.Kmh));
         _juntos = [.. oficiais, .. pardal, .. osm];
     }
+
+    /// <summary>Cidade com lista oficial própria (CET, prefeitura): lá o OSM e o Inmetro não entram.</summary>
+    private static bool ListaPropria(RadarSp r) => Municipios.SaoPaulo.Contem(r.Lat, r.Lon) || Municipios.Piracicaba.Contem(r.Lat, r.Lon);
 
     /// <summary>Grade de ~0,01° (~1 km) para não comparar cada radar com todos os outros.</summary>
     private static ILookup<(double, double), RadarSp> Grade(IEnumerable<RadarSp> radares) =>

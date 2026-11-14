@@ -25,14 +25,15 @@ O CrankoHub não tem mapa nem rota próprios: a navegação fica com o **Google 
 - **14/11/2026 (3ª versão):** o mapa e as rotas próprios (MapLibre, Valhalla, Google Maps com chave, visor da central) davam umas 3 mil linhas e competiam com o Maps/Waze. Saíram; ficou uma barra da música por cima deles.
 - **14/11/2026 (4ª versão):** a barra da música cobria a manobra e o trajeto do Maps/Waze e não tinha utilidade. Saiu (sessões de mídia, acesso às notificações, reserva do Spotify); a janela sobreposta agora é o **aviso de radar**.
 
-### Fonte dos radares (as quatro juntas, testado em 14/11/2026)
+### Fonte dos radares (testado em 14/11/2026)
 - **DER-SP** (rodovias estaduais, inclusive as de concessão como SP 330, SP 348 e Rodoanel): `https://dersp.der.sp.gov.br/Upload/XML/radares.xml` (~3 MB), o XML que a página "Pesquisa de Radares" do DER carrega. Tem coordenadas, `rad_vel_regul` ("100/080 Km/h" = leves/pesados) e `Orientacao` (Norte/Sul/Leste/Oeste). Entram Controlador (radar) e Redutor (lombada eletrônica) com `trc_em_operacao=true`: **1.257**. Os Portáteis e os não metrológicos ficam de fora.
 - **CET-SP** (capital): `https://raw.githubusercontent.com/cetsp-dados/dados-fiscalizacao-eletronica/main/Base_Locais_Fiscalizados.csv`, do repositório oficial da CET no GitHub. Entram os ativos (sem DESATIVAÇÃO) que medem velocidade (METROLÓGICO = SIM ou "V" no ENQUADRAMENTO): **837**.
 - **Pardal** (`https://raw.githubusercontent.com/murkiriel/pardal/main/estados/SP/radares.csv`, projeto de terceiros que junta dados abertos do Brasil, ODbL, atualizado toda semana): só o que nenhuma outra fonte tem. São os radares **municipais do cadastro do Inmetro** (Campinas, Piracicaba, Limeira, Americana...), com a posição tirada do endereço (menos exata), e os das **rodovias federais** (ANTT, DNIT, PRF): **749**. Ficam de fora os que também vêm do DER, da CET ou do OSM e o avanço de sinal.
 - **OpenStreetMap** (`highway=speed_camera`, Overpass): o resto do estado: **1.565**.
-- **Dentro da cidade de São Paulo vale só a CET** (`Services/Carro/ModoCarro/CapitalSp.cs`, contorno simplificado do município): o OSM e o Inmetro podem ter radares já desligados.
+- **Piracicaba** (`Services/Carro/ModoCarro/RadaresPiracicaba.cs`, lista dentro do app): **36** radares municipais, montados a partir da lista da prefeitura (jornal JP, jan/2026) e conferidos com o cadastro do Inmetro (`servicos.rbmlq.gov.br/dados-abertos/SP/medidores.json`), que dá a velocidade (50 km/h; 60 na Pádua Dias), o sentido e mais 4 radares que não estavam na lista. Posição: número de porta pelo **CNEFE do IBGE** (Censo 2022) encaixado na via do OSM, e cruzamento pelo ponto em comum das duas vias. O sentido "B/C"/"C/B" vira graus só onde a geometria ficou clara (20 dos 36); nos outros, avisa nos dois sentidos. Ficaram de fora as lombadas dos viadutos Avanzi e Carmignani (sem nome no OSM) e os radares de caminhão. **Não se atualiza sozinho:** radar novo precisa ser incluído à mão (os scripts de geocodificação ficaram no scratchpad da sessão de 14/11).
+- **Cidades com lista própria** (`Services/Carro/ModoCarro/Municipios.cs`, contorno simplificado): dentro de São Paulo vale só a CET, e dentro de Piracicaba só a lista da prefeitura. O OSM e o Inmetro podem ter radares já desligados ou fora do lugar; o DER vale em todo lugar.
 - **Repetidos:** sai o radar do Pardal ou do OSM a menos de 60 m de um oficial; sai também o do OSM a até 250 m de um do DER com a mesma velocidade (o mesmo radar marcado em outro ponto da rodovia).
-- Total: **4.408** (Piracicaba 34, Campinas 121, Limeira 26).
+- Total: **4.426** (Piracicaba: 36 da prefeitura + 22 do DER; Campinas 121; Limeira 26).
 
 ### Como funciona
 - **Tela rápida** (`Pages/Carro/ModoCarro.razor`, `/carro/modo`): escolhe **Google Maps** ou **Waze** (`Config.AppNavegacaoCarro`), busca **"Para onde?"** pelo Photon (`Services/Carro/ModoCarro/BuscaLugares.cs`) e os 6 **recentes**. Abre o app **já navegando** (`google.navigation:q=lat,lng` / `waze://?ll=lat,lng&navigate=yes`). Mostra o que falta liberar (sobrepor e localização).
@@ -49,7 +50,8 @@ O CrankoHub não tem mapa nem rota próprios: a navegação fica com o **Google 
 5. `adb logcat -s CrankoHub.Carro` mostra os erros do GPS, da pílula e do bipe.
 
 ### Mais para frente
-- **Prefeituras com coordenada própria** (Emdec em Campinas, Piracicaba...): se publicarem a lista com coordenadas, substituir os do Inmetro, cuja posição vem do endereço.
+- **Outras cidades como Piracicaba:** o mesmo processo (lista da prefeitura + Inmetro + CNEFE) serve para Campinas, Limeira, Americana etc. Se alguma prefeitura publicar a lista com coordenadas, ela substitui os do Inmetro.
+- **Lombadas dos viadutos Avanzi e Carmignani** (Piracicaba): marcar a posição quando alguém confirmar onde ficam.
 - **Favoritos:** Casa e Trabalho na tela rápida.
 - **Fase 2, imagem e toque na tela da central (pesquisa):**
   - Vídeo: o dashboard numa tela secundária (`Presentation` API) → HDMI → adaptador Pioneer CD-AH200 → entrada RGB (modo AppRadio). Exige um celular com saída de vídeo.

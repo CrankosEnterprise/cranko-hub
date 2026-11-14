@@ -75,7 +75,7 @@
 
             <div class="lc-linha">
                 <span><b>@(Radares.Total > 0 ? $"{Radares.Total:N0} radares no estado de SP" : "Radares ainda não baixados")</b>
-                    <span class="muted">· @(Radares.Baixando ? "baixando…" : string.Join(" · ", FontesRadar.Todas.Select(Resumo)))</span></span>
+                    <span class="muted">· @(Radares.Baixando ? "baixando…" : string.Join(" · ", FontesRadar.Exibir.Select(Resumo)))</span></span>
                 <button type="button" class="btn" disabled="@Radares.Baixando" @onclick="AtualizarRadares">Atualizar agora</button>
             </div>
         </section>
@@ -179,8 +179,9 @@
     private static string Distancia(int metros) => metros >= 1000 ? $"{metros / 1000.0:0.#} km" : $"{metros} m";
 
     /// <summary>"DER (rodovias) 1.257, 13/11" — ou "não baixado".</summary>
-    private string Resumo(string fonte) =>
-        $"{FontesRadar.Nome(fonte)} {(Radares.Atualizado(fonte) is { } quando ? $"{Radares.Contagem(fonte):N0}, {quando:dd/MM}" : "não baixado")}";
+    private string Resumo(string fonte) => fonte == FontesRadar.Piracicaba
+        ? $"{FontesRadar.Nome(fonte)} {Radares.Contagem(fonte):N0}, lista do app"
+        : $"{FontesRadar.Nome(fonte)} {(Radares.Atualizado(fonte) is { } quando ? $"{Radares.Contagem(fonte):N0}, {quando:dd/MM}" : "não baixado")}";
 
     private void MudarInt(Action<int> aplicar, int valor)
     {
