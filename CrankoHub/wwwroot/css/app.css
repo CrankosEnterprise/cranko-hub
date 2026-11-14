@@ -297,7 +297,14 @@ html.inativa .semaforo:not(:hover) button { background: #c9cbd0; box-shadow: ins
   animation: enter .14s ease-out;
 }
 .conta.compacta .conta-menu { left: auto; right: 0; bottom: auto; top: calc(100% + 8px); width: 290px; }
-.conta-cab { display: flex; align-items: center; gap: 10px; padding: 8px 8px 6px; }
+.conta-cab { display: flex; align-items: center; gap: 10px; padding: 8px 40px 6px 8px; }
+.conta-fechar {
+  position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 28px; height: 28px;
+  border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer;
+}
+.conta-fechar svg { width: 15px; height: 15px; stroke-width: 2; }
+.conta-fechar:hover { background: var(--sidebar-hover); color: var(--text); }
+.conta:not(.compacta) .conta-status { padding-right: 40px; }
 .conta-cab .conta-avatar { box-shadow: none; }
 .conta-status { padding: 6px 8px 8px; margin-bottom: 2px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--glass-line); }
 .conta-status.problema { color: var(--serious); }

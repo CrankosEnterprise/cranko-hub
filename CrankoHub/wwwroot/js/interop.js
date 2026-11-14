@@ -48,6 +48,27 @@ window.crankohub = {
     });
   },
 
+  // Menu suspenso (ex.: a conta no topo): clicar fora dele ou apertar Esc chama ponte.FecharMenu().
+  // Não dá para usar um fundo "position: fixed" atrás do menu: a barra do topo é um container (CSS) e o fundo
+  // só cobriria a barra — e, por ela arrastar a janela, o clique viraria um arraste. Devolve { parar() }.
+  fecharAoClicarFora(el, ponte) {
+    const fechar = () => { parar(); ponte.invokeMethodAsync('FecharMenu'); };
+    const aoApertar = (e) => {
+      if (el.contains(e.target)) return;
+      // Clicar fora só fecha o menu: na barra do topo não começa a arrastar a janela
+      if (e.target.closest?.('[data-arrastar]')) e.stopPropagation();
+      fechar();
+    };
+    const aoTeclar = (e) => { if (e.key === 'Escape') fechar(); };
+    const parar = () => {
+      document.removeEventListener('mousedown', aoApertar, true);
+      document.removeEventListener('keydown', aoTeclar, true);
+    };
+    document.addEventListener('mousedown', aoApertar, true);
+    document.addEventListener('keydown', aoTeclar, true);
+    return { parar };
+  },
+
   // Quem rola é o "palco" (ver LayoutPrincipal), não a janela
   rolarParaTopo() { document.getElementById('palco')?.scrollTo(0, 0); },
 

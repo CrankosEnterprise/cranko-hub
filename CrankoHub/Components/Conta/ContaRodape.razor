@@ -1,19 +1,21 @@
 @namespace CrankoHub.Components
 @* Conta: o nome (ou, compacto, só o avatar na barra do topo) abre um menu com Informações (página da Conta),
-   a sincronização e Sair (o login é a TelaLogin). Compacto, o menu abre para baixo. *@
-@implements IDisposable
+   a sincronização e Sair (o login é a TelaLogin). Compacto, o menu abre para baixo.
+   Fecha no X, clicando fora (crankohub.fecharAoClicarFora) ou com Esc. *@
+@implements IAsyncDisposable
 @inject ContaService Conta
 @inject SincronizacaoService Sincronizacao
 @inject IDialogoService Dialogo
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
-<div class="conta @(Compacto ? "compacta" : "")" @onkeydown="AoTeclar">
+<div class="conta @(Compacto ? "compacta" : "")" @ref="_raiz">
     @if (Conta.Logado)
     {
         @if (_menu)
         {
-            <div class="conta-fundo" @onclick="() => _menu = false"></div>
             <div class="conta-menu" role="menu">
+                <button class="conta-fechar" type="button" title="Fechar" aria-label="Fechar o menu" @onclick="() => _menu = false">@Icones.Fechar</button>
                 @if (Compacto)
                 {
                     <div class="conta-cab"><span class="conta-avatar">@Inicial</span><span class="conta-texto"><b>@Conta.Usuario</b><small>@StatusCurto</small></span></div>
@@ -39,6 +41,9 @@
     [Parameter] public bool Compacto { get; set; }
 
     private bool _menu;
+    private ElementReference _raiz;
+    private IJSObjectReference? _fora;
+    private DotNetObjectReference<ContaRodape>? _ponte;
 
     private string Inicial => Conta.Usuario is { Length: > 0 } u ? u[..1].ToUpperInvariant() : "?";
 
@@ -63,15 +68,45 @@
         Sincronizacao.Mudou += Mudou;
     }
 
-    public void Dispose()
+    // Menu aberto: escuta o clique fora; fechado: para de escutar
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_menu && _fora is null)
+        {
+            _ponte ??= DotNetObjectReference.Create(this);
+            _fora = await JS.InvokeAsync<IJSObjectReference>("crankohub.fecharAoClicarFora", _raiz, _ponte);
+        }
+        else if (!_menu && _fora is not null)
+            await PararDeEscutar();
+    }
+
+    [JSInvokable]
+    public void FecharMenu()
+    {
+        if (!_menu) return;
+        _menu = false;
+        StateHasChanged();
+    }
+
+    private async Task PararDeEscutar()
+    {
+        var fora = _fora;
+        _fora = null;
+        if (fora is null) return;
+        try
+        {
+            await fora.InvokeVoidAsync("parar");
+            await fora.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    public async ValueTask DisposeAsync()
     {
         Conta.Mudou -= Mudou;
         Sincronizacao.Mudou -= Mudou;
-    }
-
-    private void AoTeclar(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape") _menu = false;
+        await PararDeEscutar();
+        _ponte?.Dispose();
     }
 
     private void AbrirInformacoes()
