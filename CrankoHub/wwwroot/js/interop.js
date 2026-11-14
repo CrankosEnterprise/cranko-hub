@@ -37,15 +37,29 @@ window.crankohub = {
     window.addEventListener('blur', () => raiz.classList.add('inativa'));
     window.addEventListener('focus', () => raiz.classList.remove('inativa'));
     const interativo = (el) => el.closest('a, button, input, select, textarea, [role="menu"], .sem-arrastar');
+    // Só começa a mover a janela quando o mouse anda alguns pixels com o botão apertado. Mover entrega o mouse
+    // ao Windows (a página não vê o "soltar"); se um clique simples já fizesse isso, o segundo clique do duplo
+    // clique chegaria desencontrado e a página ficaria achando que o botão continua apertado.
+    let apertou = null;
     document.addEventListener('mousedown', (e) => {
+      apertou = null;
       if (e.button !== 0) return;
       const borda = e.target.closest?.('.borda-janela');
       if (borda) { e.preventDefault(); ponte.invokeMethodAsync('Redimensionar', borda.dataset.borda); return; }
       if (!e.target.closest?.('[data-arrastar]') || interativo(e.target)) return;
-      if (e.detail === 2) { ponte.invokeMethodAsync('AlternarMaximizar'); return; }
       e.preventDefault();
+      if (e.detail === 2) { ponte.invokeMethodAsync('AlternarMaximizar'); return; }
+      apertou = { x: e.screenX, y: e.screenY };
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!apertou) return;
+      if (!(e.buttons & 1)) { apertou = null; return; }
+      if (Math.abs(e.screenX - apertou.x) < 4 && Math.abs(e.screenY - apertou.y) < 4) return;
+      apertou = null;
       ponte.invokeMethodAsync('Arrastar');
     });
+    document.addEventListener('mouseup', () => { apertou = null; });
+    window.addEventListener('blur', () => { apertou = null; });
   },
 
   // Menu suspenso (ex.: a conta no topo): clicar fora dele ou apertar Esc chama ponte.FecharMenu().

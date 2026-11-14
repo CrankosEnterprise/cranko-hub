@@ -106,10 +106,25 @@ public partial class MainWindow : Window
     private void ComecarMovimento(int alvo)
     {
         var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero) return;
+        // O pedido vem da página com um pequeno atraso: se o botão já foi solto, o Windows entraria num modo
+        // de mover/redimensionar que segue o cursor até o próximo clique
+        if (hwnd == IntPtr.Zero || !BotaoPrincipalApertado()) return;
         ReleaseCapture();
         SendMessage(hwnd, WM_NCLBUTTONDOWN, alvo, IntPtr.Zero);
     }
+
+    private static bool BotaoPrincipalApertado()
+    {
+        const int SM_SWAPBUTTON = 23, VK_LBUTTON = 0x01, VK_RBUTTON = 0x02;
+        var botao = GetSystemMetrics(SM_SWAPBUTTON) != 0 ? VK_RBUTTON : VK_LBUTTON;
+        return (GetAsyncKeyState(botao) & 0x8000) != 0;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int tecla);
+
+    [DllImport("user32.dll")]
+    private static extern int GetSystemMetrics(int indice);
 
     [DllImport("user32.dll")]
     private static extern bool ReleaseCapture();
