@@ -18,11 +18,34 @@ window.crankohub = {
   },
 
   // Cor de destaque escolhida em Configurações (versões clara/escura e cor do texto sobre ela)
-  aplicarDestaque(claro, escuro, texto) {
+  aplicarDestaque(claro, escuro, texto, textoEscuro) {
     const s = document.documentElement.style;
     s.setProperty('--destaque-claro', claro);
     s.setProperty('--destaque-escuro', escuro);
     s.setProperty('--destaque-texto', texto);
+    s.setProperty('--destaque-texto-escuro', textoEscuro || texto);
+  },
+
+  // Janela sem a moldura do Windows (Layout/LayoutPrincipal.razor): a página faz o papel da barra de título.
+  // Apertar o botão num [data-arrastar] (fora de botões e links) move a janela; duas vezes maximiza;
+  // as bordas .borda-janela redimensionam. Quem mexe na janela de verdade é o C# (JanelaService → MainWindow).
+  registrarJanela(ponte) {
+    if (window.__janela) return;
+    window.__janela = ponte;
+    // Janela sem foco: o semáforo fica cinza, como no macOS
+    const raiz = document.documentElement;
+    window.addEventListener('blur', () => raiz.classList.add('inativa'));
+    window.addEventListener('focus', () => raiz.classList.remove('inativa'));
+    const interativo = (el) => el.closest('a, button, input, select, textarea, [role="menu"], .sem-arrastar');
+    document.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      const borda = e.target.closest?.('.borda-janela');
+      if (borda) { e.preventDefault(); ponte.invokeMethodAsync('Redimensionar', borda.dataset.borda); return; }
+      if (!e.target.closest?.('[data-arrastar]') || interativo(e.target)) return;
+      if (e.detail === 2) { ponte.invokeMethodAsync('AlternarMaximizar'); return; }
+      e.preventDefault();
+      ponte.invokeMethodAsync('Arrastar');
+    });
   },
 
   // Quem rola é o "palco" (ver LayoutPrincipal), não a janela

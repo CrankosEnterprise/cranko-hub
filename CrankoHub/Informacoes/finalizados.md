@@ -368,3 +368,22 @@ Em **Configurações → Módulos** (e só lá) cada módulo pode ser reordenado
 1. ✅ `dotnet build` (Windows e Linux) sem erros nem avisos.
 2. ✅ Rodar a `0013_modulos_personalizados.sql` no Supabase.
 3. ⏳ No app: arrastar e usar as setas (menu, atalhos e Início mudam na hora); renomear, trocar cor e ícone; esconder um módulo no meio da ordem (o Início refaz os pares); restaurar um e todos; fechar e abrir; ver chegar no outro aparelho. No Android, arrastar pela alça sem rolar a página.
+
+## 20. Novo layout "Fusão" ✅ (feito em 13/11/2026; testado no computador; falta testar no Linux e no celular)
+
+Reestruturação visual para uma cara mais premium. Saiu de 4 conceitos em `Redesign/` (A Atelier, B Meia-noite, C Vitrine, D Cockpit); o escolhido foi o **E · Fusão**: a tipografia e as linhas finas do A, o mosaico e o brilho do B e o menu central em cápsula do C.
+
+- **Sem barra lateral.** No topo: semáforo + marca à esquerda, as áreas num **menu em cápsula** no centro (com pouco espaço, só o item aberto mantém o nome) e tema, Configurações (engrenagem) e a conta (só o avatar; o menu abre para baixo) à direita. O antigo "esconder menu" (`Config.MenuOculto`) deixou de ter uso.
+- **Cabeçalho da página** no palco: descrição pequena, título grande e leve (Manrope 250) e os botões da seção (`AcoesTopo`) à direita. O Início tem o próprio: data, saudação e o resumo do dia ("Hoje: 2 compromissos, 4 tarefas e 1 cobrança chegando.").
+- **Início em mosaico:** faixa "Precisa de atenção" (uma coluna por pendência, a marca colorida é a urgência) e blocos na ordem de Configurações → Módulos; Dieta, Agenda e Tarefas são altos, Entretenimento ("Continuar de onde parou") e Atividade recente são largos; a grade preenche os buracos (`grid-auto-flow: dense`).
+- **Visual:** fonte **Manrope** embutida (a do CrankoForge; `wwwroot/fonts/OFL-Manrope.txt`). Tokens novos com os mesmos nomes de variáveis, então todas as páginas herdaram: porcelana fria no claro; azul-marinho do logo no escuro, com blocos em gradiente e brilho na cor do módulo (`.brilho`, `--c`). Números grandes e leves nos KPIs, rótulos sem caixa alta, abas sublinhadas, botões mais discretos.
+- **Cor de destaque "Marinho"** (`#24346F` no claro, `#A9B8FF` com texto escuro no escuro) é a nova padrão, primeira da paleta. Quem já tinha escolhido outra cor continua com ela. `CorDestaque` ganhou `TextoEscuro`.
+- **Janela (Windows):** a faixa de título nativa do WPF saiu; a página ocupa a janela toda e desenha o semáforo (cinza com a janela sem foco). `JanelaService` passou a levar os pedidos da página para a `MainWindow`: fechar, minimizar, maximizar, **arrastar** pela barra do topo (`data-arrastar`; dois cliques maximizam) e **redimensionar** pelas bordas invisíveis `.borda-janela` (as duas via `WM_NCLBUTTONDOWN`, então o Aero Snap funciona). Maximizada, a página tira as bordas e os cantos. No Linux a janela tem a moldura do sistema e o semáforo não aparece (`JanelaService.ControlesProprios`).
+- **Celular (até 860 px):** o menu vira uma barra de abas de vidro fixa embaixo; o topo fica com a marca e os botões.
+- **Correção no caminho:** o cabeçalho com o `SectionOutlet` fica fora do conteúdo com `@key`; dentro dele, cada navegação criava por um instante dois lugares com o mesmo nome e a interface quebrava.
+- **Depuração:** com `CRANKOHUB_DEPURAR=1`, o build Debug abre o inspetor do WebView2 na porta 9222 (para testes e prints; não existe no Release).
+
+**Como testar**
+1. ✅ `dotnet build` (Windows) sem erros nem avisos.
+2. ✅ Todas as páginas nos dois temas; trocar de página várias vezes sem erro; arrastar, redimensionar, maximizar e restaurar a janela com o mouse.
+3. ⏳ Linux (moldura do sistema, sem semáforo) e Android (barra de abas embaixo, área segura).

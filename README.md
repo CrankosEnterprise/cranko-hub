@@ -109,7 +109,7 @@ cranko-hub/
 │   │   ├── Graficos/                # GraficoLinha, GraficoBarras e Legenda
 │   │   ├── Conta/                   # Tela de login, rodapé da conta, linhas de permissão
 │   │   └── <Módulo>/                # Peças de um módulo só (ex.: Carro/MarcadorCombustivel)
-│   ├── Layout/                      # LayoutPrincipal.razor (menu lateral e rodapé da conta) e LayoutCarro.razor
+│   ├── Layout/                      # LayoutPrincipal.razor (barra do topo com semáforo, menu em cápsula e conta; cabeçalho da página) e LayoutCarro.razor
 │   ├── Models/                      # Modelos de dados, por módulo
 │   │   └── Comum/                   # EstadoApp (raiz dos dados da conta), Configuracoes, Modulo, Anexo, Graficos...
 │   ├── Services/                    # Regras de negócio, cálculos e serviços, por módulo

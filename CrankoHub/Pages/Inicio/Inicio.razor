@@ -5,6 +5,11 @@
 @inject ContaService Conta
 @inject CarroBluetoothService Bluetooth
 
+@*
+    Início (layout "Fusão"): cabeçalho com a data, a saudação e o resumo do dia; a faixa "Precisa de atenção";
+    e um mosaico de blocos, um por módulo, na ordem de Configurações → Módulos. Os blocos têm tamanhos diferentes
+    (Dieta, Agenda e Tarefas são altos; Entretenimento e a Atividade recente são largos) e a grade preenche os buracos.
+*@
 @{
     var d = Store.Dados;
     var rs = DietaCalculos.Ordenados(d.Dieta.Registros);
@@ -30,12 +35,12 @@
     if (Conta.Usuario is { Length: > 0 } nome) saudacao += ", " + char.ToUpper(nome[0]) + nome[1..];
 
     var atividades = (Modulo.Visivel(d.Config, Modulo.Dieta) ? rs : []).TakeLast(6)
-        .Select(r => (r.Data, Icone: Icones.Balanca, Texto: $"{Num(r.Peso)} kg registrados", Sub: string.IsNullOrEmpty(r.Obs) ? Modulo.De(d.Config, Modulo.Dieta)!.Nome : r.Obs))
-        .Concat((Modulo.Visivel(d.Config, Modulo.Carro) ? abs : []).TakeLast(6).Select(a => (a.Data, Icone: Icones.Bomba,
+        .Select(r => (r.Data, Icone: Icones.Balanca, Cor: Modulo.CorDe(d.Config, Modulo.Dieta), Texto: $"{Num(r.Peso)} kg registrados", Sub: string.IsNullOrEmpty(r.Obs) ? Modulo.De(d.Config, Modulo.Dieta)!.Nome : r.Obs))
+        .Concat((Modulo.Visivel(d.Config, Modulo.Carro) ? abs : []).TakeLast(6).Select(a => (a.Data, Icone: Icones.Bomba, Cor: Modulo.CorDe(d.Config, Modulo.Carro),
             Texto: $"{Num(a.Litros, 1)} L de {Combustivel.NomeDe(a.Combustivel)}{(a.Valor > 0 ? " · " + Money(a.Valor) : "")}",
             Sub: $"{veic?.Nome} · {(a.Inicial ? "ponto de partida" : Num(a.Kml, 2) + " km/l")}")))
         .OrderByDescending(x => x.Data)
-        .Take(6)
+        .Take(5)
         .ToList();
 
     var alertas = Alertas.Gerar(d, Hoje);
@@ -50,18 +55,45 @@
 
     // Mini-gráficos: últimos 90 dias
     var corte = Hoje.AddDays(-90);
+
+    // Resumo do dia no cabeçalho: só o que existe e está visível
+    var partes = new List<string>();
+    if (Modulo.Visivel(cfg, Modulo.Agenda) && agenda.Hoje > 0) partes.Add($"{agenda.Hoje} {Plural(agenda.Hoje, "compromisso", "compromissos")}");
+    var tarefasHoje = resumo.ParaHoje.Count + resumo.Atrasados.Count;
+    if (Modulo.Visivel(cfg, Modulo.Tarefas) && tarefasHoje > 0) partes.Add($"{tarefasHoje} {Plural(tarefasHoje, "tarefa", "tarefas")}");
+    var cobrancasPerto = proximasCobrancas.Count(c => c.Data.DayNumber - Hoje.DayNumber <= 1);
+    if (Modulo.Visivel(cfg, Modulo.Assinaturas) && cobrancasPerto > 0) partes.Add($"{cobrancasPerto} {Plural(cobrancasPerto, "cobrança", "cobranças")} chegando");
 }
 
-<section class="hero">
-    <p class="eyebrow">@DataPorExtenso(agora)</p>
-    <h1>@(saudacao)!</h1>
-    <p>Seu painel pessoal de parâmetros. Escolha uma área para registrar e acompanhar sua evolução.</p>
-</section>
+<header class="pagina-cab ini-cab">
+    <div class="pagina-titulo">
+        <p class="pagina-sobre ini-data">@DataPorExtenso(agora)</p>
+        <h1>@saudacao</h1>
+        <p class="ini-resumo">
+            @if (partes.Count > 0)
+            {
+                <text>Hoje: </text>
+                @for (var i = 0; i < partes.Count; i++)
+                {
+                    @(i == 0 ? "" : i == partes.Count - 1 ? " e " : ", ")<b>@partes[i]</b>
+                }
+                <text>.</text>
+            }
+            else
+            {
+                <text>Nada marcado para hoje. Bom momento para registrar alguma coisa.</text>
+            }
+        </p>
+    </div>
+    <div class="topo-acoes">
+        <a class="btn" href="configuracoes?aba=modulos" title="Escolher a ordem, o nome e a cor dos módulos">@Icones.Layout<span class="rotulo">Organizar</span></a>
+    </div>
+</header>
 
 @if (verCarro && cfg.Estacionado is { } estacionado)
 {
     @* Guardado quando o Bluetooth do carro desconectou (Configurações → Modo Carro → Onde estacionei) *@
-    <section class="card estacionado" aria-label="Carro estacionado">
+    <section class="card estacionado brilho" style="--c:@Modulo.CorDe(cfg, Modulo.Carro)" aria-label="Carro estacionado">
         <span class="estacionado-icone" aria-hidden="true">@Icones.Carro</span>
         <div class="estacionado-texto">
             <b>Carro estacionado</b>
@@ -74,106 +106,112 @@
     </section>
 }
 
-@* Cartões na ordem escolhida em Configurações → Módulos: "Precisa de atenção" primeiro, depois os módulos visíveis.
-   Vão em pares; a estante do Entretenimento ocupa a linha inteira, e quem sobra sozinho também. *@
-@foreach (var linha in LinhasDoInicio(cfg))
-{
-<div class="grid-2 @(linha.Count == 1 ? "um" : "")">
-@foreach (var id in linha)
-{
-    var m = Modulo.De(cfg, id);
-    switch (id)
+@* Precisa de atenção: faixa com as pendências de todas as áreas (a cor da marca é a urgência) *@
+<section class="faixa-atencao @(alertas.Count == 0 ? "vazia" : "")" aria-label="Precisa de atenção">
+    @if (alertas.Count > 0)
     {
-        case Atencao:
-    <section class="card" @key="id">
-        <div class="card-head"><div><h2>Precisa de atenção</h2><p>@(alertas.Count > 0 ? $"{alertas.Count} {Plural(alertas.Count, "item", "itens")} para resolver" : "Lembretes de todas as áreas")</p></div></div>
-        @if (alertas.Count > 0)
+        @foreach (var a in alertas)
         {
-            <ul class="activity alertas">
-                @foreach (var a in alertas)
-                {
-                    <li @key="a.Chave">
-                        <a href="@a.Link">
-                            <span class="a-icon">@a.Icone</span>
-                            <div class="a-text">@a.Titulo<small>@a.Detalhe</small></div>
-                            <span class="badge @a.Classe">@a.Badge</span>
-                        </a>
-                    </li>
-                }
-            </ul>
+            <a class="fa-item" href="@a.Link" @key="a.Chave" data-nivel="@a.Classe" title="@a.Badge">
+                <span class="fa-marca" aria-hidden="true"></span>
+                <span class="fa-texto"><b>@a.Titulo</b><small>@a.Detalhe</small></span>
+            </a>
         }
-        else
-        {
-            <div class="chart-empty"><span>Tudo em dia por aqui. ✓</span></div>
-        }
-    </section>
-            break;
+    }
+    else
+    {
+        <div class="fa-item"><span class="fa-marca" aria-hidden="true"></span><span class="fa-texto"><b>Tudo em dia</b><small>Nenhuma pendência em nenhuma área.</small></span></div>
+    }
+</section>
 
-        case Modulo.Assinaturas:
-    <a class="card link-card" href="assinaturas" style="--c:@m!.Cor" @key="id">
-        <div class="link-head">
-            <span class="link-icon">@m.Icone</span>
-            <div><h2>@m.Nome</h2><p>@m.Descricao</p></div>
-            <span class="go">@Icones.Seta</span>
-        </div>
-        <div class="mini-stats">
-            <div><span>Custo mensal</span><b>@Money(custoAssin)</b></div>
-            <div><span>Ativas</span><b>@assinAtivas.Count</b></div>
-            <div><span>Próx. 30 dias</span><b>@Money(proximasCobrancas.Sum(c => c.Assinatura.Valor))</b></div>
-        </div>
-        @if (proximasCobrancas.Count > 0)
-        {
-            <ul class="activity">
-                @foreach (var (a, data) in proximasCobrancas.Take(4))
-                {
-                    var (texto, classe) = AssinaturasCalculos.Prazo(data.DayNumber - Hoje.DayNumber);
-                    <li>
-                        <div class="a-text">@a.Nome<small>@Money(a.Valor) · @DataBR(data)</small></div>
-                        <span class="badge @classe">@texto</span>
-                    </li>
-                }
-            </ul>
-        }
-        else
-        {
-            <div class="chart-empty"><span>Nenhuma cobrança nos próximos 30 dias.</span></div>
-        }
-    </a>
-            break;
-
+<div class="mosaico">
+@foreach (var m in Modulo.Visiveis(cfg))
+{
+    switch (m.Id)
+    {
         case Modulo.Dieta:
-    <a class="card link-card" href="dieta" style="--c:@m!.Cor" @key="id">
-        <div class="link-head">
-            <span class="link-icon">@m.Icone</span>
-            <div><h2>@m.Nome</h2><p>@m.Descricao</p></div>
-            <span class="go">@Icones.Seta</span>
+    <a class="card bloco alto brilho" href="dieta" style="--c:@m.Cor" @key="m.Id">
+        <div class="b-cab"><span class="b-ic">@m.Icone</span>@m.Nome<span class="b-dir">90 dias</span></div>
+        @if (last is not null)
+        {
+            <div class="b-num">@Num(last.Peso)<small>kg</small></div>
+            <p class="b-sub">
+                @if (var30 is not null)
+                {
+                    <Delta Valor="var30" Unidade=" kg" BomQuandoCai="perdendo" /> <span>em 30 dias</span>
+                }
+                else
+                {
+                    <span>Último registro em @DataBR(last.Data)</span>
+                }
+            </p>
+            @if (meta is not null)
+            {
+                <p class="b-sub">Meta @Num(meta) kg · @(Math.Abs(last.Peso - meta.Value) < 0.05 ? "atingida" : $"faltam {Num(Math.Abs(last.Peso - meta.Value))} kg")</p>
+            }
+        }
+        else
+        {
+            <div class="b-num vazio">—</div>
+            <p class="b-sub">Registre seu primeiro peso.</p>
+        }
+        <div class="b-graf">
+            <GraficoLinha Altura="170" FormatoY="new FormatoNumero(1)" Formato="FormatoNumero.Kg" MsgVazia="Sem pesos nos últimos 90 dias."
+                          Series="@([new SerieLinha("Peso", m.Cor, rs.Where(r => r.Data > corte).Select(r => new PontoLinha(r.Data, r.Peso)).ToList(), Markers: false, Area: true)])" />
         </div>
-        <div class="mini-stats">
-            <div><span>Peso atual</span><b>@(last is not null ? Num(last.Peso) + " kg" : Vazio)</b></div>
-            <div><span>Últimos 30 dias</span><b>@if (var30 is not null) { <Delta Valor="var30" Unidade=" kg" BomQuandoCai="perdendo" /> } else { @Vazio }</b></div>
-            <div><span>Meta</span><b>@(meta is not null ? Num(meta) + " kg" : Vazio)</b></div>
-        </div>
-        <GraficoLinha Altura="150" Formato="FormatoNumero.Kg" MsgVazia="Sem pesos nos últimos 90 dias."
-                      Series="@([new SerieLinha("Peso", "var(--series-1)", rs.Where(r => r.Data > corte).Select(r => new PontoLinha(r.Data, r.Peso)).ToList(), Markers: false, Area: true)])" />
     </a>
             break;
 
         case Modulo.Carro:
-    <a class="card link-card" href="carro" style="--c:@m!.Cor" @key="id">
-        <div class="link-head">
-            <span class="link-icon">@m.Icone</span>
-            <div><h2>@m.Nome</h2><p>@(veic is null ? "Cadastre seu veículo para começar" : $"{veic.Nome} · consumo e custos")</p></div>
-            <span class="go">@Icones.Seta</span>
-        </div>
-        <div class="mini-stats">
-            <div><span>Consumo médio</span><b>@(st.Media is not null ? Num(st.Media) + " km/l" : Vazio)</b></div>
-            <div><span>Custo por km</span><b>@Money(st.CustoKm)</b></div>
-            <div><span>Gasto no mês</span><b>@Money(gastoMes)</b></div>
-        </div>
-        <GraficoLinha Altura="150" FormatoY="new FormatoNumero(1)" Formato="@(new FormatoNumero(2, " km/l"))" MsgVazia="Sem abastecimentos nos últimos 90 dias."
-                      Series="@([new SerieLinha("Consumo", "var(--series-1)", abs.Where(a => a.Data > corte && !a.Inicial).Select(a => new PontoLinha(a.Data, a.Kml)).ToList(), Markers: false, Area: true)])" />
+    <a class="card bloco brilho" href="carro" style="--c:@m.Cor" @key="m.Id">
+        <div class="b-cab"><span class="b-ic">@m.Icone</span>@(veic?.Nome ?? m.Nome)<span class="b-dir">@(veic is null ? "" : "consumo médio")</span></div>
+        @if (veic is null)
+        {
+            <p class="b-sub b-convite">Cadastre seu veículo para acompanhar consumo, gastos, manutenção e documentos.</p>
+        }
+        else
+        {
+            <div class="b-num">@(st.Media is not null ? Num(st.Media) : "—")<small>km/l</small></div>
+            <div class="b-rodape">
+                <div><span>Gasto no mês</span><b>@Money(gastoMes)</b></div>
+                <div><span>Custo por km</span><b>@Money(st.CustoKm)</b></div>
+            </div>
+        }
     </a>
             break;
+
+        case Modulo.Assinaturas:
+        {
+    var proxima = proximasCobrancas.FirstOrDefault();
+    var porValor = assinAtivas.OrderByDescending(AssinaturasCalculos.PorMes).ToList();
+    <a class="card bloco brilho" href="assinaturas" style="--c:@m.Cor" @key="m.Id">
+        <div class="b-cab"><span class="b-ic">@m.Icone</span>@m.Nome<span class="b-dir">@assinAtivas.Count @Plural(assinAtivas.Count, "ativa", "ativas")</span></div>
+        <div class="b-num">@Num(custoAssin, 0)<small>R$/mês</small></div>
+        @if (porValor.Count > 0)
+        {
+            @* Quanto cada uma pesa no mês: tons da cor do módulo, da mais cara para a mais barata *@
+            <div class="b-composicao" aria-hidden="true">
+                @for (var i = 0; i < porValor.Count; i++)
+                {
+                    <span style="flex:@(AssinaturasCalculos.PorMes(porValor[i]).ToString(System.Globalization.CultureInfo.InvariantCulture));opacity:@((1 - i * 0.7 / Math.Max(1, porValor.Count - 1)).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))"></span>
+                }
+            </div>
+        }
+        <div class="b-rodape">
+            @if (proxima.Assinatura is not null)
+            {
+                var (prazo, _) = AssinaturasCalculos.Prazo(proxima.Data.DayNumber - Hoje.DayNumber);
+                <div><span>Próxima</span><b>@proxima.Assinatura.Nome, @prazo.ToLowerInvariant()</b></div>
+                <div><span>Valor</span><b>@Money(proxima.Assinatura.Valor)</b></div>
+            }
+            else
+            {
+                <div><span>Próximos 30 dias</span><b>Nenhuma cobrança</b></div>
+            }
+        </div>
+    </a>
+            break;
+        }
 
         case Modulo.Agenda:
         {
@@ -183,13 +221,9 @@
         : AgendaCalculos.Ocorrencias(d.Agenda, agora, Hoje.AddDays(periodoDias).ToDateTime(TimeOnly.MinValue))
             .Where(o => o.Fim > agora || (o.NoTopo && o.Data >= Hoje) || (o.Fim == o.Inicio && o.Inicio >= agora))
             .OrderBy(o => o.Data).ThenBy(o => !o.NoTopo).ThenBy(o => o.Inicio).ToList();
-    var maxItens = _periodoAgenda == VisaoAgenda.Dia ? 4 : 6;
-    <section class="card cartao-ini" style="--c:@m!.Cor" @key="id">
-        <a class="link-head cartao-ini-link" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda">
-            <span class="link-icon">@m.Icone</span>
-            <div><h2>@m.Nome</h2><p>@(_periodoAgenda switch { VisaoAgenda.Semana => "O que vem nos próximos 7 dias", VisaoAgenda.Mes => "O que vem nos próximos 30 dias", _ => "O que ainda vem hoje" })</p></div>
-            <span class="go">@Icones.Seta</span>
-        </a>
+    var maxItens = 5;
+    <section class="card bloco alto" style="--c:@m.Cor" @key="m.Id">
+        <a class="b-cab b-cab-link" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda"><span class="b-ic">@m.Icone</span>@m.Nome<span class="b-dir">@agenda.Hoje hoje · @agenda.Semana em 7 dias</span></a>
         <div class="chips cartao-ini-chips" role="group" aria-label="Período da agenda">
             @foreach (var (visao, rotulo) in PeriodosAgenda)
             {
@@ -197,47 +231,34 @@
                         @onclick="() => _periodoAgenda = visao">@rotulo</button>
             }
         </div>
-        <div class="mini-stats">
-            <div><span>Hoje</span><b>@agenda.Hoje</b></div>
-            <div><span>Amanhã</span><b>@agenda.Amanha</b></div>
-            @if (_periodoAgenda == VisaoAgenda.Mes)
-            {
-                <div><span>Próx. 30 dias</span><b>@doPeriodo.Count</b></div>
-            }
-            else
-            {
-                <div><span>Próx. 7 dias</span><b>@agenda.Semana</b></div>
-            }
-        </div>
         @if (doPeriodo.Count > 0)
         {
-            <ul class="activity">
+            <ul class="b-lista">
                 @foreach (var o in doPeriodo.Take(maxItens))
                 {
                     var acontecendo = !o.NoTopo && o.Inicio <= agora && o.Fim > agora;
                     var quando = o.Data <= Hoje
-                        ? (o.NoTopo ? "dia inteiro" : o.Inicio <= agora ? "agora" : AgendaCalculos.Hora(o.Inicio))
-                        : $"{(o.Data == Hoje.AddDays(1) ? "amanhã" : $"{AgendaCalculos.DiaSemanaCurto(o.Data)} {o.Data.Day}")}{(o.NoTopo ? "" : " · " + AgendaCalculos.Hora(o.Inicio))}";
+                        ? (o.NoTopo ? "dia todo" : o.Inicio <= agora ? "agora" : AgendaCalculos.Hora(o.Inicio))
+                        : $"{(o.Data == Hoje.AddDays(1) ? "amanhã" : $"{AgendaCalculos.DiaSemanaCurto(o.Data)} {o.Data.Day}")}{(o.NoTopo ? "" : " " + AgendaCalculos.Hora(o.Inicio))}";
                     <li>
-                        <span class="ag-bolinha" style="--c:@AgendaCalculos.CorDe(d.Agenda, o.Evento)"></span>
-                        <div class="a-text">@(string.IsNullOrWhiteSpace(o.Evento.Titulo) ? "(sem título)" : o.Evento.Titulo)<small>@(o.Evento.Local ?? AgendaCalculos.AgendaDe(d.Agenda, o.Evento)?.Nome)</small></div>
-                        <span class="badge @(acontecendo ? "good" : "")">@quando</span>
+                        <span class="b-hora @(acontecendo ? "agora" : "")">@quando</span>
+                        <span class="b-item"><b>@(string.IsNullOrWhiteSpace(o.Evento.Titulo) ? "(sem título)" : o.Evento.Titulo)</b><small><span class="ag-bolinha" style="--c:@AgendaCalculos.CorDe(d.Agenda, o.Evento)"></span>@(o.Evento.Local ?? AgendaCalculos.AgendaDe(d.Agenda, o.Evento)?.Nome)</small></span>
                     </li>
                 }
             </ul>
             @if (doPeriodo.Count > maxItens)
             {
-                <a class="cartao-ini-mais" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda">+ @(doPeriodo.Count - maxItens) @Plural(doPeriodo.Count - maxItens, "compromisso", "compromissos") · ver em @m.Nome</a>
+                <a class="cartao-ini-mais" href="agenda?dia=@Iso(Hoje)&visao=@_periodoAgenda">+ @(doPeriodo.Count - maxItens) @Plural(doPeriodo.Count - maxItens, "compromisso", "compromissos")</a>
             }
         }
         else
         {
-            <div class="chart-empty"><span>@(_periodoAgenda switch
+            <p class="b-vazio">@(_periodoAgenda switch
             {
                 VisaoAgenda.Semana => "Nada marcado nos próximos 7 dias.",
                 VisaoAgenda.Mes => "Nada marcado nos próximos 30 dias.",
                 _ => agenda.Hoje > 0 ? "Os compromissos de hoje já passaram. ✓" : "Nenhum compromisso hoje.",
-            })</span></div>
+            })</p>
         }
     </section>
             break;
@@ -245,34 +266,26 @@
 
         case Modulo.Tarefas:
         {
-    <a class="card link-card" href="tarefas?quadro=hoje" style="--c:@m!.Cor" @key="id">
-        <div class="link-head">
-            <span class="link-icon">@m.Icone</span>
-            <div><h2>@m.Nome de hoje</h2><p>Resumo do dia em todos os quadros</p></div>
-            <span class="go">@Icones.Seta</span>
-        </div>
-        <div class="mini-stats">
-            <div><span>Concluídas hoje</span><b>@resumo.ConcluidosHoje.Count</b></div>
-            <div><span>Para hoje</span><b>@resumo.ParaHoje.Count</b></div>
-            <div><span>Atrasadas</span><b>@resumo.Atrasados.Count</b></div>
-        </div>
-        @{ var pendentesHoje = resumo.Atrasados.Concat(resumo.ParaHoje).Take(4).ToList(); }
-        @if (pendentesHoje.Count > 0)
+    var pendentesHoje = resumo.Atrasados.Concat(resumo.ParaHoje).Take(6).ToList();
+    <a class="card bloco alto" href="tarefas?quadro=hoje" style="--c:@m.Cor" @key="m.Id">
+        <div class="b-cab"><span class="b-ic">@m.Icone</span>@m.Nome de hoje<span class="b-dir">@resumo.ConcluidosHoje.Count de @(resumo.ConcluidosHoje.Count + tarefasHoje) feitas</span></div>
+        @if (pendentesHoje.Count > 0 || resumo.ConcluidosHoje.Count > 0)
         {
-            <ul class="activity">
+            <ul class="b-lista">
+                @foreach (var c in resumo.ConcluidosHoje.Take(2))
+                {
+                    <li class="feita"><span class="b-check feito"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></span><span class="b-item"><b>@c.Titulo</b></span></li>
+                }
                 @foreach (var c in pendentesHoje)
                 {
                     var q = TarefasCalculos.QuadroDe(d.Tarefas, c);
                     <li>
-                        <div class="a-text">@c.Titulo<small>@(q is null ? "" : TarefasCalculos.NomeQuadro(q))</small></div>
+                        <span class="b-check"></span>
+                        <span class="b-item"><b>@c.Titulo</b><small>@(q is null ? "" : TarefasCalculos.NomeQuadro(q))</small></span>
                         @if (c.Prazo is not null)
                         {
                             var (texto, classe) = TarefasCalculos.Prazo(c, DateTime.Now);
                             <span class="badge @classe">@texto</span>
-                        }
-                        else
-                        {
-                            <span class="badge">foco</span>
                         }
                     </li>
                 }
@@ -280,51 +293,58 @@
         }
         else
         {
-            <div class="chart-empty"><span>@(resumo.ConcluidosHoje.Count > 0 ? "Tudo o que era para hoje está feito. ✓" : "Nenhuma tarefa para hoje.")</span></div>
+            <p class="b-vazio">Nenhuma tarefa para hoje.</p>
         }
     </a>
             break;
         }
 
         case Modulo.Entretenimento:
-    <a class="card link-card" href="entretenimento" style="--c:@m!.Cor" @key="id">
-        <div class="link-head">
-            <span class="link-icon">@m.Icone</span>
-            <div><h2>@m.Nome</h2><p>@d.Entretenimento.Count @Plural(d.Entretenimento.Count, "item", "itens") na estante · @d.Entretenimento.Count(e => e.Status == "concluido" && e.Data?.Year == Hoje.Year) em @Hoje.Year</p></div>
-            <span class="go">@Icones.Seta</span>
-        </div>
-        @if (d.Entretenimento.Count > 0)
         {
-            <div class="estante-mini">
-                @foreach (var e in d.Entretenimento.OrderByDescending(e => e.Data ?? DateOnly.MinValue).Take(12))
+    // Continuar de onde parou: o que está em andamento; sem nada, os mais recentes
+    var andamento = d.Entretenimento.Where(e => e.Status == "andamento").ToList();
+    var estante = (andamento.Count > 0 ? andamento : d.Entretenimento.OrderByDescending(e => e.Data ?? DateOnly.MinValue).ToList()).Take(6).ToList();
+    <a class="card bloco largo" href="entretenimento" style="--c:@m.Cor" @key="m.Id">
+        <div class="b-cab"><span class="b-ic">@m.Icone</span>@(andamento.Count > 0 ? "Continuar de onde parou" : m.Nome)<span class="b-dir">@d.Entretenimento.Count(e => e.Status == "concluido" && e.Data?.Year == Hoje.Year) concluídos em @Hoje.Year</span></div>
+        @if (estante.Count > 0)
+        {
+            <div class="b-estante">
+                @foreach (var e in estante)
                 {
-                    <Capa Item="e" />
+                    var total = e.TotalEpisodios();
+                    <div class="b-capa">
+                        <Capa Item="e" />
+                        <span class="b-capa-titulo">@e.Titulo</span>
+                        @if (total > 0)
+                        {
+                            <span class="capa-progresso"><span style="width:@((100.0 * e.EpisodiosAssistidos() / total).ToString("0", System.Globalization.CultureInfo.InvariantCulture))%"></span></span>
+                        }
+                    </div>
                 }
             </div>
         }
         else
         {
-            <div class="chart-empty"><span>Sua estante ainda está vazia.</span></div>
+            <p class="b-vazio">Sua estante ainda está vazia.</p>
         }
     </a>
             break;
+        }
     }
-}
-</div>
 }
 
 @if (verDieta || verCarro)
 {
-    <section class="card">
-        <div class="card-head"><div><h2>Atividade recente</h2><p>Seus últimos registros em todas as áreas.</p></div></div>
+    <section class="card bloco largo atividade">
+        <div class="b-cab"><span class="b-ic" style="--c:var(--accent)">@Icones.Relogio</span>Atividade recente<span class="b-dir">últimos registros</span></div>
         @if (atividades.Count > 0)
         {
-            <ul class="activity">
+            <ul class="b-lista">
                 @foreach (var a in atividades)
                 {
                     <li>
-                        <span class="a-icon">@a.Icone</span>
-                        <div class="a-text">@a.Texto<small>@a.Sub</small></div>
+                        <span class="b-ic" style="--c:@a.Cor">@a.Icone</span>
+                        <span class="b-item"><b>@a.Texto</b><small>@a.Sub</small></span>
                         <time>@DataBR(a.Data)</time>
                     </li>
                 }
@@ -332,10 +352,11 @@
         }
         else
         {
-            <div class="chart-empty"><span>Nada registrado ainda. Comece por <a href="dieta">@Modulo.De(cfg, Modulo.Dieta)!.Nome</a> ou <a href="carro">@Modulo.De(cfg, Modulo.Carro)!.Nome</a>.</span></div>
+            <p class="b-vazio">Nada registrado ainda. Comece por <a href="dieta">@Modulo.De(cfg, Modulo.Dieta)!.Nome</a> ou <a href="carro">@Modulo.De(cfg, Modulo.Carro)!.Nome</a>.</p>
         }
     </section>
 }
+</div>
 
 @if (!Modulo.Visiveis(cfg).Any())
 {
@@ -348,7 +369,7 @@
     // O Início pode ficar aberto por horas (o app fica na bandeja): redesenha a cada minuto para a saudação e a data acompanharem
     private System.Threading.Timer? _relogio;
 
-    // Período do card da Agenda (fica escolhido enquanto o app estiver aberto)
+    // Período do bloco da Agenda (fica escolhido enquanto o app estiver aberto)
     private static string _periodoAgenda = VisaoAgenda.Dia;
     private static readonly (string Visao, string Rotulo)[] PeriodosAgenda =
         [(VisaoAgenda.Dia, "Hoje"), (VisaoAgenda.Semana, "Semana"), (VisaoAgenda.Mes, "Mês")];
@@ -361,38 +382,6 @@
     }
 
     private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
-
-    // Id do cartão "Precisa de atenção" (sempre o primeiro)
-    private const string Atencao = "atencao";
-
-    /// <summary>
-    /// Os cartões do Início em linhas de até dois, na ordem dos módulos. A estante do Entretenimento é larga e fica
-    /// sozinha na linha; quem fica sem par antes dela também.
-    /// </summary>
-    private static List<List<string>> LinhasDoInicio(Models.Configuracoes cfg)
-    {
-        var linhas = new List<List<string>>();
-        List<string>? aberta = null;
-        foreach (var id in Modulo.Visiveis(cfg).Select(m => m.Id).Prepend(Atencao))
-        {
-            if (id == Modulo.Entretenimento)
-            {
-                aberta = null;
-                linhas.Add([id]);
-            }
-            else if (aberta is null)
-            {
-                aberta = [id];
-                linhas.Add(aberta);
-            }
-            else
-            {
-                aberta.Add(id);
-                aberta = null;
-            }
-        }
-        return linhas;
-    }
 
     private static string HaQuanto(DateTime quando)
     {

@@ -21,13 +21,21 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         Resources.Add("services", App.Servicos);
-        // Com o vidro, o WebView nasce transparente: a barra lateral (sem fundo no CSS) mostra a moldura translúcida
+        // Com o vidro, o WebView nasce transparente: a barra do topo (sem fundo no CSS) mostra a moldura translúcida
         if (VidroDisponivel) Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00000000");
         InitializeComponent();
 
+        var janela = App.Servicos.GetRequiredService<JanelaService>();
+        // A página desenha o semáforo e serve de barra de título (Layout/LayoutPrincipal.razor)
+        janela.ControlesProprios = true;
+        janela.AoPedir += acao => Dispatcher.BeginInvoke(() => Atender(acao));
         AplicarTema(App.Servicos.GetRequiredService<ArmazenamentoService>().Dados.Tema);
-        App.Servicos.GetRequiredService<JanelaService>().AoMudarTema += tema => Dispatcher.Invoke(() => AplicarTema(tema));
-        StateChanged += (_, _) => AjustarMaximizada();
+        janela.AoMudarTema += tema => Dispatcher.Invoke(() => AplicarTema(tema));
+        StateChanged += (_, _) =>
+        {
+            AjustarMaximizada();
+            janela.DefinirMaximizada(WindowState == WindowState.Maximized);
+        };
         SourceInitialized += (_, _) =>
         {
             ArredondarCantos();
@@ -41,6 +49,11 @@ public partial class MainWindow : Window
         // Guarda os dados do WebView2 no perfil do usuário, e não ao lado do .exe
         // (que pode estar numa pasta sem permissão de escrita, como Program Files).
         e.UserDataFolder = Path.Combine(ArmazenamentoService.PastaLocal, "WebView2");
+#if DEBUG
+        // Só na depuração: CRANKOHUB_DEPURAR=1 abre o inspetor remoto do WebView2 (porta 9222) para testes e prints
+        if (Environment.GetEnvironmentVariable("CRANKOHUB_DEPURAR") == "1")
+            e.EnvironmentOptions = new Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions("--remote-debugging-port=9222");
+#endif
     }
 
     // As capas do Entretenimento ficam numa pasta do usuário; o WebView as enxerga por um endereço próprio
@@ -60,14 +73,49 @@ public partial class MainWindow : Window
         }
     }
 
-    // ---- Barra de título estilo Mac ----
+    // ---- Barra de título (desenhada pela página) ----
 
-    private void AoFechar(object sender, RoutedEventArgs e) => Close();
+    // Códigos de "onde o mouse está" do Windows: a barra de título e as bordas de redimensionar
+    private const int WM_NCLBUTTONDOWN = 0xA1, HTCAPTION = 2;
+    private static readonly Dictionary<string, int> Bordas = new()
+    {
+        ["w"] = 10, ["e"] = 11, ["n"] = 12, ["nw"] = 13, ["ne"] = 14, ["s"] = 15, ["sw"] = 16, ["se"] = 17,
+    };
 
-    private void AoMinimizar(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    /// <summary>Pedidos do semáforo e da barra do topo da página (JanelaService.Pedir).</summary>
+    private void Atender(string acao)
+    {
+        switch (acao)
+        {
+            case "fechar": Close(); break;
+            case "minimizar": WindowState = WindowState.Minimized; break;
+            case "maximizar":
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+                break;
+            // Como se o botão tivesse sido apertado na barra de título do Windows: arrasta, encaixa nas bordas
+            // (Aero Snap) e, maximizada, volta ao tamanho normal ao puxar
+            case "arrastar": ComecarMovimento(HTCAPTION); break;
+            default:
+                if (acao.StartsWith("redimensionar:") && Bordas.TryGetValue(acao["redimensionar:".Length..], out var borda)
+                    && WindowState == WindowState.Normal)
+                    ComecarMovimento(borda);
+                break;
+        }
+    }
 
-    private void AoMaximizar(object sender, RoutedEventArgs e) =>
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    private void ComecarMovimento(int alvo)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        ReleaseCapture();
+        SendMessage(hwnd, WM_NCLBUTTONDOWN, alvo, IntPtr.Zero);
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hwnd, int mensagem, int wParam, IntPtr lParam);
 
     // Sem a moldura do Windows, a janela maximizada passaria um pouco das bordas da tela
     private void AjustarMaximizada()
@@ -79,15 +127,13 @@ public partial class MainWindow : Window
             : new Thickness(0);
     }
 
-    /// <summary>Cores da barra de acordo com o tema do app ("light", "dark" ou null = tema do Windows).</summary>
+    /// <summary>Fundo e moldura da janela de acordo com o tema do app ("light", "dark" ou null = tema do Windows).</summary>
     private void AplicarTema(string? tema)
     {
         var escuro = tema switch { "dark" => true, "light" => false, _ => WindowsEstaEscuro() };
         Color Cor(string hex) => (Color)ColorConverter.ConvertFromString(hex);
-        tituloJanela.Foreground = new SolidColorBrush(Cor(escuro ? "#C7C7CC" : "#48484A"));
-        Resources["BolinhaInativa"] = new SolidColorBrush(Cor(escuro ? "#4A4A4A" : "#CFCFCF"));
         // Mesma cor da moldura no CSS (--window); com o vidro, transparente para o Mica aparecer
-        Background = _vidro ? Brushes.Transparent : new SolidColorBrush(Cor(escuro ? "#0E0E10" : "#E8E8ED"));
+        Background = _vidro ? Brushes.Transparent : new SolidColorBrush(Cor(escuro ? "#070B16" : "#E9EBEF"));
 
         // Modo escuro da moldura (o Mica fica escuro também)
         var hwnd = new WindowInteropHelper(this).Handle;

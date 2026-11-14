@@ -4,11 +4,14 @@ namespace CrankoHub.Models;
 
 /// <summary>Cor de destaque do app (menu selecionado, botões, links...), nas versões clara e escura.</summary>
 /// <param name="Texto">Cor do texto escrito sobre o destaque.</param>
-public record CorDestaque(string Chave, string Nome, string Claro, string Escuro, string Texto = "#FFFFFF")
+/// <param name="TextoEscuro">Cor do texto sobre o destaque no tema escuro (null = a mesma do claro).</param>
+public record CorDestaque(string Chave, string Nome, string Claro, string Escuro, string Texto = "#FFFFFF", string? TextoEscuro = null)
 {
-    /// <summary>As cores de destaque do macOS.</summary>
+    /// <summary>Marinho (a cor do logo, padrão) e as cores de destaque do macOS.</summary>
     public static readonly IReadOnlyList<CorDestaque> Paleta =
     [
+        // No escuro o marinho vira um lilás claro, com texto escuro por cima
+        new("marinho", "Marinho", "#24346F", "#A9B8FF", "#FFFFFF", "#0A1030"),
         new("azul", "Azul", "#007AFF", "#0A84FF"),
         new("roxo", "Roxo", "#AF52DE", "#BF5AF2"),
         new("rosa", "Rosa", "#FF2D55", "#FF375F"),

@@ -453,7 +453,7 @@
         Store.Dados.Config.CorDestaque = valor;
         Store.Salvar();
         var cor = CorDestaque.DaConfig(valor);
-        await JS.InvokeVoidAsync("crankohub.aplicarDestaque", cor.Claro, cor.Escuro, cor.Texto);
+        await JS.InvokeVoidAsync("crankohub.aplicarDestaque", cor.Claro, cor.Escuro, cor.Texto, cor.TextoEscuro ?? cor.Texto);
         Bandeja.AplicarCor(cor.Claro);
     }
 

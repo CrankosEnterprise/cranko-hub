@@ -10,59 +10,74 @@
 @inject BandejaService Bandeja
 @using Microsoft.AspNetCore.Components.Sections
 
-<div class="app @(_menuAberto ? "menu-open" : "") @(Store.Dados.Config.MenuOculto ? "menu-oculto" : "")">
-    <aside class="sidebar">
-        <div class="brand">
-            <span class="logo">@Icones.Logo</span>
-            <span class="brand-name">CrankoHub</span>
-        </div>
-        <nav class="nav">
-            <NavLink href="" Match="NavLinkMatch.All"><span class="tile">@Icones.Inicio</span><span>Início</span></NavLink>
-            @if (Modulo.Visiveis(Store.Dados.Config).Any())
+@*
+    Layout "Fusão": sem barra lateral. No topo, semáforo + marca à esquerda, as áreas num menu em cápsula no centro
+    e tema, configurações e conta à direita. Embaixo, o palco onde a página rola, com o título grande da página
+    e os botões da seção (Components/Comum/AcoesTopo.razor) à direita dele.
+    No Windows a janela não tem moldura: a barra do topo arrasta a janela (data-arrastar, wwwroot/js/interop.js)
+    e as bordas .borda-janela redimensionam. No celular o menu vira uma barra de abas fixa embaixo.
+*@
+<div class="app @(Janela.ControlesProprios ? "janela-propria" : "") @(Janela.Maximizada ? "maximizada" : "") @(NoInicio ? "no-inicio" : "")"
+     style="@(ModuloAtual is { } atual ? $"--c-pagina:{atual.Cor}" : null)">
+    @if (Janela.ControlesProprios && !Janela.Maximizada)
+    {
+        @foreach (var borda in BordasJanela)
+        {
+            <div class="borda-janela" data-borda="@borda" aria-hidden="true"></div>
+        }
+    }
+
+    <header class="topo" data-arrastar>
+        <div class="topo-esq">
+            @if (Janela.ControlesProprios)
             {
-                <div class="nav-titulo">Áreas</div>
+                <div class="semaforo">
+                    <button type="button" class="fechar" title="Fechar" aria-label="Fechar" @onclick='() => Janela.Pedir("fechar")'><svg viewBox="0 0 12 12"><path d="M3.5 3.5l5 5M8.5 3.5l-5 5" /></svg></button>
+                    <button type="button" class="minimizar" title="Minimizar" aria-label="Minimizar" @onclick='() => Janela.Pedir("minimizar")'><svg viewBox="0 0 12 12"><path d="M3 6h6" /></svg></button>
+                    <button type="button" class="maximizar" title="@(Janela.Maximizada ? "Restaurar" : "Maximizar")" aria-label="Maximizar" @onclick='() => Janela.Pedir("maximizar")'><svg viewBox="0 0 12 12"><path d="M6 3v6M3 6h6" /></svg></button>
+                </div>
             }
+            <a class="marca" href="" title="Início">
+                <span class="logo">@Icones.Logo</span>
+                <span class="marca-palavra">CRANKO<b>HUB</b></span>
+            </a>
+        </div>
+
+        <nav class="menu" aria-label="Áreas">
+            <NavLink href="" Match="NavLinkMatch.All" style="--c:var(--accent)" title="Início">@Icones.Inicio<span>Início</span></NavLink>
             @foreach (var m in Modulo.Visiveis(Store.Dados.Config))
             {
-                <NavLink @key="m.Id" href="@m.Link"><span class="tile" style="--c:@m.Cor">@m.Icone</span><span>@m.Nome</span></NavLink>
+                <NavLink @key="m.Id" href="@m.Link" style="@($"--c:{m.Cor}")" title="@m.Nome">@m.Icone<span>@m.Nome</span></NavLink>
             }
-            <div class="nav-sep"></div>
-            <NavLink href="configuracoes"><span class="tile" style="--c:#8e8e93">@Icones.Engrenagem</span><span>Configurações</span></NavLink>
         </nav>
-        @if (ContaService.Configurado)
-        {
-            <div class="sidebar-foot"><ContaRodape /></div>
-        }
-    </aside>
-    <div class="backdrop" @onclick="() => _menuAberto = false"></div>
 
-    <div class="main">
-        @* O palco é quem rola; a barra de vidro fica fixa no topo dele, com a página passando por baixo *@
-        <div class="palco" id="palco">
-            <header class="topbar">
-                <button class="icon-btn menu-btn" aria-label="Mostrar ou ocultar o menu" title="Mostrar ou ocultar o menu" @onclick="AlternarMenu">@Icones.Menu</button>
-                @* O título da página fica aqui (as páginas não repetem nome e descrição) *@
-                <div class="crumb">
-                    @if (ModuloAtual is { } mod)
-                    {
-                        <span class="tile crumb-tile" style="--c:@mod.Cor">@mod.Icone</span>
-                    }
-                    <span class="crumb-root">CrankoHub</span><span class="crumb-sep">/</span><h1 class="crumb-titulo">@TituloDaPagina</h1>
-                </div>
-                <nav class="atalhos" aria-label="Atalhos">
-                    <NavLink href="" Match="NavLinkMatch.All" title="Início">@Icones.Inicio</NavLink>
-                    @foreach (var m in Modulo.Visiveis(Store.Dados.Config))
-                    {
-                        <NavLink @key="m.Id" href="@m.Link" title="@m.Nome" style="@($"--c:{m.Cor}")">@m.Icone</NavLink>
-                    }
-                    <NavLink href="configuracoes" title="Configurações">@Icones.Engrenagem</NavLink>
-                </nav>
-                @* Botões da página aberta: adicionar, configurações da seção... (Components/Comum/AcoesTopo.razor) *@
-                <div class="topo-acoes"><SectionOutlet SectionName="@AcoesTopo.Nome" /></div>
-                <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
-            </header>
-            @* A chave recria o container a cada navegação, reiniciando a animação de entrada *@
-            <main class="content enter" @key="(_caminho, _recarregados)">
+        <div class="topo-dir">
+            <button class="icon-btn" aria-label="Alternar tema claro/escuro" title="Alternar tema" @onclick="AlternarTema">@Icones.Lua@Icones.Sol</button>
+            <NavLink class="icon-btn" href="configuracoes" title="Configurações" aria-label="Configurações">@Icones.Engrenagem</NavLink>
+            @if (ContaService.Configurado)
+            {
+                <ContaRodape Compacto="true" />
+            }
+        </div>
+    </header>
+
+    @* O palco é quem rola. O cabeçalho fica fora do conteúdo com chave: o lugar dos botões (SectionOutlet) não pode
+       ser recriado junto com a página, senão por um instante existiriam dois com o mesmo nome *@
+    <div class="palco" id="palco">
+        <div class="content">
+            @if (!NoInicio)
+            {
+                <header class="pagina-cab">
+                    <div class="pagina-titulo">
+                        <p class="pagina-sobre">@DescricaoDaPagina</p>
+                        <h1>@TituloDaPagina</h1>
+                    </div>
+                    @* Botões da página aberta: adicionar, veículo, configurações da seção... *@
+                    <div class="topo-acoes"><SectionOutlet SectionName="@AcoesTopo.Nome" /></div>
+                </header>
+            }
+            @* A chave recria a página a cada navegação, reiniciando a animação de entrada *@
+            <main class="pagina enter" @key="(_caminho, _recarregados)">
                 @Body
             </main>
         </div>
@@ -73,8 +88,13 @@
 <Confirmacao />
 
 @code {
-    private bool _menuAberto;
     private string _caminho = "";
+    private DotNetObjectReference<LayoutPrincipal>? _ponte;
+
+    private static readonly string[] BordasJanela = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+
+    // O Início tem o cabeçalho próprio (saudação e resumo do dia)
+    private bool NoInicio => _caminho == "";
 
     private string TituloDaPagina => ModuloAtual?.Nome ?? _caminho switch
     {
@@ -83,7 +103,14 @@
         _ => "Início",
     };
 
-    // Módulo da página aberta (com o nome, a cor e o ícone escolhidos), para o título e o ícone colorido ao lado
+    private string DescricaoDaPagina => ModuloAtual?.Descricao ?? _caminho switch
+    {
+        "configuracoes" => "Aparência, módulos, avisos e o aplicativo",
+        "conta" or "dados" => "Seus dados e a sincronização entre os aparelhos",
+        _ => "",
+    };
+
+    // Módulo da página aberta (com o nome, a cor e o ícone escolhidos)
     private Modulo? ModuloAtual => Modulo.De(Store.Dados.Config, _caminho.Split('/')[0]);
 
     protected override void OnInitialized()
@@ -92,6 +119,7 @@
         Nav.LocationChanged += AoNavegar;
         Navegacao.AoNavegar += AbrirPagina;
         Store.ModulosMudaram += AtualizarMenu;
+        Janela.Mudou += AtualizarMenu;
         Sincronizacao.NaTela = acao => InvokeAsync(acao);
         Sincronizacao.Recebeu += RecebeuDaConta;
     }
@@ -105,7 +133,7 @@
         await JS.InvokeVoidAsync("crankohub.aplicarTema", Store.Dados.Tema);
         Janela.TemaMudou(Store.Dados.Tema);
         var cor = CorDestaque.DaConfig(Store.Dados.Config.CorDestaque);
-        await JS.InvokeVoidAsync("crankohub.aplicarDestaque", cor.Claro, cor.Escuro, cor.Texto);
+        await JS.InvokeVoidAsync("crankohub.aplicarDestaque", cor.Claro, cor.Escuro, cor.Texto, cor.TextoEscuro ?? cor.Texto);
         Bandeja.AplicarCor(cor.Claro);
     });
 
@@ -122,30 +150,30 @@
         if (!firstRender) return;
         await JS.InvokeVoidAsync("crankohub.aplicarTema", Store.Dados.Tema);
         var cor = CorDestaque.DaConfig(Store.Dados.Config.CorDestaque);
-        await JS.InvokeVoidAsync("crankohub.aplicarDestaque", cor.Claro, cor.Escuro, cor.Texto);
+        await JS.InvokeVoidAsync("crankohub.aplicarDestaque", cor.Claro, cor.Escuro, cor.Texto, cor.TextoEscuro ?? cor.Texto);
+        if (Janela.ControlesProprios)
+        {
+            _ponte = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("crankohub.registrarJanela", _ponte);
+        }
     }
+
+    // ---- Janela sem moldura (Windows): chamados pelo wwwroot/js/interop.js ----
+
+    [JSInvokable] public void Arrastar() => Janela.Pedir("arrastar");
+
+    [JSInvokable] public void AlternarMaximizar() => Janela.Pedir("maximizar");
+
+    [JSInvokable] public void Redimensionar(string borda) => Janela.Pedir("redimensionar:" + borda);
 
     private string CaminhoAtual() => Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Trim('/').ToLowerInvariant();
 
     private void AoNavegar(object? sender, LocationChangedEventArgs e) => _ = InvokeAsync(async () =>
     {
         _caminho = CaminhoAtual();
-        _menuAberto = false;
         StateHasChanged();
         await JS.InvokeVoidAsync("crankohub.rolarParaTopo");
     });
-
-    // Tela estreita (celular): o menu abre por cima e fecha ao navegar. Tela larga: o menu some e a página ocupa o espaço (fica guardado)
-    private async Task AlternarMenu()
-    {
-        if (await JS.InvokeAsync<bool>("crankohub.telaPequena"))
-        {
-            _menuAberto = !_menuAberto;
-            return;
-        }
-        Store.Dados.Config.MenuOculto = !Store.Dados.Config.MenuOculto;
-        Store.Salvar();
-    }
 
     private async Task AlternarTema()
     {
@@ -159,7 +187,9 @@
         Nav.LocationChanged -= AoNavegar;
         Navegacao.AoNavegar -= AbrirPagina;
         Store.ModulosMudaram -= AtualizarMenu;
+        Janela.Mudou -= AtualizarMenu;
         Sincronizacao.Recebeu -= RecebeuDaConta;
         Sincronizacao.NaTela = null;
+        _ponte?.Dispose();
     }
 }
