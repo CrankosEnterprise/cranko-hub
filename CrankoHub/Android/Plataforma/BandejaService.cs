@@ -59,6 +59,18 @@ public sealed class BandejaService : IDisposable
             global::Android.Widget.Toast.MakeText(ctx, "As notificações do CrankoHub estão desativadas. Ative em Configurações do Android → Apps → CrankoHub → Notificações.", global::Android.Widget.ToastLength.Long)!.Show());
     }
 
+    private static global::Android.Graphics.Bitmap? _logo;
+
+    /// <summary>Ícone das notificações: silhueta branca do logo na barra de status (o Android só usa a transparência)
+    /// e o logo colorido dentro do aviso.</summary>
+    private static void Visual(NotificationCompat.Builder aviso, Context ctx)
+    {
+        aviso.SetSmallIcon(Resource.Drawable.ic_notificacao);
+        aviso.SetColor(unchecked((int)0xFF5856D6));
+        _logo ??= global::Android.Graphics.BitmapFactory.DecodeResource(ctx.Resources, Resource.Drawable.logo_notificacao);
+        if (_logo is not null) aviso.SetLargeIcon(_logo);
+    }
+
     private static void Mostrar(Context ctx, string titulo, string texto, string? link)
     {
         try
@@ -72,7 +84,7 @@ public sealed class BandejaService : IDisposable
             var toque = PendingIntent.GetActivity(ctx, id, abrir, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
 
             var aviso = new NotificationCompat.Builder(ctx, Canal);
-            aviso.SetSmallIcon(Resource.Mipmap.appicon);
+            Visual(aviso, ctx);
             aviso.SetContentTitle(titulo);
             aviso.SetContentText(texto);
             aviso.SetStyle(new NotificationCompat.BigTextStyle().BigText(texto));
@@ -105,7 +117,7 @@ public sealed class BandejaService : IDisposable
             }
             var pendente = PendingIntent.GetActivity(ctx, id, toque, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
             var aviso = new NotificationCompat.Builder(ctx, CanalCarro);
-            aviso.SetSmallIcon(Resource.Mipmap.appicon);
+            Visual(aviso, ctx);
             aviso.SetContentTitle(titulo);
             aviso.SetContentText(texto);
             aviso.SetStyle(new NotificationCompat.BigTextStyle().BigText(texto));
