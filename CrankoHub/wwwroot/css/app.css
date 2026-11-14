@@ -2143,7 +2143,16 @@ select option, select optgroup { background-color: var(--surface); color: var(--
 .abs-topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; }
 .abs-topo h2 { margin: 0; }
 .abs-data { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-2); }
-.abs-data input { width: auto; }
+.abs-data input {
+  width: auto; height: 34px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 500;
+  transition: border-color .15s, box-shadow .15s;
+}
+.abs-data input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.abs-data input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .7; }
+:root[data-theme="dark"] .abs-data input { background: rgba(255, 255, 255, .04); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .abs-data input { background: rgba(255, 255, 255, .04); } }
 .abs-passos { margin-top: 2px; }
 .abs-aviso { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 13px; }
 .abs-aviso span { color: var(--text-2); line-height: 1.4; }
