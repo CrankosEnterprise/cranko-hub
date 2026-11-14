@@ -159,10 +159,6 @@
                 : [(_filtroStatus, "", lista)];
         }
         <div class="b-cab"><span class="b-ic">@Icones.Layout</span>Estante
-            @if (categoriaAtiva is not null)
-            {
-                <button type="button" class="pilula ev-filtro" title="Mostrar todas as categorias" @onclick='() => _filtroCategoria = "todas"'>@categoriaAtiva.Nome<span aria-hidden="true">✕</span></button>
-            }
             <span class="b-dir">@lista.Count @Plural(lista.Count, "item", "itens")</span>
         </div>
         <div class="ev-barra">
@@ -175,6 +171,15 @@
             </div>
             <div class="ev-busca">
                 <input class="select" type="search" placeholder="Buscar título ou autor..." aria-label="Buscar na estante" @bind="_filtroTexto" @bind:event="oninput">
+                @* Tipo de conteúdo (o mesmo filtro do bloco Por categoria) *@
+                <select class="select @(categoriaAtiva is not null ? "ev-sel-ativo" : "")" aria-label="Tipo de conteúdo" @bind="_filtroCategoria">
+                    <option value="todas">Todos os tipos</option>
+                    @foreach (var c in CategoriaEntretenimento.Todas)
+                    {
+                        var n = todos.Count(e => e.Categoria == c.Chave);
+                        <option value="@c.Chave">@c.Nome@(n > 0 ? $" ({n})" : "")</option>
+                    }
+                </select>
                 <select class="select" aria-label="Ordenar" @bind="_ordem">
                     <option value="recentes">Mais recentes</option>
                     <option value="nota">Maior nota</option>
