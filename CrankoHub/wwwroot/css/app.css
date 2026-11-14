@@ -415,6 +415,11 @@ html.inativa .semaforo:not(:hover) button { background: #c9cbd0; box-shadow: ins
   .topo-acoes .btn:has(svg) { width: 34px; padding: 0; }
   .topo-acoes .select, .topo-acoes .veh-nome { max-width: 140px; }
 }
+/* Botão que mantém o texto mesmo com pouco espaço (ex.: Modo Carro em Pages/Carro/Carro.razor) */
+@container topo (max-width: 640px) {
+  .topo-acoes .btn.com-rotulo .rotulo { display: inline; }
+  .topo-acoes .btn.com-rotulo:has(svg) { width: auto; padding: 0 12px; }
+}
 @container topo (max-width: 340px) {
   .topo-acoes .veh-nome span { display: none; }
   .topo-acoes .veh-nome { padding: 0; width: 34px; justify-content: center; }
