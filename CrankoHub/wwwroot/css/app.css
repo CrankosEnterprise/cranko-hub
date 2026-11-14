@@ -787,10 +787,16 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
 .dv-meta-link { margin-top: 6px; color: var(--c); font-size: 12.5px; font-weight: 650; }
 .dv-chips-dir { margin-left: auto; }
 .dv-tabela { overflow-x: auto; scrollbar-width: thin; }
-.dv-tabela .tabela-limpa td { padding: 9px 0; }
-.dv-tabela .dv-obs { padding-left: 24px; width: 100%; }
+/* só o vertical: um "padding: 9px 0" aqui zerava o respiro lateral das colunas (.num/.dv-obs) */
+.dv-tabela .tabela-limpa td { padding-top: 11px; padding-bottom: 11px; }
+.dv-tabela .tabela-limpa :is(th, td).num { padding-left: 20px; }
+.dv-tabela .tabela-limpa :is(th, td).dv-obs { padding-left: 24px; width: 100%; }
 .dv-tabela td.dv-obs { white-space: normal; min-width: 160px; color: var(--text-2); }
-.dv-tabela .row-actions { padding-left: 8px; }
+.dv-tabela .row-actions { padding-left: 12px; }
+@media (max-width: 600px) {
+    .dv-tabela .tabela-limpa td { padding-top: 13px; padding-bottom: 13px; }
+    .dv-tabela .tabela-limpa :is(th, td).num { padding-left: 22px; }
+}
 
 /* ---- Entretenimento: mesma visão do Carro; a estante ocupa a largura toda ---- */
 .ent-visao { grid-template-rows: auto auto; align-items: start; }
