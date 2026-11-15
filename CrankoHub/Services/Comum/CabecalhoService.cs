@@ -12,20 +12,22 @@ public class CabecalhoService
     public string? Sobre { get; private set; }
     public string? Titulo { get; private set; }
     public string? Selo { get; private set; }
+    public string? Info { get; private set; }
+    public string? InfoDica { get; private set; }
 
     public event Action? Mudou;
 
-    public void Definir(object dono, string? sobre, string? titulo, string? selo)
+    public void Definir(object dono, string? sobre, string? titulo, string? selo, string? info = null, string? infoDica = null)
     {
-        if (_dono == dono && Sobre == sobre && Titulo == titulo && Selo == selo) return;
-        (_dono, Sobre, Titulo, Selo) = (dono, sobre, titulo, selo);
+        if (_dono == dono && Sobre == sobre && Titulo == titulo && Selo == selo && Info == info && InfoDica == infoDica) return;
+        (_dono, Sobre, Titulo, Selo, Info, InfoDica) = (dono, sobre, titulo, selo, info, infoDica);
         Mudou?.Invoke();
     }
 
     public void Limpar(object dono)
     {
         if (_dono != dono) return;
-        (_dono, Sobre, Titulo, Selo) = (null, null, null, null);
+        (_dono, Sobre, Titulo, Selo, Info, InfoDica) = (null, null, null, null, null, null);
         Mudou?.Invoke();
     }
 }

@@ -14,7 +14,13 @@
     /// <summary>Etiqueta ao lado do título (ex.: a placa do carro).</summary>
     [Parameter] public string? Selo { get; set; }
 
-    protected override void OnParametersSet() => Cabecalho.Definir(this, Sobre, Titulo, Selo);
+    /// <summary>Informação só de leitura depois do selo (ex.: o odômetro do carro).</summary>
+    [Parameter] public string? Info { get; set; }
+
+    /// <summary>Dica ao passar o mouse sobre a informação.</summary>
+    [Parameter] public string? InfoDica { get; set; }
+
+    protected override void OnParametersSet() => Cabecalho.Definir(this, Sobre, Titulo, Selo, Info, InfoDica);
 
     public void Dispose() => Cabecalho.Limpar(this);
 }

@@ -691,6 +691,11 @@ a.bloco:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px color-mix(in 
   display: inline-block; margin-left: 12px; padding: 3px 9px; border-radius: 7px; vertical-align: 10px;
   font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--border);
 }
+/* Informação só de leitura depois do selo (odômetro do carro) */
+.pagina-info {
+  display: inline-block; margin-left: 10px; vertical-align: 11px;
+  font-size: 13px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
 
 /* Botão "Registrar" do Início e o menu de atalhos */
 .registrar { position: relative; }

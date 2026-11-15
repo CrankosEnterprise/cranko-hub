@@ -115,7 +115,7 @@
                 <header class="pagina-cab">
                     <div class="pagina-titulo">
                         <p class="pagina-sobre">@(Cabecalho.Sobre ?? DescricaoDaPagina)</p>
-                        <h1>@(Cabecalho.Titulo ?? TituloDaPagina)@if (Cabecalho.Selo is { } selo) { <span class="pagina-selo">@selo</span> }</h1>
+                        <h1>@(Cabecalho.Titulo ?? TituloDaPagina)@if (Cabecalho.Selo is { } selo) { <span class="pagina-selo">@selo</span> }@if (Cabecalho.Info is { } info) { <span class="pagina-info" title="@Cabecalho.InfoDica">@info</span> }</h1>
                     </div>
                     @* Botões da página aberta: adicionar, veículo, configurações da seção... *@
                     <div class="topo-acoes"><SectionOutlet SectionName="@AcoesTopo.Nome" /></div>

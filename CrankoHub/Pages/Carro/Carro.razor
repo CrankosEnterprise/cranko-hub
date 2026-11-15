@@ -28,7 +28,9 @@
     var sobre = string.Join(" · ", new[] { string.Join(" ", new[] { v.Marca, v.Nome, v.Ficha?.Versao }.Where(s => !string.IsNullOrWhiteSpace(s))), v.Ano?.ToString() }.Where(s => !string.IsNullOrWhiteSpace(s)));
 }
 
-<CabecalhoPagina Sobre="@sobre" Titulo="@v.Nome" Selo="@v.Ficha?.Placa" />
+@* Odômetro: o último registrado (o abastecimento exige), só para mostrar *@
+<CabecalhoPagina Sobre="@sobre" Titulo="@v.Nome" Selo="@v.Ficha?.Placa"
+                 Info="@(odoAtual is not null ? $"{Num(odoAtual, 0)} km" : null)" InfoDica="Odômetro (último registrado)" />
 
 <AcoesTopo>
     @* Com mais de um veículo, a troca fica aqui; cadastrar, editar e excluir ficam na aba Veículos *@
