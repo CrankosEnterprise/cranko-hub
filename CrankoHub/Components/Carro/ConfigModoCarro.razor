@@ -1,6 +1,7 @@
 @namespace CrankoHub.Components
 @* Configurações do Carro (engrenagem no topo da página Carro, só no celular): o aviso de radar do Modo Carro,
-   o Bluetooth do carro e "onde estacionei". As permissões do Android ficam em Configurações → Modo Carro. *@
+   o Bluetooth do carro, "onde estacionei" e as permissões do Android (tudo do Modo Carro fica aqui, nada nas Configurações gerais).
+   Com permissão faltando, a seção das permissões sobe para o topo. *@
 @implements IDisposable
 @inject ArmazenamentoService Store
 @inject CarroBluetoothService Bluetooth
@@ -22,8 +23,9 @@
         {
             <div class="mc-cfg-alerta" role="status">
                 <b>Falta @(faltam.Count == 1 ? "ativar 1 permissão" : $"ativar {faltam.Count} permissões") do Modo Carro.</b>
-                <span>@string.Join(", ", faltam.Select(p => p.Nome)). Veja em <a href="configuracoes?aba=carro#permissoes-carro" @onclick="Fechar">Configurações → Modo Carro</a>.</span>
+                <span>@string.Join(", ", faltam.Select(p => p.Nome)).</span>
             </div>
+            @SecaoPermissoes(permissoes)
         }
 
         <section class="cfg-carro-bloco">
@@ -160,6 +162,11 @@
             }
         </section>
 
+        @if (faltam.Count == 0)
+        {
+            @SecaoPermissoes(permissoes)
+        }
+
         <div class="form-actions">
             <button class="btn primary" type="button" @onclick="Fechar">Fechar</button>
         </div>
@@ -167,6 +174,21 @@
 </div>
 
 @code {
+    /// <summary>Tudo o que o Android precisa liberar, com o estado e o botão Ativar (o estado atualiza ao voltar).</summary>
+    private RenderFragment SecaoPermissoes(IReadOnlyList<PermissaoCarro> permissoes) => __builder =>
+    {
+        <section class="cfg-carro-bloco">
+            <h3>Permissões do Android</h3>
+            <p class="muted">Para o aviso de radar por cima do Maps/Waze, o Bluetooth do carro e o "onde estacionei". Toque em <b>Ativar</b> para pedir a permissão ou abrir a tela certa do Android; o estado atualiza quando você volta.</p>
+            <ul class="mc-permissoes">
+                @foreach (var p in permissoes)
+                {
+                    <li @key="p.Id"><PermissaoLinha Permissao="p" AoAtivar="Bluetooth.Ativar" Lista="true" /></li>
+                }
+            </ul>
+        </section>
+    };
+
     [Parameter] public EventCallback AoFechar { get; set; }
 
     private static readonly (string Valor, string Rotulo)[] AcoesAoConectar =

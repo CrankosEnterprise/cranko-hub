@@ -44,7 +44,7 @@
     @if (ModoCarro.Disponivel)
     {
         <a class="btn com-rotulo" href="carro/modo" title="Modo Carro" aria-label="Modo Carro">@Icones.Carro<span class="rotulo">Modo Carro</span></a>
-        @* Só no celular: o Modo Carro, o Bluetooth do carro e o estacionado (as permissões ficam em Configurações → Modo Carro) *@
+        @* Só no celular: o Modo Carro, o Bluetooth do carro e o estacionado (as permissões do Android também ficam na engrenagem) *@
         <button class="icon-btn" type="button" title="Configurações do Carro" aria-label="Configurações do Carro" @onclick="() => _configAberta = true">@Icones.Engrenagem</button>
     }
 </AcoesTopo>

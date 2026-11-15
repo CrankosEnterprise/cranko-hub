@@ -15,7 +15,7 @@ public sealed class CarroBluetoothService(ArmazenamentoService store)
     public event Action? Mudou;
 #pragma warning restore CS0067
 
-    /// <summary>O que o Modo Carro precisa do Android, com o estado de cada um (Configurações → Modo Carro).</summary>
+    /// <summary>O que o Modo Carro precisa do Android, com o estado de cada um (engrenagem da página Carro).</summary>
     public IReadOnlyList<PermissaoCarro> Permissoes() => [];
 
     /// <summary>Pede a permissão ou abre a tela do Android onde ela é ativada (<see cref="PermissoesCarro"/>).</summary>

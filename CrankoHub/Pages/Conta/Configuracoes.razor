@@ -8,8 +8,6 @@
 @inject IJSRuntime JS
 @inject BandejaService Bandeja
 @inject AtualizacaoService Atualizacao
-@inject CarroBluetoothService Bluetooth
-@implements IDisposable
 
 @{
     var d = Store.Dados;
@@ -40,29 +38,6 @@
                     <input type="password" placeholder="Chave da API" value="@cfg.ChaveRawg" @onchange="e => SalvarChave(e, false)"></label>
             </div>
             <p class="muted" style="margin-top:10px">Sem chave, filmes, séries, animações e jogos vêm da <b>Wikipedia</b> e da <b>Wikidata</b> (pôsteres de séries pelo <b>TVmaze</b>); animes do <b>AniList</b> e livros da <b>Open Library</b>. Itens pouco conhecidos podem não estar lá: aí a chave ajuda (crie grátis em <b>themoviedb.org</b> → Configurações → API e em <b>rawg.io/apidocs</b>) ou cadastre manualmente.</p>
-        </section>
-        break;
-
-    case "carro":
-        // Só as permissões do Android: as opções do Modo Carro ficam na engrenagem da página Carro
-        var permissoes = Bluetooth.Permissoes();
-        var faltam = permissoes.Where(p => p.Necessaria && p.Ativada == false).ToList();
-        if (faltam.Count > 0)
-        {
-            <div class="mc-cfg-alerta" role="status">
-                <b>Falta @(faltam.Count == 1 ? "ativar 1 permissão" : $"ativar {faltam.Count} permissões") para o que você escolheu.</b>
-                <span>@string.Join(", ", faltam.Select(p => p.Nome)).</span>
-            </div>
-        }
-
-        <section class="card" id="permissoes-carro">
-            <div class="card-head"><div><h2>Permissões do Modo Carro</h2><p>Tudo o que o Android precisa liberar para o aviso de radar por cima do Maps/Waze, o Bluetooth do carro e o "onde estacionei". Toque em <b>Ativar</b> para pedir a permissão ou abrir a tela certa do Android; o estado atualiza quando você volta. As opções ficam na engrenagem da página <a href="carro">Carro</a>.</p></div></div>
-            <ul class="mc-permissoes">
-                @foreach (var p in permissoes)
-                {
-                    <li @key="p.Id"><PermissaoLinha Permissao="p" AoAtivar="AtivarPermissao" Lista="true" /></li>
-                }
-            </ul>
         </section>
         break;
 
@@ -160,29 +135,17 @@
 }
 
 @code {
-    // A aba Modo Carro só existe no celular
+    // O Modo Carro (opções e permissões do Android) fica todo na engrenagem da página Carro
     private static readonly (string Chave, string Rotulo)[] Abas =
     [
         ("aparencia", "Aparência"),
         ("modulos", "Módulos"),
         ("integracoes", "Integrações"),
-        .. OperatingSystem.IsAndroid() ? new[] { ("carro", "Modo Carro") } : [],
         ("aplicativo", "Aplicativo"),
     ];
 
     // No celular não há bandeja nem inicialização com o sistema
     private static bool Android => OperatingSystem.IsAndroid();
-
-    // As permissões mudam fora do app (telas do Android) e o carro estacionado chega pelo Bluetooth
-    protected override void OnInitialized() => Bluetooth.Mudou += Redesenhar;
-
-    private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
-
-    public void Dispose() => Bluetooth.Mudou -= Redesenhar;
-
-    // ===== Permissões do Modo Carro (CarroBluetoothService) =====
-
-    private Task AtivarPermissao(string id) => Bluetooth.Ativar(id);
 
     // Aba aberta, mantida enquanto o app estiver aberto
     private static string _aba = "aparencia";

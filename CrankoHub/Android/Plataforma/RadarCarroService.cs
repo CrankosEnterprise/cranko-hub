@@ -337,33 +337,99 @@ public sealed class RadarCarroService : Service
     }
 }
 
-/// <summary>Som do aviso de radar (<see cref="TonsAvisoRadar"/>), no volume das notificações: não pausa a música do carro.</summary>
+/// <summary>
+/// Som do aviso de radar (<see cref="TonsAvisoRadar"/>). Os bipes são gerados aqui e tocam como "orientação de navegação"
+/// (o mesmo canal da voz do Maps/Waze): saem no volume de mídia, pelo som do carro no Bluetooth, e só abaixam a música por
+/// um instante (não pausam). O ToneGenerator no volume das notificações ficava mudo com o volume de notificação baixo,
+/// no Não perturbe e em vários Xiaomi.
+/// </summary>
 public static class SomRadar
 {
+    private const int Taxa = 44100;
+
+    /// <summary>Bipes: (frequência em Hz, duração em ms); frequência 0 = silêncio.</summary>
+    private static (int Hz, int Ms)[] Bipes(string tom) => tom switch
+    {
+        TonsAvisoRadar.Curto => [(1000, 220)],
+        TonsAvisoRadar.Alerta => [(1200, 160), (0, 70), (900, 160), (0, 70), (1200, 160), (0, 70), (900, 220)],
+        _ => [(1000, 150), (0, 90), (1300, 180)],
+    };
+
+    private static AudioAttributes Atributos() => new AudioAttributes.Builder()
+        .SetUsage(AudioUsageKind.AssistanceNavigationGuidance)!
+        .SetContentType(AudioContentType.Sonification)!
+        .Build()!;
+
     public static void Tocar(string? tom)
     {
         try
         {
             var escolhido = TonsAvisoRadar.Valido(tom);
+            var ctx = global::Android.App.Application.Context;
             if (escolhido == TonsAvisoRadar.Notificacao)
             {
-                var ctx = global::Android.App.Application.Context;
-                RingtoneManager.GetRingtone(ctx, RingtoneManager.GetDefaultUri(RingtoneType.Notification))?.Play();
+                var toque = RingtoneManager.GetRingtone(ctx, RingtoneManager.GetDefaultUri(RingtoneType.Notification));
+                if (toque is null) return;
+                toque.AudioAttributes = Atributos();
+                toque.Play();
                 return;
             }
-            var (tipo, ms) = escolhido switch
+
+            var amostras = Gerar(Bipes(escolhido));
+            var atributos = Atributos();
+            var trilha = new AudioTrack.Builder()
+                .SetAudioAttributes(atributos)!
+                .SetAudioFormat(new AudioFormat.Builder()
+                    .SetEncoding(global::Android.Media.Encoding.Pcm16bit)!
+                    .SetSampleRate(Taxa)!
+                    .SetChannelMask(ChannelOut.Mono)!
+                    .Build()!)!
+                .SetBufferSizeInBytes(amostras.Length * 2)!
+                .SetTransferMode(AudioTrackMode.Static)!
+                .Build()!;
+            trilha.Write(amostras, 0, amostras.Length);
+
+            // Abaixa a música só durante o bipe (Android 8+); no 7 o bipe toca junto
+            var audio = (AudioManager?)ctx.GetSystemService(Context.AudioService);
+            AudioFocusRequestClass? foco = null;
+            if (audio is not null && OperatingSystem.IsAndroidVersionAtLeast(26))
             {
-                TonsAvisoRadar.Curto => (Tone.PropBeep, 250),
-                TonsAvisoRadar.Alerta => (Tone.CdmaAlertCallGuard, 900),
-                _ => (Tone.PropBeep2, 400),
-            };
-            var gerador = new ToneGenerator(global::Android.Media.Stream.Notification, 90);
-            gerador.StartTone(tipo, ms);
-            new Handler(Looper.MainLooper!).PostDelayed(gerador.Release, ms + 500);
+                foco = new AudioFocusRequestClass.Builder(AudioFocus.GainTransientMayDuck).SetAudioAttributes(atributos)!.Build();
+                audio.RequestAudioFocus(foco!);
+            }
+
+            trilha.Play();
+            var ms = amostras.Length * 1000L / Taxa;
+            new Handler(Looper.MainLooper!).PostDelayed(() =>
+            {
+                try { trilha.Stop(); } catch { }
+                trilha.Release();
+                if (foco is not null && OperatingSystem.IsAndroidVersionAtLeast(26)) audio?.AbandonAudioFocusRequest(foco);
+            }, ms + 300);
         }
         catch (Exception ex)
         {
             Log.Warn("CrankoHub.Carro", $"Som do radar: {ex.Message}");
         }
+    }
+
+    /// <summary>PCM 16 bits mono, com 6 ms de rampa em cada ponta do bipe (sem estalo).</summary>
+    private static short[] Gerar((int Hz, int Ms)[] bipes)
+    {
+        var total = bipes.Sum(b => b.Ms * Taxa / 1000);
+        var pcm = new short[total];
+        var i = 0;
+        var rampa = Taxa * 6 / 1000;
+        foreach (var (hz, ms) in bipes)
+        {
+            var n = ms * Taxa / 1000;
+            for (var k = 0; k < n; k++, i++)
+            {
+                if (hz == 0) continue;
+                var envelope = Math.Min(1.0, Math.Min(k, n - 1 - k) / (double)rampa);
+                pcm[i] = (short)(Math.Sin(2 * Math.PI * hz * k / Taxa) * envelope * 0.85 * short.MaxValue);
+            }
+        }
+        return pcm;
     }
 }

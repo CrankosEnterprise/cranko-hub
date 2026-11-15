@@ -13,7 +13,7 @@ using CrankoHub.Models;
 namespace CrankoHub.Services;
 
 /// <summary>
-/// Bluetooth do carro (engrenagem da página Carro; permissões em Configurações → Modo Carro): reconhece a central marcada como "o meu carro" e
+/// Bluetooth do carro (engrenagem da página Carro, com as permissões): reconhece a central marcada como "o meu carro" e
 /// <list type="bullet">
 /// <item>ao conectar, avisa por notificação ou abre o Modo Carro (<see cref="Configuracoes.AoConectarCarro"/>);</item>
 /// <item>ao desconectar, sai do Modo Carro (<see cref="Configuracoes.SairAoDesconectar"/>) e guarda onde o carro ficou
