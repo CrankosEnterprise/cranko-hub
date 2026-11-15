@@ -1,7 +1,7 @@
 @namespace CrankoHub.Pages.CarroAbas
 @* Abastecimentos do veículo (dentro da aba Consumo): histórico e a janela para registrar/editar.
    A aba abre a janela pelo método Novo(); editar abre pela linha do histórico.
-   A janela é um passo a passo (como o da FIPE): 1. odômetro/km rodados → 2. bomba → 3. tanque → 4. detalhes.
+   A janela é um passo a passo (como o da FIPE): 1. odômetro/km rodados → 2. tanque (completou? ponteiro antes) → 3. bomba → 4. detalhes.
    O primeiro abastecimento (ou um recomeço) é o "ponto de partida": sem km rodados, só a base do próximo. *@
 @using System.Text.RegularExpressions
 @inject ArmazenamentoService Store
@@ -104,43 +104,11 @@
             </div>
         </li>
 
-        @* ---- 2. Na bomba ---- *@
+        @* ---- 2. Tanque ---- *@
         <li class="@Classe(2)">
             <span class="fp-num">@Numero(2)</span>
             <div class="fp-corpo">
                 @if (_passo == 2)
-                {
-                    <div class="chips abs-comb" role="group" aria-label="Combustível">
-                        @foreach (var f in Combustivel.Todos)
-                        {
-                            <button type="button" class="chip @(_fComb == f.Chave ? "active" : "")" aria-pressed="@(_fComb == f.Chave)" @onclick="() => _fComb = f.Chave">
-                                <i class="abs-cor" style="background:@f.Cor"></i>@f.Nome</button>
-                        }
-                    </div>
-                    <div class="abs-valores">
-                        <label class="field"><span>Litros</span><input @ref="_foco" inputmode="decimal" placeholder="ex.: 38,5" @bind="_fLitros" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("litros"))"></label>
-                        <label class="field"><span>Total (R$)</span><input inputmode="decimal" placeholder="ex.: 215,90" @bind="_fValor" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("valor"))"></label>
-                        <label class="field"><span>Preço/litro</span><input inputmode="decimal" placeholder="ex.: 5,89" @bind="_fPreco" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("preco"))"></label>
-                    </div>
-                    <small class="muted">Está no visor da bomba ou no cupom. Preencha dois e o terceiro é calculado.</small>
-                }
-                else if (_alcancado >= 2 && litros > 0)
-                {
-                    <div class="fp-escolha"><small>Na bomba</small><b>@ResumoBomba(litros.Value, valor)</b></div>
-                    <button class="btn sm" type="button" @onclick="() => IrPara(2)">Alterar</button>
-                }
-                else
-                {
-                    <span class="fp-pendente">Litros e valor</span>
-                }
-            </div>
-        </li>
-
-        @* ---- 3. Tanque ---- *@
-        <li class="@Classe(3)">
-            <span class="fp-num">@Numero(3)</span>
-            <div class="fp-corpo">
-                @if (_passo == 3)
                 {
                     <span class="abs-pergunta">Completou o tanque?</span>
                     <div class="abs-escolhas">
@@ -177,14 +145,46 @@
                         }
                     }
                 }
-                else if (_alcancado >= 3 && _encheu is not null)
+                else if (_alcancado >= 2 && _encheu is not null)
                 {
                     <div class="fp-escolha"><small>Tanque</small><b>@ResumoTanque(partida)</b></div>
-                    <button class="btn sm" type="button" @onclick="() => IrPara(3)">Alterar</button>
+                    <button class="btn sm" type="button" @onclick="() => IrPara(2)">Alterar</button>
                 }
                 else
                 {
                     <span class="fp-pendente">Tanque</span>
+                }
+            </div>
+        </li>
+
+        @* ---- 3. Na bomba ---- *@
+        <li class="@Classe(3)">
+            <span class="fp-num">@Numero(3)</span>
+            <div class="fp-corpo">
+                @if (_passo == 3)
+                {
+                    <div class="chips abs-comb" role="group" aria-label="Combustível">
+                        @foreach (var f in Combustivel.Todos)
+                        {
+                            <button type="button" class="chip @(_fComb == f.Chave ? "active" : "")" aria-pressed="@(_fComb == f.Chave)" @onclick="() => _fComb = f.Chave">
+                                <i class="abs-cor" style="background:@f.Cor"></i>@f.Nome</button>
+                        }
+                    </div>
+                    <div class="abs-valores">
+                        <label class="field"><span>Litros</span><input @ref="_foco" inputmode="decimal" placeholder="ex.: 38,5" @bind="_fLitros" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("litros"))"></label>
+                        <label class="field"><span>Total (R$)</span><input inputmode="decimal" placeholder="ex.: 215,90" @bind="_fValor" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("valor"))"></label>
+                        <label class="field"><span>Preço/litro</span><input inputmode="decimal" placeholder="ex.: 5,89" @bind="_fPreco" @bind:event="oninput" @bind:after="@(() => AoDigitarValor("preco"))"></label>
+                    </div>
+                    <small class="muted">Está no visor da bomba ou no cupom. Preencha dois e o terceiro é calculado.</small>
+                }
+                else if (_alcancado >= 3 && litros > 0)
+                {
+                    <div class="fp-escolha"><small>Na bomba</small><b>@ResumoBomba(litros.Value, valor)</b></div>
+                    <button class="btn sm" type="button" @onclick="() => IrPara(3)">Alterar</button>
+                }
+                else
+                {
+                    <span class="fp-pendente">Litros e valor</span>
                 }
             </div>
         </li>
@@ -404,11 +404,12 @@
         string? erro = passo switch
         {
             1 => ErroKm(),
-            2 => Pf(_fLitros) is not > 0 ? "Informe quantos litros colocou." :
-                 Pf(_fValor) is double v && v <= 0 ? "Valor inválido." : null,
-            3 => _encheu is null ? "Diga se completou o tanque." :
+            2 => _encheu is null ? "Diga se completou o tanque." :
                  Pf(_fGastos) is double g && g <= 0 ? "Litros gastos inválidos." :
-                 KmRodados() is > 0 and var k && k / (Pf(_fGastos) ?? Pf(_fLitros) ?? 1) > 60 ? "Consumo acima de 60 km/l: confira os km e os litros." : null,
+                 KmRodados() is > 0 and var k && Pf(_fGastos) is > 0 and var g2 && k / g2 > 60 ? "Consumo acima de 60 km/l: confira os km e os litros gastos." : null,
+            3 => Pf(_fLitros) is not > 0 ? "Informe quantos litros colocou." :
+                 Pf(_fValor) is double v && v <= 0 ? "Valor inválido." :
+                 KmRodados() is > 0 and var k3 && k3 / (Pf(_fGastos) ?? Pf(_fLitros) ?? 1) > 60 ? "Consumo acima de 60 km/l: confira os km e os litros." : null,
             _ => null
         };
         if (erro is not null && avisar) Toast.Erro(erro);
