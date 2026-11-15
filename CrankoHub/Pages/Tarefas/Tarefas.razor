@@ -20,6 +20,8 @@
     {
         <button class="btn primary" type="button" title="Nova tarefa" aria-label="Nova tarefa" @onclick="() => AbrirNovo(quadro, quadro.Colunas[0])">@Icones.Mais<span class="rotulo">Nova tarefa</span></button>
     }
+    @* Criar, renomear e excluir etiquetas; no card elas são escolhidas no menu de "Etiquetas" *@
+    <button class="icon-btn" type="button" title="Etiquetas" aria-label="Etiquetas" @onclick="AbrirEtiquetas">@Icones.Etiqueta</button>
     @* Configurações só das Tarefas (as gerais do app ficam em Configurações, no menu) *@
     <button class="icon-btn" type="button" title="Configurações das Tarefas" aria-label="Configurações das Tarefas" @onclick="AbrirConfig">@Icones.Engrenagem</button>
 </AcoesTopo>
@@ -391,7 +393,45 @@
                             <option value="@p.Chave">@p.Nome</option>
                         }
                     </select></label>
-                <label class="field full"><span>Etiquetas</span><input maxlength="120" placeholder="separadas por vírgula (ex.: cliente, urgente)" @bind="_fEtiquetas"></label>
+                @* Etiquetas: as escolhidas viram chips; o menu lista as criadas e cria uma nova sem sair do card *@
+                <div class="field full"><span>Etiquetas</span>
+                    <div class="etq-campo">
+                        @foreach (var e in _fEtiquetas)
+                        {
+                            <span class="etq-chip" @key="e">#@e<button type="button" title="Tirar #@e" aria-label="Tirar a etiqueta @e" @onclick="() => _fEtiquetas.Remove(e)">@Icones.Fechar</button></span>
+                        }
+                        <div class="etq-seletor">
+                            <button type="button" class="btn sm" aria-haspopup="true" aria-expanded="@(_menuEtiquetas ? "true" : "false")" @onclick="AlternarMenuEtiquetas">
+                                @Icones.Etiqueta @(_fEtiquetas.Count == 0 ? "Adicionar etiqueta" : "Etiquetas")
+                            </button>
+                            @if (_menuEtiquetas)
+                            {
+                                var todas = Dados.TodasEtiquetas();
+                                var busca = DadosTarefas.NormalizarEtiqueta(_buscaEtiqueta);
+                                var lista = todas.Where(e => busca.Length == 0 || e.Contains(busca)).ToList();
+                                var existe = todas.Contains(busca);
+                                <div class="etq-fundo" @onclick="() => _menuEtiquetas = false"></div>
+                                <div class="etq-menu" role="dialog" aria-label="Escolher etiquetas">
+                                    <div class="etq-lista">
+                                        @foreach (var e in lista)
+                                        {
+                                            <label class="etq-opcao" @key="e"><input type="checkbox" checked="@_fEtiquetas.Contains(e)" @onchange="() => AlternarEtiqueta(e)"> #@e</label>
+                                        }
+                                        @if (lista.Count == 0)
+                                        {
+                                            <p class="muted">@(todas.Count == 0 ? "Nenhuma etiqueta criada ainda." : "Nenhuma etiqueta com esse nome.")</p>
+                                        }
+                                    </div>
+                                    <div class="busca-linha">
+                                        <input class="select" maxlength="@DadosTarefas.TamanhoMaximoEtiqueta" placeholder="Buscar ou nova etiqueta" aria-label="Buscar ou criar etiqueta" autofocus data-sem-enviar
+                                               @bind="_buscaEtiqueta" @bind:event="oninput" @onkeydown="TeclouBuscaEtiqueta">
+                                        <button type="button" class="btn sm primary" title="@(existe ? $"#{busca} já existe" : "Criar etiqueta e usar neste card")" disabled="@(busca.Length == 0 || existe)" @onclick="CriarEtiquetaNoCard">@Icones.Mais Criar</button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
                 <label class="field full"><span>Descrição</span><textarea rows="3" maxlength="2000" @bind="_fDescricao"></textarea></label>
                 <div class="field full">
                     <span>Checklist</span>
@@ -429,7 +469,43 @@
     </div>
 }
 
-<DialogoTexto @ref="_dialogoNome" />
+@* ---- Etiquetas (botão no topo): criar, renomear e excluir ---- *@
+@if (_etiquetasAbertas)
+{
+    var todas = Dados.TodasEtiquetas();
+    <div class="modal-backdrop" @onclick="() => _etiquetasAbertas = false">
+        <form class="card modal modal-medio" autocomplete="off" @onclick:stopPropagation="true" @onsubmit="CriarEtiquetaDoTopo">
+            <div><h2>@Icones.Etiqueta Etiquetas</h2><p class="muted">Crie aqui e escolha no card, em "Etiquetas" (lá também dá para criar uma nova).</p></div>
+            <div class="busca-linha">
+                <input class="select" maxlength="@DadosTarefas.TamanhoMaximoEtiqueta" placeholder="Nova etiqueta (ex.: cliente)" aria-label="Nova etiqueta" autofocus
+                       @bind="_novaEtiqueta" @bind:event="oninput">
+                <button class="btn primary" type="submit">@Icones.Mais Criar</button>
+            </div>
+            @if (todas.Count == 0)
+            {
+                <p class="muted">Nenhuma etiqueta ainda.</p>
+            }
+            else
+            {
+                <ul class="etq-gerenciar">
+                    @foreach (var e in todas)
+                    {
+                        var usos = Dados.Cards.Count(c => c.Etiquetas.Contains(e));
+                        <li @key="e">
+                            <span class="etiqueta">#@e</span>
+                            <span class="muted">@(usos == 0 ? "sem tarefas" : $"{usos} {Plural(usos, "tarefa", "tarefas")}")</span>
+                            <button type="button" class="icon-btn" title="Renomear #@e" aria-label="Renomear a etiqueta @e" @onclick="() => RenomearEtiqueta(e)">@Icones.Editar</button>
+                            <button type="button" class="icon-btn etq-excluir" title="Excluir #@e" aria-label="Excluir a etiqueta @e" @onclick="() => ExcluirEtiqueta(e)">@Icones.Excluir</button>
+                        </li>
+                    }
+                </ul>
+            }
+            <div class="form-actions">
+                <button class="btn" type="button" @onclick="() => _etiquetasAbertas = false">Fechar</button>
+            </div>
+        </form>
+    </div>
+}
 
 @* ---- Configurações das Tarefas (engrenagem no topo) ---- *@
 @if (_configAberta)
@@ -458,6 +534,9 @@
         </form>
     </div>
 }
+
+@* Depois das janelas da página, para ficar por cima delas (ex.: renomear etiqueta) *@
+<DialogoTexto @ref="_dialogoNome" />
 
 @code {
     [SupplyParameterFromQuery(Name = "quadro")] public string? QuadroDoLink { get; set; }
@@ -499,6 +578,101 @@
         Toast.Ok(_fOcultar ? $"Concluídas há mais de {_fDiasOcultar} {Plural(_fDiasOcultar, "dia", "dias")} ficam ocultas." : "Todas as concluídas ficam visíveis.");
     }
 
+    // ----- Etiquetas -----
+    private bool _etiquetasAbertas, _menuEtiquetas;
+    private string _novaEtiqueta = "", _buscaEtiqueta = "";
+
+    private void AbrirEtiquetas()
+    {
+        _novaEtiqueta = "";
+        _etiquetasAbertas = true;
+    }
+
+    /// <summary>Põe a etiqueta no catálogo (se ainda não estiver) e devolve como ficou guardada; null se o nome é vazio.</summary>
+    private string? CriarEtiqueta(string? nome)
+    {
+        var e = DadosTarefas.NormalizarEtiqueta(nome);
+        if (e.Length == 0) { Toast.Erro("Informe o nome da etiqueta."); return null; }
+        if (!Dados.Etiquetas.Contains(e))
+        {
+            Dados.Etiquetas.Add(e);
+            Dados.Etiquetas = Dados.TodasEtiquetas();
+            Store.Salvar();
+        }
+        return e;
+    }
+
+    private void CriarEtiquetaDoTopo()
+    {
+        var e = DadosTarefas.NormalizarEtiqueta(_novaEtiqueta);
+        if (e.Length > 0 && Dados.TodasEtiquetas().Contains(e)) { Toast.Erro($"#{e} já existe."); return; }
+        if (CriarEtiqueta(e) is null) return;
+        _novaEtiqueta = "";
+        Toast.Ok($"Etiqueta #{e} criada.");
+    }
+
+    private async Task RenomearEtiqueta(string antiga)
+    {
+        var nome = await _dialogoNome.Perguntar("Renomear etiqueta", "Nome da etiqueta (muda em todas as tarefas)", antiga);
+        if (nome is null) return;
+        var nova = DadosTarefas.NormalizarEtiqueta(nome);
+        if (nova.Length == 0 || nova == antiga) return;
+        // Se já existir uma com o novo nome, as duas viram uma só
+        foreach (var c in Dados.Cards.Where(c => c.Etiquetas.Contains(antiga)))
+            c.Etiquetas = c.Etiquetas.Select(x => x == antiga ? nova : x).Distinct().ToList();
+        Dados.Etiquetas.Remove(antiga);
+        Dados.Etiquetas.Add(nova);
+        Dados.Etiquetas = Dados.TodasEtiquetas();
+        if (_filtroEtiqueta == antiga) _filtroEtiqueta = nova;
+        Store.Salvar();
+        Toast.Ok($"Etiqueta renomeada para #{nova}.");
+    }
+
+    private async Task ExcluirEtiqueta(string e)
+    {
+        var usos = Dados.Cards.Count(c => c.Etiquetas.Contains(e));
+        var pergunta = usos == 0 ? $"Excluir a etiqueta #{e}?" : $"Excluir a etiqueta #{e}? Ela sai de {usos} {Plural(usos, "tarefa", "tarefas")} (as tarefas continuam).";
+        if (!await Dialogo.Confirmar(pergunta)) return;
+        foreach (var c in Dados.Cards) c.Etiquetas.Remove(e);
+        Dados.Etiquetas.Remove(e);
+        if (_filtroEtiqueta == e) _filtroEtiqueta = "";
+        Store.Salvar();
+        Toast.Ok($"Etiqueta #{e} excluída.");
+    }
+
+    // Menu de etiquetas dentro do editor do card
+    private void AlternarMenuEtiquetas()
+    {
+        _menuEtiquetas = !_menuEtiquetas;
+        _buscaEtiqueta = "";
+    }
+
+    private void AlternarEtiqueta(string e)
+    {
+        if (!_fEtiquetas.Remove(e)) _fEtiquetas.Add(e);
+    }
+
+    private void CriarEtiquetaNoCard()
+    {
+        if (CriarEtiqueta(_buscaEtiqueta) is not { } e) return;
+        if (!_fEtiquetas.Contains(e)) _fEtiquetas.Add(e);
+        _buscaEtiqueta = "";
+    }
+
+    // Enter: marca a etiqueta com esse nome, ou cria se ainda não existe (o data-sem-enviar impede que envie o formulário)
+    private void TeclouBuscaEtiqueta(KeyboardEventArgs k)
+    {
+        if (k.Key != "Enter") return;
+        var e = DadosTarefas.NormalizarEtiqueta(_buscaEtiqueta);
+        if (e.Length == 0) return;
+        if (Dados.TodasEtiquetas().Contains(e))
+        {
+            if (!_fEtiquetas.Contains(e)) _fEtiquetas.Add(e);
+            _buscaEtiqueta = "";
+        }
+        else CriarEtiquetaNoCard();
+    }
+
     private DialogoTexto _dialogoNome = default!;
 
     // Arrasto de cards e quadros (wwwroot/js/tarefas.js)
@@ -512,11 +686,12 @@
 
     private CardTarefa? _editando;
     private bool _novo;
-    private string _fTitulo = "", _fQuadro = "", _fColuna = "", _fPrioridade = "media", _fEtiquetas = "", _fDescricao = "", _fNovoItem = "";
+    private string _fTitulo = "", _fQuadro = "", _fColuna = "", _fPrioridade = "media", _fDescricao = "", _fNovoItem = "";
     private DateOnly? _fPrazo;
     private TimeOnly? _fPrazoHora;
     private bool _fFoco;
     private List<ItemChecklist> _fChecklist = [];
+    private List<string> _fEtiquetas = [];
 
     // Primeiro link do texto do item (http(s):// ou www.), para abrir com um toque
     private static string? LinkDoItem(string? texto)
@@ -888,7 +1063,8 @@
         _fPrazo = c.Prazo;
         _fPrazoHora = c.PrazoHora;
         _fPrioridade = c.Prioridade;
-        _fEtiquetas = string.Join(", ", c.Etiquetas);
+        _fEtiquetas = [.. c.Etiquetas];
+        _menuEtiquetas = false;
         _fFoco = c.Foco;
         _fChecklist = c.Checklist.Select(i => new ItemChecklist { Texto = i.Texto, Feito = i.Feito }).ToList();
         _fNovoItem = "";
@@ -924,6 +1100,7 @@
     private void Fechar()
     {
         _anexos.Descartar();
+        _menuEtiquetas = false;
         _editando = null;
     }
 
@@ -940,8 +1117,7 @@
         c.PrazoHora = _fPrazo is null ? null : _fPrazoHora;
         c.Prioridade = _fPrioridade;
         c.Foco = _fFoco;
-        c.Etiquetas = _fEtiquetas.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(e => e.TrimStart('#').ToLowerInvariant()).Where(e => e.Length > 0).Distinct().ToList();
+        c.Etiquetas = _fEtiquetas.Select(DadosTarefas.NormalizarEtiqueta).Where(e => e.Length > 0).Distinct().ToList();
         c.Checklist = _fChecklist.Where(i => !string.IsNullOrWhiteSpace(i.Texto)).ToList();
         c.Anexos = _anexos.Confirmar(); // agora são do card: Fechar() não os apaga
 

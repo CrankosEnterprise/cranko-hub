@@ -17,6 +17,25 @@ public class DadosTarefas
     public int DiasOcultarConcluidas { get; set; } = PadraoDiasOcultarConcluidas;
 
     public const int PadraoDiasOcultarConcluidas = 14;
+
+    /// <summary>
+    /// Etiquetas criadas (botão de etiquetas no topo das Tarefas ou menu de etiquetas do card), em minúsculas e sem "#".
+    /// Ficam aqui mesmo sem nenhum card usando; as que já estavam só nos cards entram na normalização.
+    /// </summary>
+    public List<string> Etiquetas { get; set; } = [];
+
+    public const int TamanhoMaximoEtiqueta = 30;
+
+    /// <summary>Como a etiqueta é guardada: sem espaços nas pontas, sem "#", em minúsculas.</summary>
+    public static string NormalizarEtiqueta(string? e)
+    {
+        var n = (e ?? "").Trim().TrimStart('#').Trim().ToLowerInvariant();
+        return n.Length > TamanhoMaximoEtiqueta ? n[..TamanhoMaximoEtiqueta].TrimEnd() : n;
+    }
+
+    /// <summary>Todas as etiquetas em ordem: as criadas e as que algum card usa (ex.: vindas de outro aparelho antes do perfil).</summary>
+    public List<string> TodasEtiquetas() =>
+        Etiquetas.Concat(Cards.SelectMany(c => c.Etiquetas)).Select(NormalizarEtiqueta).Where(e => e.Length > 0).Distinct().Order().ToList();
 }
 
 /// <summary>Um quadro (Trabalho, Faculdade, Pessoal...) com suas colunas.</summary>

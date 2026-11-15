@@ -416,3 +416,17 @@ Para quando não sabe o que ver: um quiz curto e uma roleta que sugere **título
 2. ✅ No app (modo demonstração): quiz, giro, "Girar de novo", Escolher e "+ Quero ver" com animes; Surpresa misturando animes e livros. Consultas do AniList e da Open Library conferidas.
 3. ⏳ Sem chaves: filmes, séries, animações e jogos pela Wikidata (as consultas foram conferidas; a tela não, porque o app estava aberto). Com as chaves: os filtros do TMDB e do RAWG.
 4. ⏳ Celular: as três fitas lado a lado na tela estreita.
+
+## 22. Etiquetas das Tarefas ✅ (feitas em 15/11/2026; falta rodar a migration e testar no app)
+
+As etiquetas passaram a ser criadas antes e escolhidas no card, em vez de digitadas separadas por vírgula.
+
+- **Botão de etiqueta no topo das Tarefas** (ao lado da engrenagem): janela para criar, renomear (muda em todas as tarefas; se o nome novo já existir, as duas viram uma) e excluir (sai das tarefas, que continuam). Mostra quantas tarefas usam cada uma.
+- **No card, em "Etiquetas":** as escolhidas aparecem como chips (o × tira). "Adicionar etiqueta" abre um menu com as criadas para marcar, e um campo que busca ou cria: "Criar" (ou Enter) cria a etiqueta e já marca no card, sem sair dele.
+- **Modelo:** `DadosTarefas.Etiquetas` é o catálogo (minúsculas, sem "#", até 30 letras, `DadosTarefas.NormalizarEtiqueta`). Os cards continuam com `CardTarefa.Etiquetas`. Na normalização, as que só existiam nos cards entram no catálogo; a tela usa `TodasEtiquetas()` (catálogo + as dos cards).
+- **Sync:** perfis `etiquetas_tarefas`. A migration é `supabase/migrations/0014_tarefas_etiquetas.sql`. Enquanto não rodar, as etiquetas sem tarefa ficam só no aparelho e o card da Conta avisa.
+
+**Como testar**
+1. ✅ `dotnet build` sem erros.
+2. ⏳ Rodar a `0014_tarefas_etiquetas.sql` no Supabase.
+3. ⏳ No app: criar, renomear e excluir pelo botão do topo; no card, marcar, desmarcar, buscar e criar pelo menu (Enter não envia o formulário); filtro por etiqueta continua funcionando; ver chegar no outro aparelho. No celular, o menu dentro da janela do card.

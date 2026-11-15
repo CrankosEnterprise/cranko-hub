@@ -38,6 +38,7 @@ public static class Icones
     public static readonly MarkupString Busca = new("""<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>""");
     public static readonly MarkupString Fechar = new("""<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>""");
     public static readonly MarkupString Anexo = new("""<svg viewBox="0 0 24 24"><path d="m20.5 11.5-8.3 8.3a5 5 0 0 1-7-7l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>""");
+    public static readonly MarkupString Etiqueta = new("""<svg viewBox="0 0 24 24"><path d="M3 12.2V4a1 1 0 0 1 1-1h8.2a1 1 0 0 1 .7.3l8 8a1 1 0 0 1 0 1.4l-8.2 8.2a1 1 0 0 1-1.4 0l-8-8a1 1 0 0 1-.3-.7z"/><circle cx="8" cy="8" r="1.4"/></svg>""");
     public static readonly MarkupString Link = new("""<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>""");
 
     public static readonly MarkupString Seta =new("""<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>""");

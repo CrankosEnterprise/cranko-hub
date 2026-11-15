@@ -276,6 +276,9 @@ public class ArmazenamentoService
             if (q.Colunas.All(col => col.Id != c.ColunaId)) c.ColunaId = q.Colunas[0].Id;
             if (c.Prazo is null) c.PrazoHora = null;
         }
+        // Catálogo de etiquetas: as que só existiam nos cards (antes do catálogo) passam a fazer parte dele
+        t.Etiquetas ??= [];
+        t.Etiquetas = t.TodasEtiquetas();
 
         // Agenda: sempre pelo menos uma agenda (a principal tem id fixo, para não duplicar entre aparelhos)
         var ag = s.Agenda ??= new DadosAgenda();

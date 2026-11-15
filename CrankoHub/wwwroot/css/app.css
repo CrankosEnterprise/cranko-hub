@@ -1521,6 +1521,30 @@ html.arrastando-tarefa, html.arrastando-tarefa * { cursor: grabbing !important; 
 .tarefa-meta:empty { display: none; }
 .tarefa-meta .badge { font-size: 11px; padding: 1px 7px; }
 .etiqueta { font-size: 11px; color: var(--accent); font-weight: 600; }
+
+/* Etiquetas no editor do card: as escolhidas em chips + menu para marcar ou criar */
+.etq-campo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.etq-chip { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 600; }
+.etq-chip button { border: 0; background: transparent; color: inherit; width: 20px; height: 20px; padding: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
+.etq-chip button:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.etq-chip svg { width: 11px; height: 11px; }
+.etq-seletor { position: relative; }
+.etq-seletor > .btn svg { width: 14px; height: 14px; }
+.etq-fundo { position: fixed; inset: 0; z-index: 4; }
+.etq-menu { position: absolute; z-index: 5; top: calc(100% + 6px); left: 0; width: min(300px, calc(100vw - 72px)); padding: 6px; display: flex; flex-direction: column; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-alto); animation: enter .12s ease-out; }
+.etq-lista { max-height: 210px; overflow: auto; display: flex; flex-direction: column; }
+.etq-opcao { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--text); }
+.etq-opcao:hover { background: var(--surface-2); }
+.field .etq-opcao input[type=checkbox] { width: 16px; height: 16px; padding: 0; flex: 0 0 auto; accent-color: var(--accent); }
+.etq-lista .muted { font-size: 12.5px; padding: 6px 8px; margin: 0; }
+.etq-menu .busca-linha .btn svg { width: 14px; height: 14px; }
+/* Janela de etiquetas (botão no topo) */
+.etq-gerenciar { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.etq-gerenciar li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.etq-gerenciar li:last-child { border-bottom: 0; }
+.etq-gerenciar .etiqueta { font-size: 13px; }
+.etq-gerenciar .muted { flex: 1; font-size: 12px; }
+.etq-gerenciar .etq-excluir:hover { color: var(--bad); background: var(--bad-bg); }
 .lista-hoje { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
 .checklist:empty { display: none; }
