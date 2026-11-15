@@ -400,7 +400,11 @@
                         {
                             <li>
                                 <input type="checkbox" @bind="item.Feito">
-                                <input class="select" maxlength="140" @bind="item.Texto">
+                                <input class="select" maxlength="140" @bind="item.Texto" @bind:event="oninput">
+                                @if (LinkDoItem(item.Texto) is { } link)
+                                {
+                                    <a class="checklist-link" href="@link" target="_blank" rel="noopener" title="Abrir @link">@Icones.Link</a>
+                                }
                                 <button type="button" title="Remover item" @onclick="() => _fChecklist.Remove(item)">@Icones.Excluir</button>
                             </li>
                         }
@@ -513,6 +517,16 @@
     private TimeOnly? _fPrazoHora;
     private bool _fFoco;
     private List<ItemChecklist> _fChecklist = [];
+
+    // Primeiro link do texto do item (http(s):// ou www.), para abrir com um toque
+    private static string? LinkDoItem(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return null;
+        var m = System.Text.RegularExpressions.Regex.Match(texto, @"(https?://|www\.)[^\s<>""']+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (!m.Success) return null;
+        var url = m.Value.TrimEnd('.', ',', ';', ':', ')', '!', '?');
+        return url.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? "https://" + url : url;
+    }
 
     // Anexos do formulário até salvar (cancelar apaga os arquivos novos)
     private readonly RascunhoAnexos _anexos = new();
