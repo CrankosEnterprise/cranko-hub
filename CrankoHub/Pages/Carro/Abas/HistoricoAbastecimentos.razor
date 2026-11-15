@@ -542,7 +542,7 @@
     private string ResumoTanque(bool partida)
     {
         var partes = new List<string> { _encheu == true ? "completou" : "parcial" };
-        if (_nivel is double n) partes.Add("ponteiro antes em " + MarcadorCombustivel.Fracao(n));
+        if (_nivel is double n) partes.Add("ponteiro antes: " + MarcadorCombustivel.Fracao(n).ToLowerInvariant());
         if (!partida && Pf(_fGastos) is double g) partes.Add($"gasto {(_gastoEstimado ? "≈ " : "")}{Num(g, 1)} L");
         return string.Join(" · ", partes);
     }

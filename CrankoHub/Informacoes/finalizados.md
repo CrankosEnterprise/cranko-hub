@@ -440,4 +440,4 @@ As etiquetas passaram a ser criadas antes e escolhidas no card, em vez de digita
 **Como testar**
 1. ✅ `dotnet build` sem erros.
 2. ⏳ Rodar a `0015_abastecimento_meio_oitavo.sql` no Supabase.
-3. ⏳ No app: novo abastecimento parcial com o ponteiro numa metade; gasto estimado, resumo "ponteiro antes em entre 0 e 1/8" e edição. Atualizar o app nos outros aparelhos antes de usar metades (versões antigas não leem 0,5).
+3. ⏳ No app: novo abastecimento parcial com o ponteiro numa metade; gasto estimado, resumo "ponteiro antes: entre 0 e 1/8" e edição. Atualizar o app nos outros aparelhos antes de usar metades (versões antigas não leem 0,5).
