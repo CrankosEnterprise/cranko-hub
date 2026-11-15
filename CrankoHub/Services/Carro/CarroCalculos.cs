@@ -75,7 +75,7 @@ public static class CarroCalculos
     public static double GastoNoMes(IEnumerable<Abastecimento> lista, DateOnly referencia) =>
         lista.Where(a => a.Data.Year == referencia.Year && a.Data.Month == referencia.Month).Sum(a => a.Valor ?? 0);
 
-    /// <summary>Divisões do marcador de combustível (oitavos).</summary>
+    /// <summary>Divisões do marcador de combustível (oitavos; o ponteiro para também no meio de cada um).</summary>
     public const int PartesMarcador = 8;
 
     /// <summary>
@@ -85,14 +85,14 @@ public static class CarroCalculos
     public static double? NivelDepois(Abastecimento a, double tanque)
     {
         if (a.TanqueCheio) return tanque;
-        if (a.NivelAntes is not int n) return null;
+        if (a.NivelAntes is not double n) return null;
         return Math.Min(tanque, LitrosNoNivel(n, tanque) + a.Litros);
     }
 
-    public static double LitrosNoNivel(int nivel, double tanque) => (double)nivel / PartesMarcador * tanque;
+    public static double LitrosNoNivel(double nivel, double tanque) => nivel / PartesMarcador * tanque;
 
     /// <summary>Litros gastos desde o abastecimento anterior pelo ponteiro de agora. Null sem base para calcular.</summary>
-    public static double? GastoPeloMarcador(Abastecimento? anterior, int nivelAgora, double tanque) =>
+    public static double? GastoPeloMarcador(Abastecimento? anterior, double nivelAgora, double tanque) =>
         anterior is not null && NivelDepois(anterior, tanque) is double depois
             ? depois - LitrosNoNivel(nivelAgora, tanque)
             : null;

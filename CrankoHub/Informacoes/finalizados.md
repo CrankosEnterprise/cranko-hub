@@ -430,3 +430,14 @@ As etiquetas passaram a ser criadas antes e escolhidas no card, em vez de digita
 1. ✅ `dotnet build` sem erros.
 2. ⏳ Rodar a `0014_tarefas_etiquetas.sql` no Supabase.
 3. ⏳ No app: criar, renomear e excluir pelo botão do topo; no card, marcar, desmarcar, buscar e criar pelo menu (Enter não envia o formulário); filtro por etiqueta continua funcionando; ver chegar no outro aparelho. No celular, o menu dentro da janela do card.
+
+## 23. Abastecimento: tanque antes da bomba e marcador de meio em meio oitavo ✅ (feito em 15/11/2026; falta rodar a migration e testar no app)
+
+- **Ordem do formulário:** 1. odômetro → 2. tanque (completou? se parcial, o ponteiro de antes; computador de bordo) → 3. litros e valor da bomba → 4. posto e observação. O ponteiro é o que se vê antes de abastecer, então vem antes da bomba. O aviso de mais de 60 km/l aparece no tanque (com os litros gastos) e de novo na bomba.
+- **Marcador:** o ponteiro para também no meio de cada oitavo (16 posições): traço pequeno entre os oitavos, −/+, setas e arrastar andam de 0,5. Nas metades o texto é "entre 1/8 e 1/4".
+- **Modelo/sync:** `Abastecimento.NivelAntes` virou `double?` (continua em oitavos: 0,5 = entre o vazio e 1/8), então os já gravados valem como estão. No servidor, `supabase/migrations/0015_abastecimento_meio_oitavo.sql` troca `nivel_antes` de `smallint` para `numeric`. Enquanto não rodar, a sincronização testa um 0,5 no filtro (erro 22P02) e deixa `nivel_antes` só no aparelho, e o card da Conta avisa.
+
+**Como testar**
+1. ✅ `dotnet build` sem erros.
+2. ⏳ Rodar a `0015_abastecimento_meio_oitavo.sql` no Supabase.
+3. ⏳ No app: novo abastecimento parcial com o ponteiro numa metade; gasto estimado, resumo "ponteiro antes em entre 0 e 1/8" e edição. Atualizar o app nos outros aparelhos antes de usar metades (versões antigas não leem 0,5).

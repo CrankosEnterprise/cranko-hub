@@ -1,6 +1,6 @@
 @namespace CrankoHub.Components
 @* Marcador de combustível analógico (janela por cima do formulário de abastecimento).
-   O usuário põe o ponteiro como está no painel ANTES de abastecer, em oitavos. Com o tamanho do tanque e o
+   O usuário põe o ponteiro como está no painel ANTES de abastecer, em oitavos (de meio em meio). Com o tamanho do tanque e o
    nível que sobrou depois do abastecimento anterior, estima os litros gastos (CarroCalculos.GastoPeloMarcador).
    Sem o tanque cadastrado, pede aqui mesmo e grava na ficha do veículo. *@
 @inject ArmazenamentoService Store
@@ -27,11 +27,13 @@
              @onpointerdown="Pressionar" @onpointermove="Mover" @onpointerup="Soltar" @onpointerleave="Soltar" @onpointercancel="Soltar"
              @onkeydown="Tecla">
             <path class="marcador-reserva" d="@Arco(0, 1, R - 4)" />
-            @for (var i = 0; i <= P; i++)
+            @* Traços de meio em meio oitavo: grandes nos quartos, médios nos oitavos, pequenos nas metades *@
+            @for (var i = 0; i <= P * 2; i++)
             {
-                var (x1, y1) = Ponto(i, R - (i % 4 == 0 ? 20 : 12));
-                var (x2, y2) = Ponto(i, R);
-                <line class="marcador-traco @(i % 4 == 0 ? "grande" : "") @(i == 0 ? "reserva" : "")" x1="@F(x1)" y1="@F(y1)" x2="@F(x2)" y2="@F(y2)" />
+                var nivel = i / 2.0;
+                var (x1, y1) = Ponto(nivel, R - (i % 8 == 0 ? 20 : i % 2 == 0 ? 12 : 7));
+                var (x2, y2) = Ponto(nivel, R);
+                <line class="marcador-traco @(i % 8 == 0 ? "grande" : i % 2 == 1 ? "meio" : "") @(i == 0 ? "reserva" : "")" x1="@F(x1)" y1="@F(y1)" x2="@F(x2)" y2="@F(y2)" />
             }
             @{ var (tx8, ty8) = Ponto(P, R - 40); var (tx4, ty4) = Ponto(P / 2, R - 40); var (tx0, ty0) = Ponto(0, R - 34); }
             <text class="marcador-rotulo" x="@F(tx8)" y="@F(ty8 + 5)" text-anchor="middle">1/1</text>
@@ -46,9 +48,9 @@
             <circle class="marcador-eixo" cx="@F(Cx)" cy="@F(Cy)" r="9" />
         </svg>
         <div class="marcador-ajuste">
-            <button type="button" class="btn sm" aria-label="Menos combustível" disabled="@(_nivel <= 0)" @onclick="() => Definir(_nivel - 1)">−</button>
+            <button type="button" class="btn sm" aria-label="Menos combustível" disabled="@(_nivel <= 0)" @onclick="() => Definir(_nivel - Passo)">−</button>
             <b>@Fracao(_nivel)</b>
-            <button type="button" class="btn sm" aria-label="Mais combustível" disabled="@(_nivel >= P)" @onclick="() => Definir(_nivel + 1)">+</button>
+            <button type="button" class="btn sm" aria-label="Mais combustível" disabled="@(_nivel >= P)" @onclick="() => Definir(_nivel + Passo)">+</button>
         </div>
     </div>
 
@@ -93,19 +95,22 @@
     /// <summary>Km rodados digitados no formulário (só para mostrar o km/l).</summary>
     [Parameter] public double? Km { get; set; }
 
-    [Parameter] public int? NivelInicial { get; set; }
+    [Parameter] public double? NivelInicial { get; set; }
 
     /// <summary>Nível escolhido (oitavos) e o gasto estimado (null quando não deu para calcular).</summary>
-    [Parameter] public EventCallback<(int Nivel, double? Gasto)> Confirmado { get; set; }
+    [Parameter] public EventCallback<(double Nivel, double? Gasto)> Confirmado { get; set; }
 
     [Parameter] public EventCallback Fechado { get; set; }
 
     private const int P = CarroCalculos.PartesMarcador;
 
+    /// <summary>O ponteiro anda de meio em meio oitavo.</summary>
+    private const double Passo = 0.5;
+
     // Geometria do mostrador: eixo à esquerda e arco à direita, do vazio (embaixo) ao cheio (em cima), como no painel
     private const double L = 240, A = 210, Cx = 70, Cy = 132, R = 112, AnguloVazio = -40, AnguloCheio = 78;
 
-    private int _nivel = 4;
+    private double _nivel = 4;
     private bool _arrastando;
     private string _fTanque = "";
 
@@ -149,7 +154,7 @@
 
     private Task Cancelar() => Fechado.InvokeAsync();
 
-    private void Definir(int nivel) => _nivel = Math.Clamp(nivel, 0, P);
+    private void Definir(double nivel) => _nivel = Math.Clamp(Math.Round(nivel / Passo) * Passo, 0, P);
 
     private void Pressionar(PointerEventArgs e) { _arrastando = true; Apontar(e); }
 
@@ -157,20 +162,20 @@
 
     private void Soltar() => _arrastando = false;
 
-    /// <summary>Ângulo do toque em relação ao eixo → oitavo mais próximo.</summary>
+    /// <summary>Ângulo do toque em relação ao eixo → meio oitavo mais próximo.</summary>
     private void Apontar(PointerEventArgs e)
     {
         var angulo = Math.Atan2(Cy - e.OffsetY, e.OffsetX - Cx) * 180 / Math.PI;
         var frac = (angulo - AnguloVazio) / (AnguloCheio - AnguloVazio);
-        Definir((int)Math.Round(Math.Clamp(frac, 0, 1) * P));
+        Definir(Math.Clamp(frac, 0, 1) * P);
     }
 
     private void Tecla(KeyboardEventArgs e)
     {
         switch (e.Key)
         {
-            case "ArrowUp" or "ArrowRight": Definir(_nivel + 1); break;
-            case "ArrowDown" or "ArrowLeft": Definir(_nivel - 1); break;
+            case "ArrowUp" or "ArrowRight": Definir(_nivel + Passo); break;
+            case "ArrowDown" or "ArrowLeft": Definir(_nivel - Passo); break;
             case "Home": Definir(0); break;
             case "End": Definir(P); break;
         }
@@ -191,13 +196,16 @@
 
     private static string F(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
-    /// <summary>"3/8", "1/2" (frações simplificadas), "Vazio" e "Cheio".</summary>
-    public static string Fracao(int nivel) => nivel switch
+    /// <summary>"3/8", "1/2" (frações simplificadas), "Vazio", "Cheio" e, nas metades, "entre 1/8 e 1/4".</summary>
+    public static string Fracao(double nivel)
     {
-        <= 0 => "Vazio",
-        >= P => "Cheio",
-        _ => Simplificar(nivel)
-    };
+        if (nivel <= 0) return "Vazio";
+        if (nivel >= P) return "Cheio";
+        var abaixo = (int)Math.Floor(nivel);
+        return nivel - abaixo < 0.25 ? Inteiro(abaixo) : $"entre {Inteiro(abaixo)} e {Inteiro(abaixo + 1)}";
+    }
+
+    private static string Inteiro(int n) => n <= 0 ? "0" : n >= P ? "1/1" : Simplificar(n);
 
     private static string Simplificar(int n)
     {

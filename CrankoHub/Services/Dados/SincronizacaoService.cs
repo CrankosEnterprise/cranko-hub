@@ -329,6 +329,15 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
         ("perfis", "etiquetas_tarefas", "0014_tarefas_etiquetas.sql"),
     ];
 
+    /// <summary>
+    /// Colunas que mudaram de tipo: testa um valor do tipo novo no filtro. Enquanto o servidor recusar
+    /// (22P02: o tipo antigo não aceita o valor), a coluna não é enviada nem recebida.
+    /// </summary>
+    private static readonly (string Tabela, string Coluna, string ValorNovo, string Migration)[] ColunasTipoNovo =
+    [
+        ("abastecimentos", "nivel_antes", "0.5", "0015_abastecimento_meio_oitavo.sql"),
+    ];
+
     private readonly HashSet<string> _semTabela = [];
     private readonly HashSet<(string Tabela, string Coluna)> _semColuna = [];
     private readonly HashSet<string> _faltam = []; // migrations que ainda não rodaram
@@ -355,6 +364,16 @@ public class SincronizacaoService(ArmazenamentoService store, SupabaseCliente su
             try { await supabase.Enviar(HttpMethod.Get, $"/rest/v1/{tabela}?select={coluna}&limit=1"); }
             // 42703: a coluna não existe; PGRST204: não está no cache do esquema
             catch (SupabaseErro ex) when (ex.Codigo is "42703" or "PGRST204")
+            {
+                _semColuna.Add((tabela, coluna));
+                _faltam.Add(migration);
+            }
+        }
+        foreach (var (tabela, coluna, valor, migration) in ColunasTipoNovo)
+        {
+            if (_semColuna.Contains((tabela, coluna))) continue; // nem a coluna existe ainda
+            try { await supabase.Enviar(HttpMethod.Get, $"/rest/v1/{tabela}?select=id&{coluna}=eq.{valor}&limit=1"); }
+            catch (SupabaseErro ex) when (ex.Codigo is "22P02")
             {
                 _semColuna.Add((tabela, coluna));
                 _faltam.Add(migration);

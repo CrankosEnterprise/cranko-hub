@@ -321,7 +321,7 @@
     private string _fGastos = "";
     private bool _gastoEstimado; // _fGastos veio do marcador (some ao digitar no campo)
     private bool _bordo;         // mostrar o campo do computador de bordo
-    private int? _nivel;         // ponteiro antes de abastecer, em oitavos
+    private double? _nivel;      // ponteiro antes de abastecer, em oitavos (de meio em meio)
     private bool _marcadorAberto;
 
     private DadosCarro Dados => Store.Dados.Carro;
@@ -512,7 +512,7 @@
         }
     }
 
-    private void AplicarMarcador((int Nivel, double? Gasto) r)
+    private void AplicarMarcador((double Nivel, double? Gasto) r)
     {
         _nivel = r.Nivel;
         if (r.Gasto is double g)
@@ -542,7 +542,7 @@
     private string ResumoTanque(bool partida)
     {
         var partes = new List<string> { _encheu == true ? "completou" : "parcial" };
-        if (_nivel is int n) partes.Add("ponteiro antes em " + MarcadorCombustivel.Fracao(n));
+        if (_nivel is double n) partes.Add("ponteiro antes em " + MarcadorCombustivel.Fracao(n));
         if (!partida && Pf(_fGastos) is double g) partes.Add($"gasto {(_gastoEstimado ? "≈ " : "")}{Num(g, 1)} L");
         return string.Join(" · ", partes);
     }

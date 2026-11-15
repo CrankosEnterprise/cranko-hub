@@ -27,8 +27,8 @@ public class Abastecimento
     /// </summary>
     public double? LitrosGastos { get; set; }
 
-    /// <summary>Ponteiro do marcador antes de abastecer, em oitavos (0 = vazio, 8 = cheio).</summary>
-    public int? NivelAntes { get; set; }
+    /// <summary>Ponteiro do marcador antes de abastecer, em oitavos (0 = vazio, 8 = cheio), de meio em meio (0,5 = metade entre o vazio e 1/8).</summary>
+    public double? NivelAntes { get; set; }
 
     /// <summary>Completou o tanque neste abastecimento (depois dele o nível é 8/8).</summary>
     public bool TanqueCheio { get; set; }
