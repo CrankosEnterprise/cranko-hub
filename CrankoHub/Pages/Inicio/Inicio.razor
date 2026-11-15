@@ -20,6 +20,7 @@
     var abs = veic is null ? [] : CarroCalculos.DoVeiculo(d.Carro, veic.Id);
     var st = CarroCalculos.Estatisticas(abs);
     var manut = veic is null ? [] : ManutencaoCalculos.DoVeiculo(d.Carro, veic.Id);
+    var odoAtual = veic is null ? null : ManutencaoCalculos.OdometroAtual(abs, manut);
     var inicioMes = new DateOnly(hoje.Year, hoje.Month, 1);
     var gastoMes = abs.Where(a => a.Data >= inicioMes).Sum(a => a.Valor ?? 0) + manut.Where(m => m.Data >= inicioMes).Sum(m => m.Valor ?? 0);
     var variacaoCarro = CarroCalculos.VariacaoTrimestre(abs, hoje);
@@ -203,7 +204,7 @@
 
         case Modulo.Carro:
     <a class="card bloco brilho" href="carro" style="--c:@m!.Cor" @key="bloco">
-        <div class="b-cab"><span class="b-ic">@m.Icone</span>@(veic?.Nome ?? m.Nome)<span class="b-dir">@(veic?.Ficha?.Placa ?? "")</span></div>
+        <div class="b-cab"><span class="b-ic">@m.Icone</span>@(veic?.Nome ?? m.Nome)<span class="b-dir" title="@(odoAtual is not null ? "Placa · odômetro (último registrado)" : null)">@(string.Join(" · ", new[] { veic?.Ficha?.Placa, odoAtual is not null ? $"{Num(odoAtual, 0)} km" : null }.Where(s => !string.IsNullOrWhiteSpace(s))))</span></div>
         @if (veic is null)
         {
             <p class="b-sub b-convite">Cadastre seu veículo para acompanhar consumo, gastos, manutenção e documentos.</p>
