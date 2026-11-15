@@ -253,6 +253,9 @@
     private string? _linkAplicado;
     private bool _lateralAberta;
 
+    // Celular: o mês cabe inteiro na tela, então cada dia mostra menos etiquetas
+    private bool _telaPequena;
+
     // Grade de horas (JS)
     private ElementReference _grade;
     private AgendaInterop? _interop;
@@ -313,13 +316,15 @@
             _ref = DotNetObjectReference.Create(this);
             _interop = new AgendaInterop(JS);
             _ = Relogio(_fim.Token);
+            _telaPequena = await JS.InvokeAsync<bool>("crankohub.telaPequena");
             // No celular a semana não cabe: começa no dia (sem mudar o que fica guardado)
-            if (VisaoDoLink is null && _visao == VisaoAgenda.Semana && await JS.InvokeAsync<bool>("crankohub.telaPequena"))
+            if (VisaoDoLink is null && _visao == VisaoAgenda.Semana && _telaPequena)
             {
                 _visao = VisaoAgenda.Dia;
                 StateHasChanged();
                 return;
             }
+            if (_telaPequena && _visao == VisaoAgenda.Mes) StateHasChanged();
         }
         if (_visao != VisaoAgenda.Mes && !_gradeLigada && _interop is not null && _ref is not null)
         {
@@ -550,7 +555,7 @@
 
     private RenderFragment VisaoMes(DateOnly ini, List<AgendaCalculos.Ocorrencia> ocs, List<CardTarefa> tarefas, DateOnly hoje) => __builder =>
     {
-        const int Maximo = 3;
+        var Maximo = _telaPequena ? 2 : 3;
         <div class="ag-mes">
             <div class="ag-mes-cab">
                 @foreach (var nome in AgendaCalculos.DiasCurtos)

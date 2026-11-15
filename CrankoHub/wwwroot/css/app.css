@@ -1774,7 +1774,11 @@ select option, select optgroup { background-color: var(--surface); color: var(--
 
 /* ===== Agenda (calendário) =====
    --c: cor da agenda do evento. A grade tem 48 px por hora (Pages/Agenda/Agenda.razor, PxPorHora). */
-.ag { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+/* A Agenda ocupa exatamente a altura do palco (sem rolar a página): só a grade de horas rola por dentro.
+   Em tela muito baixa o cartão para num mínimo e aí o palco rola. */
+.content:has(> .pagina > .ag) { height: 100%; padding-bottom: 20px; }
+.pagina:has(> .ag) { flex: 1; min-height: 0; }
+.ag { padding: 0; overflow: hidden; display: flex; flex-direction: column; flex: 1; min-height: 460px; }
 .ag-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--border); }
 .ag-titulo { font-size: 17px; font-weight: 650; flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ag-titulo::first-letter { text-transform: uppercase; }
@@ -1782,9 +1786,10 @@ select option, select optgroup { background-color: var(--surface); color: var(--
 .ag-setas .icon-btn, .ag-mini-cab .icon-btn, .ag-lat-titulo .icon-btn { font-size: 20px; line-height: 1; width: 32px; height: 32px; }
 .ag-lateral-btn { display: none; }
 .ag-lateral-btn svg { width: 15px; height: 15px; }
-.ag-corpo { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 0; }
-.ag-lateral { display: flex; flex-direction: column; gap: 14px; padding: 16px; border-right: 1px solid var(--border); min-width: 0; }
-.ag-principal { min-width: 0; display: flex; flex-direction: column; }
+.ag-barra { flex: none; }
+.ag-corpo { flex: 1; display: grid; grid-template-columns: 236px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); min-height: 0; }
+.ag-lateral { display: flex; flex-direction: column; gap: 14px; padding: 16px; border-right: 1px solid var(--border); min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.ag-principal { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 
 /* Minicalendário */
 .ag-mini-cab { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
@@ -1819,8 +1824,8 @@ select option, select optgroup { background-color: var(--surface); color: var(--
 .ag-cores { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 2px; }
 
 /* Visões Dia e Semana */
-.ag-horas-visao { display: flex; flex-direction: column; min-height: 0; --gutter: 54px; user-select: none; -webkit-user-select: none; }
-.ag-cab, .ag-topo { display: grid; grid-template-columns: var(--gutter) repeat(var(--dias), minmax(0, 1fr)); overflow: hidden; scrollbar-gutter: stable; }
+.ag-horas-visao { flex: 1; display: flex; flex-direction: column; min-height: 0; --gutter: 54px; user-select: none; -webkit-user-select: none; }
+.ag-cab, .ag-topo { flex: none; display: grid; grid-template-columns: var(--gutter) repeat(var(--dias), minmax(0, 1fr)); overflow: hidden; scrollbar-gutter: stable; }
 .ag-cab { border-bottom: 1px solid var(--border); }
 .ag-canto { display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 8px 6px 0; }
 .ag-canto small { font-size: 10px; color: var(--muted); text-align: right; line-height: 1.1; }
@@ -1830,10 +1835,10 @@ select option, select optgroup { background-color: var(--surface); color: var(--
 .ag-cab-dia b { font-size: 22px; font-weight: 500; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--text); font-variant-numeric: tabular-nums; }
 .ag-cab-dia.hoje span { color: var(--accent); }
 .ag-cab-dia.hoje b { background: var(--accent); color: var(--on-accent); font-weight: 650; }
-.ag-topo { border-bottom: 1px solid var(--border); min-height: 30px; }
+.ag-topo { border-bottom: 1px solid var(--border); min-height: 30px; max-height: 96px; overflow-y: auto; }
 .ag-topo-dia { display: flex; flex-direction: column; gap: 2px; padding: 3px 3px 4px; border-left: 1px solid var(--grid); min-width: 0; cursor: cell; }
 .ag-grade { position: relative; display: grid; grid-template-columns: var(--gutter) minmax(0, 1fr); overflow-y: auto; scrollbar-gutter: stable;
-  height: clamp(420px, calc(100vh - 255px), 1152px); height: clamp(420px, calc(100dvh - 255px), 1152px); overscroll-behavior: contain; }
+  flex: 1; min-height: 0; max-height: 1152px; overscroll-behavior: contain; }
 .ag-rotulos { position: relative; height: 1152px; }
 .ag-rotulos span { position: absolute; right: 8px; transform: translateY(-50%); font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ag-colunas { position: relative; display: grid; grid-template-columns: repeat(var(--dias), minmax(0, 1fr)); height: 1152px;
@@ -1893,11 +1898,11 @@ select option, select optgroup { background-color: var(--surface); color: var(--
 .prazo-campos input:disabled { opacity: .5; }
 
 /* Visão Mês */
-.ag-mes { display: flex; flex-direction: column; }
-.ag-mes-cab { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--border); }
+.ag-mes { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.ag-mes-cab { flex: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--border); }
 .ag-mes-cab span { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; padding: 8px 0; }
-.ag-mes-grade { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(108px, 1fr); }
-.ag-mes-dia { display: flex; flex-direction: column; gap: 1px; padding: 4px 4px 6px; border-right: 1px solid var(--grid); border-bottom: 1px solid var(--grid); min-width: 0; cursor: cell; }
+.ag-mes-grade { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(0, 1fr)); }
+.ag-mes-dia { display: flex; flex-direction: column; gap: 1px; padding: 4px 4px 6px; overflow: hidden; min-height: 0; border-right: 1px solid var(--grid); border-bottom: 1px solid var(--grid); min-width: 0; cursor: cell; }
 .ag-mes-dia:nth-child(7n) { border-right: 0; }
 .ag-mes-dia.fora { background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
 .ag-mes-dia.fora .ag-mes-num { color: var(--muted); }
@@ -1928,8 +1933,11 @@ select option, select optgroup { background-color: var(--surface); color: var(--
     background: var(--surface); border: 1px solid var(--border); border-left: 0; border-top: 0; border-radius: 0 0 14px 0; box-shadow: var(--shadow-alto); }
   .ag-horas-visao { --gutter: 44px; }
   .ag-cab-dia b { font-size: 18px; width: 34px; height: 34px; }
-  .ag-grade { height: calc(100dvh - 230px); min-height: 380px; }
-  .ag-mes-grade { grid-auto-rows: minmax(76px, 1fr); }
+  /* Sobra embaixo o espaço da barra de abas flutuante (sem ela, no menu lateral, só a margem) */
+  .content:has(> .pagina > .ag) { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .app.com-lateral .content:has(> .pagina > .ag) { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .ag { min-height: 400px; }
+  .ag-mes-num { width: 22px; height: 22px; font-size: 11.5px; margin-bottom: 1px; }
   .ag-chip.hora small { display: none; }
   .ag-agenda-editar { opacity: 1; }
 }
