@@ -1,6 +1,6 @@
 # Radares de Piracicaba (lista própria do Modo Carro)
 
-O aviso de radar do Modo Carro (`CrankoHub/Services/Carro/ModoCarro/RadaresSp.cs`) baixa sozinho os radares do DER, da CET, do
+O aviso de radar do Modo Carro (`CrankoHub/Core/Services/Carro/ModoCarro/RadaresSp.cs`) baixa sozinho os radares do DER, da CET, do
 Inmetro/rodovias federais (Pardal) e do OpenStreetMap. Em **Piracicaba** a prefeitura não publica coordenadas, então a lista
 vem dentro do app, em `RadaresPiracicaba.cs`, **gerada por estes scripts**. Dentro da cidade ela substitui o OSM e o Inmetro;
 o DER continua valendo nas rodovias.

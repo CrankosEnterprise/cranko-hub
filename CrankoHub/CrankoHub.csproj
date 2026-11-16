@@ -38,16 +38,21 @@
     <Using Remove="System.Drawing" />
   </ItemGroup>
 
-  <!-- As pastas Linux e Android são outros projetos (Photino e MAUI), que reaproveitam estes arquivos -->
+  <!-- As pastas Core, Linux e Android são outros projetos (núcleo, Photino e MAUI) -->
   <ItemGroup>
-    <Compile Remove="Linux\**;Android\**" />
-    <Content Remove="Linux\**;Android\**" />
-    <None Remove="Linux\**;Android\**" />
+    <Compile Remove="Core\**;Linux\**;Android\**" />
+    <Content Remove="Core\**;Linux\**;Android\**" />
+    <None Remove="Core\**;Linux\**;Android\**" />
+  </ItemGroup>
+
+  <!-- Modelos, regras e serviços compartilhados -->
+  <ItemGroup>
+    <ProjectReference Include="Core\CrankoHub.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.120" />
-    <!-- Reduz as capas do Entretenimento (Services/Entretenimento/CapasService.cs) -->
+    <!-- Reduz as capas do Entretenimento (Core/Services/Entretenimento/CapasService.cs) -->
     <PackageReference Include="SkiaSharp" Version="4.154.0" />
   </ItemGroup>
 

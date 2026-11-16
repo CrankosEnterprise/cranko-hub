@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!--
+    Núcleo do CrankoHub: modelos, regras de negócio e serviços usados pelas 3 versões (Windows, Linux e Android).
+    É net10.0 puro: nada de WPF, WinForms, Photino ou MAUI. O que muda por plataforma fica atrás das
+    interfaces de Services/Plataforma e cada app registra a sua implementação.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Mantém os namespaces de antes (CrankoHub.Models, CrankoHub.Services...) -->
+    <RootNamespace>CrankoHub</RootNamespace>
+    <AssemblyName>CrankoHub.Core</AssemblyName>
+
+    <Product>CrankoHub</Product>
+    <Version>1.0.0</Version>
+    <Authors>Diego Ottani</Authors>
+    <!-- Sem .pdb em Release: senão ele fica solto ao lado do CrankoHub.exe publicado -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      9.0.1 de propósito: é a versão que o Photino.Blazor (Linux) usa. Windows e Android sobem para a 10
+      pelas dependências deles; se o Core pedisse a 10, o Linux seria forçado a ela por baixo do Photino.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.1" />
+    <!-- Reduz as capas do Entretenimento (Services/Entretenimento/CapasService.cs); a parte nativa vem de cada app -->
+    <PackageReference Include="SkiaSharp" Version="4.154.0" />
+  </ItemGroup>
+
+</Project>

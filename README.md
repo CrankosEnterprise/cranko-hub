@@ -97,7 +97,7 @@ Baixe a versão oficial do **CrankoHub**:
 ```
 cranko-hub/
 ├── CrankoHub/                       # Projeto principal (WPF + Blazor Hybrid, .NET 10)
-│   │                                # Pages, Components, Models e Services têm uma subpasta por módulo
+│   │                                # Pages, Components, Core/Models e Core/Services têm uma subpasta por módulo
 │   │                                # (Agenda, Assinaturas, Carro, Dieta, Entretenimento, Tarefas...).
 │   │                                # As subpastas são só organização: os namespaces continuam
 │   │                                # CrankoHub.Pages, CrankoHub.Services etc.
@@ -111,18 +111,20 @@ cranko-hub/
 │   │   ├── Conta/                   # Tela de login, rodapé da conta, linhas de permissão
 │   │   └── <Módulo>/                # Peças de um módulo só (ex.: Carro/MarcadorCombustivel)
 │   ├── Layout/                      # LayoutPrincipal.razor (barra do topo com semáforo, menu em cápsula e conta; cabeçalho da página) e LayoutCarro.razor
-│   ├── Models/                      # Modelos de dados, por módulo
-│   │   └── Comum/                   # EstadoApp (raiz dos dados da conta), Configuracoes, Modulo, Anexo, Graficos...
-│   ├── Services/                    # Regras de negócio, cálculos e serviços, por módulo
-│   │   ├── Comum/                   # Formatação, alertas, avisos, toasts, navegação
-│   │   ├── Dados/                   # Cache local, sincronização e conta no Supabase
-│   │   ├── Plataforma/              # Interfaces do que muda por plataforma (bandeja, cofre, atualização, Modo Carro...);
-│   │   │                            # cada app registra a sua implementação no início (App.xaml.cs, Program.cs, MauiProgram.cs)
-│   │   ├── Windows/                 # Só do Windows (bandeja, diálogos, atualização, iniciar com o Windows, cofre)
-│   │   ├── Anexos/                  # Compactação e rascunho dos anexos
-│   │   ├── Carro/                   # Cálculos do carro, FIPE, Carros na Web
-│   │   │   └── ModoCarro/           # Busca de destino, radares de SP, Modo Carro e Bluetooth (Android/Plataforma: aviso de radar)
-│   │   └── <Módulo>/                # Cálculos de Agenda, Assinaturas, Dieta, Tarefas, Entretenimento
+│   ├── Core/                        # Núcleo (CrankoHub.Core.csproj, net10.0): o que as 3 versões usam, sem nada de plataforma
+│   │   ├── Models/                  # Modelos de dados, por módulo
+│   │   │   └── Comum/               # EstadoApp (raiz dos dados da conta), Configuracoes, Modulo, Anexo, Graficos...
+│   │   ├── Services/                # Regras de negócio, cálculos e serviços, por módulo
+│   │   │   ├── Comum/               # Formatação, alertas, avisos, toasts, navegação
+│   │   │   ├── Dados/               # Cache local, sincronização e conta no Supabase
+│   │   │   ├── Plataforma/          # Interfaces do que muda por plataforma (bandeja, cofre, atualização, Modo Carro...);
+│   │   │   │                        # cada app registra a sua implementação no início (App.xaml.cs, Program.cs, MauiProgram.cs)
+│   │   │   ├── Anexos/              # Compactação e rascunho dos anexos
+│   │   │   ├── Carro/               # Cálculos do carro, FIPE, Carros na Web
+│   │   │   │   └── ModoCarro/       # Busca de destino, radares de SP, Modo Carro e Bluetooth (Android/Plataforma: aviso de radar)
+│   │   │   └── <Módulo>/            # Cálculos de Agenda, Assinaturas, Dieta, Tarefas, Entretenimento
+│   │   └── Components/Comum/Icones.cs # Ícones SVG (usados também pelos modelos e alertas)
+│   ├── Services/Windows/            # Só do Windows (bandeja, diálogos, atualização, iniciar com o Windows, cofre)
 │   ├── Linux/                       # Projeto Linux (Photino.Blazor), que reaproveita os arquivos acima
 │   │   ├── Plataforma/              # Partes exclusivas do Linux (diálogos GTK, notify-send, autostart...)
 │   │   ├── Program.cs               # Ponto de entrada do app Linux
@@ -139,7 +141,7 @@ cranko-hub/
 ├── .github/workflows/
 │   └── crankohub-release.yml        # Gera o .exe, o pacote Linux e o APK Android e publica no Releases
 ├── ferramentas/radares/             # Scripts Node que geram a lista de radares de Piracicaba (ver o README da pasta)
-├── cranko-hub.slnx                  # Solução (Windows + Linux + Android)
+├── cranko-hub.slnx                  # Solução (Core + Windows + Linux + Android)
 └── README.md                        # Esta página
 ```
 

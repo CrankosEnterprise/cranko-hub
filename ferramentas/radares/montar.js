@@ -1,4 +1,4 @@
-// Gera CrankoHub/Services/Carro/ModoCarro/RadaresPiracicaba.cs (e o Municipios.cs, com os contornos) a partir de
+// Gera CrankoHub/Core/Services/Carro/ModoCarro/RadaresPiracicaba.cs (e o Municipios.cs, com os contornos) a partir de
 // piracicaba.js e dos arquivos de dados/ (rode antes `node baixar.js`).
 //   Posição: número de porta pelo CNEFE (o número mais perto, do mesmo lado da rua; sem um a até 20, interpola entre os
 //            vizinhos), encaixado na linha da via do OSM. Cruzamento: o ponto em comum das duas vias no OSM.
@@ -11,7 +11,7 @@ const path = require("path");
 const lista = require("./piracicaba.js");
 
 const DADOS = path.join(__dirname, "dados");
-const SAIDA = path.join(__dirname, "..", "..", "CrankoHub", "Services", "Carro", "ModoCarro");
+const SAIDA = path.join(__dirname, "..", "..", "CrankoHub", "Core", "Services", "Carro", "ModoCarro");
 const ler = f => fs.readFileSync(path.join(DADOS, f), f.endsWith(".csv") ? "latin1" : "utf8");
 
 // ===== Geometria =====

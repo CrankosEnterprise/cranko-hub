@@ -2,7 +2,7 @@
 
   <!--
     Versão Android do CrankoHub (.NET MAUI Blazor Hybrid).
-    Usa as MESMAS telas, modelos e serviços do projeto Windows (arquivos da pasta acima, por link);
+    Usa o núcleo (Core) e as MESMAS telas do projeto Windows (arquivos da pasta acima, por link);
     só a janela (BlazorWebView do MAUI) e as partes de plataforma são trocadas (pasta Plataforma).
     Distribuído como APK no GitHub Releases (fora da Play Store).
   -->
@@ -45,7 +45,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
-    <!-- Reduz as capas do Entretenimento (Services/Entretenimento/CapasService.cs) -->
+    <!-- Reduz as capas do Entretenimento (Core/Services/Entretenimento/CapasService.cs) -->
     <PackageReference Include="SkiaSharp" Version="4.154.0" />
   </ItemGroup>
 
@@ -55,13 +55,15 @@
     <MauiSplashScreen Include="icone-frente.png" Link="Resources/Splash/splash.png" Color="#101C40" BaseSize="160,160" />
   </ItemGroup>
 
-  <!-- Código compartilhado com a versão Windows -->
+  <!-- Modelos, regras e serviços compartilhados -->
+  <ItemGroup>
+    <ProjectReference Include="..\Core\CrankoHub.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Telas compartilhadas com a versão Windows -->
   <ItemGroup>
     <!-- O Link repete o caminho original: é dele que o Razor tira o namespace (CrankoHub.Pages...) -->
-    <Compile Include="..\Models\**\*.cs" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Components\**\*.cs" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\Services\**\*.cs" Link="Services\%(RecursiveDir)%(Filename)%(Extension)"
-             Exclude="..\Services\Windows\**" />
     <!-- Peças da versão Linux que servem igual aqui -->
     <Compile Include="..\Linux\Plataforma\ArquivosDoApp.cs" Link="Plataforma\%(Filename)%(Extension)" />
 
