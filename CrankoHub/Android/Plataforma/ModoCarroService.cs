@@ -9,9 +9,9 @@ namespace CrankoHub.Services;
 /// Modo Carro no Android: a navegação fica com o Google Maps ou o Waze, e o CrankoHub põe por cima deles um aviso pequeno
 /// do próximo radar (velocidade e metros que faltam), que só aparece com um radar perto (<see cref="RadarCarroService"/>).
 /// Os radares do estado de SP vêm de <see cref="RadaresSp"/>.
-/// Mesma API de Services/Carro/ModoCarro/ModoCarroService.cs.
+/// Implementa <see cref="IModoCarroService"/> (no Windows e no Linux fica o ModoCarroIndisponivel).
 /// </summary>
-public sealed class ModoCarroService(RadaresSp radares)
+public sealed class ModoCarroService(RadaresSp radares) : IModoCarroService
 {
     private const string Tag = "CrankoHub.Carro";
 

@@ -8,9 +8,9 @@ namespace CrankoHub.Services;
 /// <summary>
 /// Versão Android do atualizador: procura no GitHub Releases o arquivo CrankoHub-android.apk,
 /// baixa para o cache e abre o instalador do Android (a pessoa confirma tocando em "Atualizar").
-/// Mesma API das versões Windows/Linux, para a página Configurações compilar sem mudança.
+/// Implementa <see cref="IAtualizacaoService"/>, como as versões Windows e Linux.
 /// </summary>
-public class AtualizacaoService(ArmazenamentoService store, BandejaService bandeja)
+public sealed class AtualizacaoService(ArmazenamentoService store, IBandejaService bandeja) : IAtualizacaoService
 {
     private const string Repositorio = "CrankosEnterprise/cranko-hub";
     private const string PrefixoTag = "crankohub-v";
@@ -19,21 +19,21 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     public const string ArgAtualizado = "--atualizado";
     public const string ArgReiniciado = "--reiniciado";
 
-    public static Version VersaoAtual { get; } = Normalizar(typeof(AtualizacaoService).Assembly.GetName().Version ?? new Version(1, 0, 0));
+    public static Version VersaoAtual { get; } = Versoes.Normalizar(typeof(AtualizacaoService).Assembly.GetName().Version ?? new Version(1, 0, 0));
 
     private static readonly HttpClient Http = CriarHttp();
 
     private Timer? _timer;
 
-    public record Novidade(Version Versao, string Notas, long ArquivoId, long Tamanho);
+    public NovaVersao? Disponivel { get; private set; }
 
-    public Novidade? Disponivel { get; private set; }
+    Version IAtualizacaoService.VersaoAtual => VersaoAtual;
+
+    void IAtualizacaoService.Reiniciar() => Reiniciar();
 
     public static bool PodeInstalar => true;
 
-    public static string Texto(Version v) => v.ToString(3);
-
-    public async Task<Novidade?> VerificarAsync()
+    public async Task<NovaVersao?> VerificarAsync()
     {
         using var req = Requisicao($"https://api.github.com/repos/{Repositorio}/releases?per_page=30", "application/vnd.github+json");
         using var resp = await Http.SendAsync(req);
@@ -42,17 +42,17 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
         resp.EnsureSuccessStatusCode();
 
         using var json = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
-        Novidade? melhor = null;
+        NovaVersao? melhor = null;
         foreach (var r in json.RootElement.EnumerateArray())
         {
             if (r.GetProperty("draft").GetBoolean() || r.GetProperty("prerelease").GetBoolean()) continue;
             var tag = r.GetProperty("tag_name").GetString() ?? "";
             if (!tag.StartsWith(PrefixoTag, StringComparison.OrdinalIgnoreCase) || !Version.TryParse(tag[PrefixoTag.Length..], out var v)) continue;
-            v = Normalizar(v);
+            v = Versoes.Normalizar(v);
             if (v <= VersaoAtual || (melhor is not null && v <= melhor.Versao)) continue;
             foreach (var a in r.GetProperty("assets").EnumerateArray())
                 if (a.GetProperty("name").GetString() == NomeArquivo)
-                    melhor = new Novidade(v, r.GetProperty("body").GetString() ?? "", a.GetProperty("id").GetInt64(), a.GetProperty("size").GetInt64());
+                    melhor = new NovaVersao(v, r.GetProperty("body").GetString() ?? "", a.GetProperty("id").GetInt64(), a.GetProperty("size").GetInt64());
         }
 
         Disponivel = melhor;
@@ -61,7 +61,7 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
         return melhor;
     }
 
-    public async Task InstalarAsync(Novidade n, IProgress<double>? progresso = null)
+    public async Task InstalarAsync(NovaVersao n, IProgress<double>? progresso = null)
     {
         var ctx = global::Android.App.Application.Context;
         // Android 8+: cada app precisa da permissão "instalar apps desconhecidos"
@@ -132,8 +132,8 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
                 return;
             try
             {
-                if (await VerificarAsync() is Novidade n)
-                    bandeja.Notificar("Nova versão do CrankoHub", $"A versão {Texto(n.Versao)} está disponível em Configurações → Aplicativo.", "configuracoes?aba=aplicativo");
+                if (await VerificarAsync() is NovaVersao n)
+                    bandeja.Notificar("Nova versão do CrankoHub", $"A versão {Versoes.Texto(n.Versao)} está disponível em Configurações → Aplicativo.", "configuracoes?aba=aplicativo");
             }
             catch { } // sem internet: tenta de novo mais tarde
         }, null, TimeSpan.FromSeconds(30), TimeSpan.FromHours(6));
@@ -151,9 +151,8 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     private static HttpClient CriarHttp()
     {
         var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("CrankoHub/" + Texto(VersaoAtual));
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("CrankoHub/" + Versoes.Texto(VersaoAtual));
         return http;
     }
 
-    private static Version Normalizar(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
 }

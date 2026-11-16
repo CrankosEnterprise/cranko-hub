@@ -11,9 +11,9 @@ namespace CrankoHub.Services;
 /// <summary>
 /// Versão Linux do atualizador: procura no GitHub Releases o arquivo CrankoHub-linux-x64.tar.gz,
 /// extrai numa pasta ao lado, troca as pastas (o Linux deixa renomear a pasta de um app aberto) e reinicia.
-/// Mesma API da versão Windows, para a página Configurações compilar sem mudança.
+/// Implementa <see cref="IAtualizacaoService"/>, como as versões Windows e Android.
 /// </summary>
-public class AtualizacaoService(ArmazenamentoService store, BandejaService bandeja)
+public sealed class AtualizacaoService(ArmazenamentoService store, IBandejaService bandeja) : IAtualizacaoService
 {
     private const string Repositorio = "CrankosEnterprise/cranko-hub";
     private const string PrefixoTag = "crankohub-v";
@@ -24,22 +24,22 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     /// <summary>Reinício pedido pelo próprio app (ex.: trocou a pasta dos dados): espera a versão atual fechar.</summary>
     public const string ArgReiniciado = "--reiniciado";
 
-    public static Version VersaoAtual { get; } = Normalizar(Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0));
+    public static Version VersaoAtual { get; } = Versoes.Normalizar(Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0));
 
     private static readonly HttpClient Http = CriarHttp();
 
     private Timer? _timer;
 
-    public record Novidade(Version Versao, string Notas, long ArquivoId, long Tamanho);
+    public NovaVersao? Disponivel { get; private set; }
 
-    public Novidade? Disponivel { get; private set; }
+    Version IAtualizacaoService.VersaoAtual => VersaoAtual;
+
+    void IAtualizacaoService.Reiniciar() => Reiniciar();
 
     /// <summary>Só a versão publicada (pasta com o executável CrankoHub) pode se substituir.</summary>
     public static bool PodeInstalar => Environment.ProcessPath is string exe && Path.GetFileName(exe) == "CrankoHub";
 
-    public static string Texto(Version v) => v.ToString(3);
-
-    public async Task<Novidade?> VerificarAsync()
+    public async Task<NovaVersao?> VerificarAsync()
     {
         using var req = Requisicao($"https://api.github.com/repos/{Repositorio}/releases?per_page=30", "application/vnd.github+json");
         using var resp = await Http.SendAsync(req);
@@ -48,17 +48,17 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
         resp.EnsureSuccessStatusCode();
 
         using var json = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
-        Novidade? melhor = null;
+        NovaVersao? melhor = null;
         foreach (var r in json.RootElement.EnumerateArray())
         {
             if (r.GetProperty("draft").GetBoolean() || r.GetProperty("prerelease").GetBoolean()) continue;
             var tag = r.GetProperty("tag_name").GetString() ?? "";
             if (!tag.StartsWith(PrefixoTag, StringComparison.OrdinalIgnoreCase) || !Version.TryParse(tag[PrefixoTag.Length..], out var v)) continue;
-            v = Normalizar(v);
+            v = Versoes.Normalizar(v);
             if (v <= VersaoAtual || (melhor is not null && v <= melhor.Versao)) continue;
             foreach (var a in r.GetProperty("assets").EnumerateArray())
                 if (a.GetProperty("name").GetString() == NomeArquivo)
-                    melhor = new Novidade(v, r.GetProperty("body").GetString() ?? "", a.GetProperty("id").GetInt64(), a.GetProperty("size").GetInt64());
+                    melhor = new NovaVersao(v, r.GetProperty("body").GetString() ?? "", a.GetProperty("id").GetInt64(), a.GetProperty("size").GetInt64());
         }
 
         Disponivel = melhor;
@@ -67,7 +67,7 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
         return melhor;
     }
 
-    public async Task InstalarAsync(Novidade n, IProgress<double>? progresso = null)
+    public async Task InstalarAsync(NovaVersao n, IProgress<double>? progresso = null)
     {
         if (!PodeInstalar)
             throw new InvalidOperationException("A atualização só funciona na versão publicada do CrankoHub, não rodando pelo dotnet.");
@@ -136,8 +136,8 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
                 return;
             try
             {
-                if (await VerificarAsync() is Novidade n)
-                    bandeja.Notificar("Nova versão do CrankoHub", $"A versão {Texto(n.Versao)} está disponível em Configurações → Aplicativo.");
+                if (await VerificarAsync() is NovaVersao n)
+                    bandeja.Notificar("Nova versão do CrankoHub", $"A versão {Versoes.Texto(n.Versao)} está disponível em Configurações → Aplicativo.");
             }
             catch { } // sem internet ou token inválido: tenta de novo mais tarde
         }, null, TimeSpan.FromSeconds(30), TimeSpan.FromHours(6));
@@ -173,9 +173,8 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     private static HttpClient CriarHttp()
     {
         var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("CrankoHub/" + Texto(VersaoAtual));
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("CrankoHub/" + Versoes.Texto(VersaoAtual));
         return http;
     }
 
-    private static Version Normalizar(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
 }

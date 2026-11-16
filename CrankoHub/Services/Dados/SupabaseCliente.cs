@@ -11,12 +11,12 @@ namespace CrankoHub.Services;
 /// header apikey; logado, leva também "Authorization: Bearer" com o token do usuário, renovado sozinho.
 /// A publishable key nunca vai no Authorization: o Supabase tentaria ler como JWT e recusaria.
 /// </summary>
-public class SupabaseCliente
+public class SupabaseCliente(ICofreSessao cofre)
 {
     // Cliente próprio: não leva o User-Agent nem os headers da busca do Entretenimento
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
-    /// <summary>Sessão atual (só em memória; no disco fica apenas o refresh token, em <see cref="CofreSessao"/>).</summary>
+    /// <summary>Sessão atual (só em memória; no disco fica apenas o refresh token, em <see cref="ICofreSessao"/>).</summary>
     public record Sessao(string AccessToken, string RefreshToken, DateTimeOffset ExpiraEm, string UserId, string? Email);
 
     public Sessao? Atual { get; private set; }
@@ -49,7 +49,7 @@ public class SupabaseCliente
     {
         var s = Atual;
         Atual = null;
-        CofreSessao.Apagar();
+        cofre.Apagar();
         if (s is null) return;
         try
         {
@@ -143,7 +143,7 @@ public class SupabaseCliente
             json["user"]!["id"]!.GetValue<string>(),
             json["user"]?["email"]?.GetValue<string>());
         Atual = sessao;
-        CofreSessao.Salvar(sessao.RefreshToken);
+        cofre.Salvar(sessao.RefreshToken);
         return sessao;
     }
 

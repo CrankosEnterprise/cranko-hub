@@ -7,7 +7,7 @@ namespace CrankoHub.Services;
 
 /// <summary>
 /// Busca de destino do Modo Carro pelo Photon (komoot, OpenStreetMap; sem chave) e os destinos recentes.
-/// A rota em si fica com o Google Maps ou o Waze (<see cref="ModoCarroService.Navegar"/>).
+/// A rota em si fica com o Google Maps ou o Waze (<see cref="IModoCarroService.Navegar"/>).
 /// </summary>
 public sealed class BuscaLugares(HttpClient http, ArmazenamentoService store)
 {

@@ -1,4 +1,3 @@
-using System.Windows.Threading;
 using CrankoHub.Models;
 
 namespace CrankoHub.Services;
@@ -7,27 +6,22 @@ namespace CrankoHub.Services;
 /// De hora em hora (e logo depois de abrir) manda notificações
 /// com os alertas do Início, cada um no máximo uma vez por dia.
 /// </summary>
-public class AvisosService(ArmazenamentoService store, BandejaService bandeja)
+public class AvisosService(ArmazenamentoService store, IBandejaService bandeja)
 {
-    private DispatcherTimer? _timer, _lembretes;
+    private Temporizador? _timer, _lembretes;
 
     /// <summary>De quanto em quanto tempo os lembretes da Agenda são conferidos.</summary>
     public static readonly TimeSpan IntervaloLembretes = TimeSpan.FromSeconds(30);
 
     public void Iniciar()
     {
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
-        _timer.Tick += (_, _) =>
-        {
-            _timer.Interval = TimeSpan.FromHours(1);
-            Verificar();
-        };
-        _timer.Start();
+        // Logo depois de abrir e, daí em diante, de hora em hora
+        _timer = new Temporizador(TimeSpan.FromSeconds(15), TimeSpan.FromHours(1), () => Verificar());
+        _timer.Iniciar();
 
         // Os lembretes da Agenda têm hora marcada: conferidos a cada 30 s
-        _lembretes = new DispatcherTimer { Interval = IntervaloLembretes };
-        _lembretes.Tick += (_, _) => LembretesDaAgenda();
-        _lembretes.Start();
+        _lembretes = new Temporizador(IntervaloLembretes, IntervaloLembretes, LembretesDaAgenda);
+        _lembretes.Iniciar();
     }
 
     // Cada ocorrência avisa uma vez (a chave tem o horário dela), na hora do lembrete

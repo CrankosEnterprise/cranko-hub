@@ -13,7 +13,7 @@ namespace CrankoHub.Services;
 /// ao abrir de novo não havia sessão e o app saía da conta sozinho ("Sessão encerrada").
 /// Aqui a gravação usa Commit(), que só volta depois de o arquivo estar no disco.
 /// </remarks>
-public static class CofreSessao
+public sealed class CofreSessao : ICofreSessao
 {
     private const string Chave = "crankohub.sessao";
     private const string Arquivo = "crankohub.cofre";
@@ -37,19 +37,19 @@ public static class CofreSessao
         }
     }
 
-    public static void Salvar(string refreshToken)
+    public void Salvar(string refreshToken)
     {
         if (Prefs().Edit()!.PutString(Chave, refreshToken)!.Commit()) return;
         throw new IOException("Não foi possível guardar a sessão no aparelho.");
     }
 
-    public static string? Ler()
+    public string? Ler()
     {
         try { return Prefs().GetString(Chave, null) is { Length: > 0 } t ? t : null; }
         catch { return null; } // chave do Keystore perdida (ex.: app restaurado em outro aparelho): como se não houvesse sessão
     }
 
-    public static void Apagar()
+    public void Apagar()
     {
         try { Prefs().Edit()!.Remove(Chave)!.Commit(); } catch { }
     }

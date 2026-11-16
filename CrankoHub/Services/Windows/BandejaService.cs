@@ -4,7 +4,7 @@ using Forms = System.Windows.Forms;
 namespace CrankoHub.Services;
 
 /// <summary>Ícone do CrankoHub na bandeja do Windows (perto do relógio) e as notificações.</summary>
-public sealed class BandejaService : IDisposable
+public sealed class BandejaService : IBandejaService, IDisposable
 {
     private readonly Forms.NotifyIcon _icone;
     private readonly System.Drawing.Icon _iconeOriginal;
@@ -137,7 +137,7 @@ public sealed class BandejaService : IDisposable
     private sealed class Cabecalho : Forms.ToolStripLabel
     {
         private readonly System.Drawing.Icon _logo;
-        private readonly string _versao = "v" + AtualizacaoService.Texto(AtualizacaoService.VersaoAtual);
+        private readonly string _versao = "v" + Versoes.Texto(AtualizacaoService.VersaoAtual);
 
         public Cabecalho(System.Drawing.Icon logo, Action abrir)
         {

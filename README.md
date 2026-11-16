@@ -116,6 +116,8 @@ cranko-hub/
 │   ├── Services/                    # Regras de negócio, cálculos e serviços, por módulo
 │   │   ├── Comum/                   # Formatação, alertas, avisos, toasts, navegação
 │   │   ├── Dados/                   # Cache local, sincronização e conta no Supabase
+│   │   ├── Plataforma/              # Interfaces do que muda por plataforma (bandeja, cofre, atualização, Modo Carro...);
+│   │   │                            # cada app registra a sua implementação no início (App.xaml.cs, Program.cs, MauiProgram.cs)
 │   │   ├── Windows/                 # Só do Windows (bandeja, diálogos, atualização, iniciar com o Windows, cofre)
 │   │   ├── Anexos/                  # Compactação e rascunho dos anexos
 │   │   ├── Carro/                   # Cálculos do carro, FIPE, Carros na Web

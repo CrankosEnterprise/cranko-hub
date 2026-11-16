@@ -12,7 +12,7 @@ namespace CrankoHub.Services;
 /// .github/workflows/crankohub-release.yml), baixa o novo CrankoHub.exe, troca pelo atual e reinicia.
 /// O repositório é privado, então as chamadas usam o token salvo nas Configurações.
 /// </summary>
-public class AtualizacaoService(ArmazenamentoService store, BandejaService bandeja)
+public sealed class AtualizacaoService(ArmazenamentoService store, IBandejaService bandeja) : IAtualizacaoService
 {
     private const string Repositorio = "CrankosEnterprise/cranko-hub";
     private const string PrefixoTag = "crankohub-v";
@@ -25,17 +25,19 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     public const string ArgReiniciado = "--reiniciado";
 
     // Declarada antes do Http, que a usa no User-Agent (inicializadores estáticos rodam em ordem)
-    public static Version VersaoAtual { get; } = Normalizar(Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0));
+    public static Version VersaoAtual { get; } = Versoes.Normalizar(Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0));
 
     // Cliente próprio: o download (~100 MB) não cabe no timeout de 15 s do HttpClient compartilhado
     private static readonly HttpClient Http = CriarHttp();
 
     private DispatcherTimer? _timer;
 
-    public record Novidade(Version Versao, string Notas, long ArquivoId, long Tamanho);
-
     /// <summary>Última versão nova encontrada (null se está em dia ou ainda não verificou).</summary>
-    public Novidade? Disponivel { get; private set; }
+    public NovaVersao? Disponivel { get; private set; }
+
+    Version IAtualizacaoService.VersaoAtual => VersaoAtual;
+
+    void IAtualizacaoService.Reiniciar() => Reiniciar();
 
     /// <summary>
     /// Só o .exe publicado (arquivo único) pode se substituir; rodando pelo Visual Studio, não.
@@ -44,10 +46,8 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     /// </summary>
     public static bool PodeInstalar => Environment.ProcessPath is string exe && !File.Exists(Path.ChangeExtension(exe, ".dll"));
 
-    public static string Texto(Version v) => v.ToString(3);
-
     /// <summary>Consulta o GitHub. Retorna a versão mais nova que a instalada, ou null se já está em dia.</summary>
-    public async Task<Novidade?> VerificarAsync()
+    public async Task<NovaVersao?> VerificarAsync()
     {
         using var req = Requisicao($"https://api.github.com/repos/{Repositorio}/releases?per_page=30", "application/vnd.github+json");
         using var resp = await Http.SendAsync(req);
@@ -56,17 +56,17 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
         resp.EnsureSuccessStatusCode();
 
         using var json = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync());
-        Novidade? melhor = null;
+        NovaVersao? melhor = null;
         foreach (var r in json.RootElement.EnumerateArray())
         {
             if (r.GetProperty("draft").GetBoolean() || r.GetProperty("prerelease").GetBoolean()) continue;
             var tag = r.GetProperty("tag_name").GetString() ?? "";
             if (!tag.StartsWith(PrefixoTag, StringComparison.OrdinalIgnoreCase) || !Version.TryParse(tag[PrefixoTag.Length..], out var v)) continue;
-            v = Normalizar(v);
+            v = Versoes.Normalizar(v);
             if (v <= VersaoAtual || (melhor is not null && v <= melhor.Versao)) continue;
             foreach (var a in r.GetProperty("assets").EnumerateArray())
                 if (a.GetProperty("name").GetString() == NomeArquivo)
-                    melhor = new Novidade(v, r.GetProperty("body").GetString() ?? "", a.GetProperty("id").GetInt64(), a.GetProperty("size").GetInt64());
+                    melhor = new NovaVersao(v, r.GetProperty("body").GetString() ?? "", a.GetProperty("id").GetInt64(), a.GetProperty("size").GetInt64());
         }
 
         Disponivel = melhor;
@@ -76,7 +76,7 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     }
 
     /// <summary>Baixa a versão nova, troca o .exe (o Windows deixa renomear um .exe aberto) e reinicia o app.</summary>
-    public async Task InstalarAsync(Novidade n, IProgress<double>? progresso = null)
+    public async Task InstalarAsync(NovaVersao n, IProgress<double>? progresso = null)
     {
         if (!PodeInstalar)
             throw new InvalidOperationException("A atualização só funciona no CrankoHub.exe publicado, não rodando pelo Visual Studio.");
@@ -137,8 +137,8 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
                 return;
             try
             {
-                if (await VerificarAsync() is Novidade n)
-                    bandeja.Notificar("Nova versão do CrankoHub", $"A versão {Texto(n.Versao)} está disponível. Clique para atualizar.", "configuracoes?aba=aplicativo");
+                if (await VerificarAsync() is NovaVersao n)
+                    bandeja.Notificar("Nova versão do CrankoHub", $"A versão {Versoes.Texto(n.Versao)} está disponível. Clique para atualizar.", "configuracoes?aba=aplicativo");
             }
             catch { } // sem internet ou token inválido: tenta de novo mais tarde, sem incomodar
         };
@@ -178,9 +178,8 @@ public class AtualizacaoService(ArmazenamentoService store, BandejaService bande
     private static HttpClient CriarHttp()
     {
         var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("CrankoHub/" + Texto(VersaoAtual));
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("CrankoHub/" + Versoes.Texto(VersaoAtual));
         return http;
     }
 
-    private static Version Normalizar(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
 }

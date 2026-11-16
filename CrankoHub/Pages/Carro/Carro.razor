@@ -2,7 +2,7 @@
 @page "/carro"
 @using CrankoHub.Pages.CarroAbas
 @inject ArmazenamentoService Store
-@inject ModoCarroService ModoCarro
+@inject IModoCarroService ModoCarro
 
 @if (CarroCalculos.VeiculoAtivo(Store.Dados.Carro) is null)
 {

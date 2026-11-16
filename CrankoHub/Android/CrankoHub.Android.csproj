@@ -61,9 +61,9 @@
     <Compile Include="..\Models\**\*.cs" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Components\**\*.cs" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\Services\**\*.cs" Link="Services\%(RecursiveDir)%(Filename)%(Extension)"
-             Exclude="..\Services\Windows\**;..\Services\Carro\ModoCarro\ModoCarroService.cs;..\Services\Carro\ModoCarro\CarroBluetoothService.cs" />
+             Exclude="..\Services\Windows\**" />
     <!-- Peças da versão Linux que servem igual aqui -->
-    <Compile Include="..\Linux\Plataforma\DispatcherTimer.cs;..\Linux\Plataforma\ArquivosDoApp.cs" Link="Plataforma\%(Filename)%(Extension)" />
+    <Compile Include="..\Linux\Plataforma\ArquivosDoApp.cs" Link="Plataforma\%(Filename)%(Extension)" />
 
     <!-- No MAUI os .razor são RazorComponent (não Content), senão o SDK os descarta -->
     <RazorComponent Include="..\Main.razor;..\_Imports.razor" Link="%(Filename)%(Extension)" />

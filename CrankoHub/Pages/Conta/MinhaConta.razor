@@ -5,6 +5,7 @@
 @implements IDisposable
 @inject ArmazenamentoService Store
 @inject IDialogoService Dialogo
+@inject IAtualizacaoService Atualizacao
 @inject ContaService Conta
 @inject SincronizacaoService Sincronizacao
 
@@ -72,6 +73,6 @@
         if (!await Dialogo.Confirmar("Sair da conta?\nAs mudanças pendentes são enviadas antes. O app reinicia na tela de login. Os dados continuam na conta.")) return;
         await Sincronizacao.Sincronizar();
         await Conta.Sair();
-        AtualizacaoService.Reiniciar();
+        Atualizacao.Reiniciar();
     }
 }

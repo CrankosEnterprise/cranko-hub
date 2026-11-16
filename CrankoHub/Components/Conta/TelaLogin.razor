@@ -1,6 +1,7 @@
 @namespace CrankoHub.Components
 @* Tela cheia de login: aparece no lugar do app enquanto não há conta conectada (ver Main.razor) *@
 @inject ContaService Conta
+@inject IAtualizacaoService Atualizacao
 @inject IJSRuntime JS
 
 <div class="tela-login">
@@ -53,7 +54,7 @@
             await Conta.Entrar(_usuario, _senha);
             _senha = "";
             // Reinicia para abrir na pasta da conta (o cache local dela)
-            AtualizacaoService.Reiniciar();
+            Atualizacao.Reiniciar();
         }
         catch (InvalidOperationException ex)
         {

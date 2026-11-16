@@ -24,9 +24,17 @@ public static class MauiProgram
         servicos.AddSingleton<NavegacaoService>();
         servicos.AddSingleton<JanelaService>();
         servicos.AddSingleton<CabecalhoService>();
-        servicos.AddSingleton<BandejaService>();
+        // Partes de plataforma (Android/Plataforma); as telas usam só as interfaces
+        servicos.AddSingleton<IBandejaService, BandejaService>();
+        servicos.AddSingleton<IAtualizacaoService, AtualizacaoService>();
+        servicos.AddSingleton<ICofreSessao, CofreSessao>();
+        servicos.AddSingleton<IInicializacaoSistema, InicializacaoAndroid>();
+        // A MainActivity e o RadarCarroService pedem as classes concretas (membros só do Android)
+        servicos.AddSingleton<ModoCarroService>();
+        servicos.AddSingleton<IModoCarroService>(s => s.GetRequiredService<ModoCarroService>());
+        servicos.AddSingleton<CarroBluetoothService>();
+        servicos.AddSingleton<ICarroBluetoothService>(s => s.GetRequiredService<CarroBluetoothService>());
         servicos.AddSingleton<AvisosService>();
-        servicos.AddSingleton<AtualizacaoService>();
         var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         // A Wikipedia/Wikidata bloqueia identificações genéricas: nome + endereço do projeto
         http.DefaultRequestHeaders.UserAgent.ParseAdd(EntretenimentoBusca.UserAgent);
@@ -40,9 +48,7 @@ public static class MauiProgram
         servicos.AddSingleton<ContaService>();
         servicos.AddSingleton<SincronizacaoService>();
         servicos.AddSingleton<RadaresSp>();
-        servicos.AddSingleton<ModoCarroService>();
         servicos.AddSingleton<BuscaLugares>();
-        servicos.AddSingleton<CarroBluetoothService>();
 
         return builder.Build();
     }

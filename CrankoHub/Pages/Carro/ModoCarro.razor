@@ -3,11 +3,11 @@
 @layout LayoutCarro
 @* Modo Carro: tela rápida para escolher o app (Google Maps ou Waze) e o destino. Ao escolher, o CrankoHub abre o app já
    navegando e liga o aviso de radar por cima dele (Android/Plataforma/RadarCarroService.cs) até sair do Modo Carro.
-   Só funciona no Android (ModoCarroService); no Windows/Linux a página explica isso. *@
+   Só funciona no Android (IModoCarroService); no Windows/Linux a página explica isso. *@
 @implements IDisposable
-@inject ModoCarroService Modo
+@inject IModoCarroService Modo
 @inject BuscaLugares Busca
-@inject CarroBluetoothService Bluetooth
+@inject ICarroBluetoothService Bluetooth
 @inject ArmazenamentoService Store
 @inject ToastService Toast
 @inject NavigationManager Nav

@@ -50,18 +50,18 @@ public partial class App : Application
 
         // Atualiza o caminho do .exe no registro, caso ele tenha mudado de lugar
         if (ConfigLocal.Atual.IniciarComWindows == true)
-            try { InicializacaoWindows.Aplicar(true); } catch { }
+            try { Servicos.GetRequiredService<IInicializacaoSistema>().Aplicar(true); } catch { }
 
         _janela = new MainWindow();
         if (!e.Args.Contains(InicializacaoWindows.ArgMinimizado))
             _janela.Show();
         bandeja.AplicarCor(Models.CorDestaque.DaConfig(store.Dados.Config.CorDestaque).Claro);
         avisos.Iniciar();
-        Servicos.GetRequiredService<AtualizacaoService>().Iniciar();
+        Servicos.GetRequiredService<IAtualizacaoService>().Iniciar();
         _ = Servicos.GetRequiredService<ContaService>().Restaurar();
         Servicos.GetRequiredService<SincronizacaoService>().Iniciar();
         if (atualizado)
-            bandeja.Notificar("CrankoHub atualizado", $"Agora na versão {AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)}.");
+            bandeja.Notificar("CrankoHub atualizado", $"Agora na versão {Versoes.Texto(AtualizacaoService.VersaoAtual)}.");
     }
 
     private static IServiceProvider CriarServicos()
@@ -77,9 +77,15 @@ public partial class App : Application
         servicos.AddSingleton<NavegacaoService>();
         servicos.AddSingleton<JanelaService>();
         servicos.AddSingleton<CabecalhoService>();
+        // Partes de plataforma (Services/Windows); as telas usam só as interfaces
         servicos.AddSingleton<BandejaService>();
+        servicos.AddSingleton<IBandejaService>(s => s.GetRequiredService<BandejaService>());
+        servicos.AddSingleton<IAtualizacaoService, AtualizacaoService>();
+        servicos.AddSingleton<ICofreSessao, CofreSessao>();
+        servicos.AddSingleton<IInicializacaoSistema, InicializacaoWindows>();
+        servicos.AddSingleton<IModoCarroService, ModoCarroIndisponivel>();
+        servicos.AddSingleton<ICarroBluetoothService, CarroBluetoothIndisponivel>();
         servicos.AddSingleton<AvisosService>();
-        servicos.AddSingleton<AtualizacaoService>();
         var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         // A Wikipedia/Wikidata bloqueia identificações genéricas: nome + endereço do projeto
         http.DefaultRequestHeaders.UserAgent.ParseAdd(EntretenimentoBusca.UserAgent);
@@ -93,9 +99,7 @@ public partial class App : Application
         servicos.AddSingleton<ContaService>();
         servicos.AddSingleton<SincronizacaoService>();
         servicos.AddSingleton<RadaresSp>();
-        servicos.AddSingleton<ModoCarroService>();
         servicos.AddSingleton<BuscaLugares>();
-        servicos.AddSingleton<CarroBluetoothService>();
         return servicos.BuildServiceProvider();
     }
 

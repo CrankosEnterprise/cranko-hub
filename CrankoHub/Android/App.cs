@@ -21,7 +21,7 @@ public class App(IServiceProvider servicos) : Application
         _iniciado = true;
         servicos.GetRequiredService<ArmazenamentoService>();
         servicos.GetRequiredService<AvisosService>().Iniciar();
-        servicos.GetRequiredService<AtualizacaoService>().Iniciar();
+        servicos.GetRequiredService<IAtualizacaoService>().Iniciar();
         _ = servicos.GetRequiredService<ContaService>().Restaurar();
         servicos.GetRequiredService<SincronizacaoService>().Iniciar();
         _ = BandejaService.PedirPermissao();

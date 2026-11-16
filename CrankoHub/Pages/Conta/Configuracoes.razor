@@ -6,8 +6,9 @@
 @inject AvisosService Avisos
 @inject JanelaService Janela
 @inject IJSRuntime JS
-@inject BandejaService Bandeja
-@inject AtualizacaoService Atualizacao
+@inject IBandejaService Bandeja
+@inject IAtualizacaoService Atualizacao
+@inject IInicializacaoSistema Inicializacao
 
 @{
     var d = Store.Dados;
@@ -63,12 +64,12 @@
 
         <section class="card">
             <div class="card-head">
-                <div><h2>Atualizações</h2><p>Versão instalada: <b>@AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)</b>. As versões novas vêm do Releases do GitHub (<b>CrankosEnterprise/cranko-hub</b>).</p></div>
+                <div><h2>Atualizações</h2><p>Versão instalada: <b>@Versoes.Texto(Atualizacao.VersaoAtual)</b>. As versões novas vêm do Releases do GitHub (<b>CrankosEnterprise/cranko-hub</b>).</p></div>
                 <label class="check"><input type="checkbox" checked="@cfg.VerificarAtualizacoes" @onchange="@(e => Mudar(e, v => cfg.VerificarAtualizacoes = v))"> Verificar sozinho</label>
             </div>
             @if (Atualizacao.Disponivel is { } nova)
             {
-                <p style="margin-top:12px"><b>Versão @AtualizacaoService.Texto(nova.Versao) disponível</b> (@Num(nova.Tamanho / 1048576.0, 0) MB)</p>
+                <p style="margin-top:12px"><b>Versão @Versoes.Texto(nova.Versao) disponível</b> (@Num(nova.Tamanho / 1048576.0, 0) MB)</p>
                 @if (!string.IsNullOrWhiteSpace(nova.Notas))
                 {
                     <p class="muted" style="white-space:pre-wrap;margin-top:6px">@nova.Notas</p>
@@ -208,9 +209,9 @@
         _verificando = false;
     }
 
-    private async Task Atualizar(AtualizacaoService.Novidade n)
+    private async Task Atualizar(NovaVersao n)
     {
-        if (!await Dialogo.Confirmar($"Atualizar para a versão {AtualizacaoService.Texto(n.Versao)}?\n{(Android ? "O CrankoHub vai baixar a versão nova e abrir o instalador do Android. Toque em Atualizar para concluir." : "O CrankoHub vai baixar a versão nova, fechar e abrir de novo.")} Seus dados não são alterados.")) return;
+        if (!await Dialogo.Confirmar($"Atualizar para a versão {Versoes.Texto(n.Versao)}?\n{(Android ? "O CrankoHub vai baixar a versão nova e abrir o instalador do Android. Toque em Atualizar para concluir." : "O CrankoHub vai baixar a versão nova, fechar e abrir de novo.")} Seus dados não são alterados.")) return;
         _progresso = 0;
         // Redesenha só quando muda o percentual inteiro (o download avisa a cada 80 KB)
         var progresso = new Progress<double>(p =>
@@ -252,7 +253,7 @@
         var ligado = e.Value is true;
         try
         {
-            InicializacaoWindows.Aplicar(ligado);
+            Inicializacao.Aplicar(ligado);
             ConfigLocal.Atual.IniciarComWindows = ligado;
             ConfigLocal.Atual.Salvar();
         }

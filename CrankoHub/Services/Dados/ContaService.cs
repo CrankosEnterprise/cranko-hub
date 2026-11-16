@@ -8,7 +8,7 @@ namespace CrankoHub.Services;
 /// Logado, os dados ficam na pasta da conta (contas/&lt;user_id&gt;/) e são sincronizados por <see cref="SincronizacaoService"/>.
 /// Entrar e sair reiniciam o app (quem chama faz isso), para trocar de pasta.
 /// </summary>
-public class ContaService(SupabaseCliente supabase)
+public class ContaService(SupabaseCliente supabase, ICofreSessao cofre)
 {
     public static bool Configurado => SupabaseConfig.Configurado;
 
@@ -34,7 +34,7 @@ public class ContaService(SupabaseCliente supabase)
 
     /// <summary>
     /// Lança <see cref="InvalidOperationException"/> com a mensagem para mostrar ao usuário.
-    /// Depois de entrar é preciso reiniciar o app (<see cref="AtualizacaoService.Reiniciar"/>) para usar a pasta da conta.
+    /// Depois de entrar é preciso reiniciar o app (<see cref="IAtualizacaoService.Reiniciar"/>) para usar a pasta da conta.
     /// </summary>
     public async Task Entrar(string usuario, string senha)
     {
@@ -78,7 +78,7 @@ public class ContaService(SupabaseCliente supabase)
     {
         if (!Logado) return false;
         if (supabase.Atual is { } s && s.ExpiraEm > DateTimeOffset.UtcNow.AddSeconds(60)) return true;
-        var refresh = supabase.Atual?.RefreshToken ?? CofreSessao.Ler();
+        var refresh = supabase.Atual?.RefreshToken ?? cofre.Ler();
         if (refresh is null) { Limpar(); Mudou?.Invoke(); return false; }
         try
         {
@@ -88,7 +88,7 @@ public class ContaService(SupabaseCliente supabase)
         }
         catch (SupabaseErro)
         {
-            CofreSessao.Apagar();
+            cofre.Apagar();
             Limpar();
             Mudou?.Invoke();
             return false;
@@ -114,7 +114,7 @@ public class ContaService(SupabaseCliente supabase)
         if (!Configurado) return;
         if (!Logado)
         {
-            CofreSessao.Apagar(); // sobra de um login que não terminou
+            cofre.Apagar(); // sobra de um login que não terminou
             return;
         }
         await GarantirSessao(); // sem internet: continua logado e tenta de novo depois

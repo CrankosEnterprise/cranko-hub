@@ -34,9 +34,14 @@ servicos.AddSingleton<ArmazenamentoService>();
 servicos.AddSingleton<NavegacaoService>();
 servicos.AddSingleton<JanelaService>();
 servicos.AddSingleton<CabecalhoService>();
-servicos.AddSingleton<BandejaService>();
+// Partes de plataforma (Linux/Plataforma); as telas usam só as interfaces
+servicos.AddSingleton<IBandejaService, BandejaService>();
+servicos.AddSingleton<IAtualizacaoService, AtualizacaoService>();
+servicos.AddSingleton<ICofreSessao, CofreSessao>();
+servicos.AddSingleton<IInicializacaoSistema, InicializacaoLinux>();
+servicos.AddSingleton<IModoCarroService, ModoCarroIndisponivel>();
+servicos.AddSingleton<ICarroBluetoothService, CarroBluetoothIndisponivel>();
 servicos.AddSingleton<AvisosService>();
-servicos.AddSingleton<AtualizacaoService>();
 var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
 // A Wikipedia/Wikidata bloqueia identificações genéricas: nome + endereço do projeto
 http.DefaultRequestHeaders.UserAgent.ParseAdd(EntretenimentoBusca.UserAgent);
@@ -50,9 +55,7 @@ servicos.AddSingleton<SupabaseCliente>();
 servicos.AddSingleton<ContaService>();
 servicos.AddSingleton<SincronizacaoService>();
 servicos.AddSingleton<RadaresSp>();
-servicos.AddSingleton<ModoCarroService>();
 servicos.AddSingleton<BuscaLugares>();
-servicos.AddSingleton<CarroBluetoothService>();
 builder.RootComponents.Add<Main>("#app");
 
 var app = builder.Build();
@@ -71,13 +74,13 @@ AppDomain.CurrentDomain.UnhandledException += (_, e) =>
 var store = app.Services.GetRequiredService<ArmazenamentoService>();
 // Atualiza o caminho do executável no autostart, caso ele tenha mudado de lugar
 if (ConfigLocal.Atual.IniciarComWindows == true)
-    try { InicializacaoWindows.Aplicar(true); } catch { }
+    try { app.Services.GetRequiredService<IInicializacaoSistema>().Aplicar(true); } catch { }
 app.Services.GetRequiredService<AvisosService>().Iniciar();
-app.Services.GetRequiredService<AtualizacaoService>().Iniciar();
+app.Services.GetRequiredService<IAtualizacaoService>().Iniciar();
 _ = app.Services.GetRequiredService<ContaService>().Restaurar();
 app.Services.GetRequiredService<SincronizacaoService>().Iniciar();
 if (atualizado)
-    Notificacao.Enviar("CrankoHub atualizado", $"Agora na versão {AtualizacaoService.Texto(AtualizacaoService.VersaoAtual)}.");
+    Notificacao.Enviar("CrankoHub atualizado", $"Agora na versão {Versoes.Texto(AtualizacaoService.VersaoAtual)}.");
 
 app.Run();
 trava.Dispose();

@@ -6,21 +6,14 @@ namespace CrankoHub.Services;
 
 /// <summary>
 /// Versão Android: não há bandeja; só as notificações do sistema (enquanto o app está aberto).
-/// Mantém a mesma API da versão Windows para as telas compilarem sem mudança.
 /// </summary>
-public sealed class BandejaService : IDisposable
+public sealed class BandejaService : IBandejaService, IDisposable
 {
     /// <summary>Extra do Intent com a página a abrir ao tocar na notificação (lido pela MainActivity).</summary>
     public const string ExtraLink = "crankohub.link";
 
     private const string Canal = "avisos";
     private static int _proximoId = 1;
-
-#pragma warning disable CS0067 // eventos usados só pela bandeja do Windows
-    public event Action<string?>? AoAbrir;
-    public event Action? AoVerificarAvisos;
-    public event Action? AoSair;
-#pragma warning restore CS0067
 
     public void AplicarCor(string hex) { }
 

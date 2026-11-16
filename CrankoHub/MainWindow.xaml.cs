@@ -223,7 +223,7 @@ public partial class MainWindow : Window
             Hide();
             if (!cfg.DicaBandejaMostrada)
             {
-                App.Servicos.GetRequiredService<BandejaService>().Notificar("O CrankoHub continua aberto",
+                App.Servicos.GetRequiredService<IBandejaService>().Notificar("O CrankoHub continua aberto",
                     "Ele fica perto do relógio para te avisar dos vencimentos. Para fechar de vez: botão direito no ícone > Sair.");
                 cfg.DicaBandejaMostrada = true;
                 store.Salvar();
