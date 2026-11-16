@@ -2,7 +2,7 @@
 
   <!--
     Versão Android do CrankoHub (.NET MAUI Blazor Hybrid).
-    Usa o núcleo (Core) e as MESMAS telas do projeto Windows (arquivos da pasta acima, por link);
+    Usa o núcleo (Core: telas, modelos e serviços) e o wwwroot do projeto Windows (por link);
     só a janela (BlazorWebView do MAUI) e as partes de plataforma são trocadas (pasta Plataforma).
     Distribuído como APK no GitHub Releases (fora da Play Store).
   -->
@@ -55,23 +55,14 @@
     <MauiSplashScreen Include="icone-frente.png" Link="Resources/Splash/splash.png" Color="#101C40" BaseSize="160,160" />
   </ItemGroup>
 
-  <!-- Modelos, regras e serviços compartilhados -->
+  <!-- Telas, modelos, regras e serviços compartilhados -->
   <ItemGroup>
     <ProjectReference Include="..\Core\CrankoHub.Core.csproj" />
   </ItemGroup>
 
-  <!-- Telas compartilhadas com a versão Windows -->
   <ItemGroup>
-    <!-- O Link repete o caminho original: é dele que o Razor tira o namespace (CrankoHub.Pages...) -->
-    <Compile Include="..\Components\**\*.cs" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Peças da versão Linux que servem igual aqui -->
     <Compile Include="..\Linux\Plataforma\ArquivosDoApp.cs" Link="Plataforma\%(Filename)%(Extension)" />
-
-    <!-- No MAUI os .razor são RazorComponent (não Content), senão o SDK os descarta -->
-    <RazorComponent Include="..\Main.razor;..\_Imports.razor" Link="%(Filename)%(Extension)" />
-    <RazorComponent Include="..\Pages\**\*.razor" Link="Pages\%(RecursiveDir)%(Filename)%(Extension)" />
-    <RazorComponent Include="..\Components\**\*.razor" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
-    <RazorComponent Include="..\Layout\**\*.razor" Link="Layout\%(RecursiveDir)%(Filename)%(Extension)" />
 
     <!-- O index.html é o da pasta Android/wwwroot (com autostart="false"): o da versão Windows trava no "Carregando…" -->
     <Content Include="..\wwwroot\**\*" Exclude="..\wwwroot\index.html" Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" />

@@ -11,12 +11,12 @@
   - Campo novo exige três passos:
     - adicionar no modelo;
     - tratar no `Normalizar` (`??= []`, remover nulos, gerar ids faltando);
-    - criar a coluna no Supabase (migration nova em `supabase/migrations/`) e, se precisar, incluir nos contadores da página Conta em `Pages/Conta/MinhaConta.razor`.
+    - criar a coluna no Supabase (migration nova em `supabase/migrations/`) e, se precisar, incluir nos contadores da página Conta em `Core/Pages/Conta/MinhaConta.razor`.
   - Campos novos devem ser opcionais, para o cache antigo continuar abrindo.
-- **Gráficos:** `Components/Graficos/GraficoLinha.cs` e `Components/Graficos/GraficoBarras.cs` (dados em `Core/Models/Comum/Graficos.cs`: `BarraDado`, `SerieLinha`, `FormatoNumero`).
+- **Gráficos:** `Core/Components/Graficos/GraficoLinha.cs` e `Core/Components/Graficos/GraficoBarras.cs` (dados em `Core/Models/Comum/Graficos.cs`: `BarraDado`, `SerieLinha`, `FormatoNumero`).
 - **Formatação pt-BR:** `Core/Services/Comum/Formatacao.cs` (`Money`, `Num`, `Pf` para ler "1.234,56", `DataBR`, `MesLabel`, `UltimosMeses`, `Plural`, `Hoje`).
 - **Alertas:** `Core/Services/Comum/Alertas.cs` é a fonte única do card "Precisa de atenção" do Início e das notificações do Windows (`Core/Services/Comum/AvisosService.cs`).
-- **Menu:** `Layout/LayoutPrincipal.razor` (NavLink + `TituloDaPagina`). Ícones em `Components/Comum/Icones.cs`.
+- **Menu:** `Core/Layout/LayoutPrincipal.razor` (NavLink + `TituloDaPagina`). Ícones em `Core/Components/Comum/Icones.cs`.
 - **Publicar o .exe:** `dotnet publish -c Release -p:PublishProfile=win-x64` gera `publicar\CrankoHub.exe`.
 - **Lançar uma versão:** `git tag crankohub-v1.2.0` e `git push origin crankohub-v1.2.0`. O workflow `.github/workflows/crankohub-release.yml` compila e cria o Release com o `CrankoHub.exe`; a versão vem da tag.
 - **Atualizar os outros PCs:** Configurações → Aplicativo → Atualizações → "Verificar atualizações" → "Atualizar agora" (`Services/Windows/AtualizacaoService.cs`). Sem token: os Releases vêm do repositório público `CrankosEnterprise/cranko-hub`. PC novo: baixar o `CrankoHub.exe` do Releases.

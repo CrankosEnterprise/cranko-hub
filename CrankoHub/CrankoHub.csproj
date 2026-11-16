@@ -45,7 +45,7 @@
     <None Remove="Core\**;Linux\**;Android\**" />
   </ItemGroup>
 
-  <!-- Modelos, regras e serviços compartilhados -->
+  <!-- Telas, modelos, regras e serviços compartilhados -->
   <ItemGroup>
     <ProjectReference Include="Core\CrankoHub.Core.csproj" />
   </ItemGroup>

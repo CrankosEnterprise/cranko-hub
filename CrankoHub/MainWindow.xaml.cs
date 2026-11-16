@@ -26,7 +26,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         var janela = App.Servicos.GetRequiredService<JanelaService>();
-        // A página desenha o semáforo e serve de barra de título (Layout/LayoutPrincipal.razor)
+        // A página desenha o semáforo e serve de barra de título (Core/Layout/LayoutPrincipal.razor)
         janela.ControlesProprios = true;
         janela.AoPedir += acao => Dispatcher.BeginInvoke(() => Atender(acao));
         AplicarTema(App.Servicos.GetRequiredService<ArmazenamentoService>().Dados.Tema);

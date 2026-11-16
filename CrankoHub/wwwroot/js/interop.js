@@ -26,7 +26,7 @@ window.crankohub = {
     s.setProperty('--destaque-texto-escuro', textoEscuro || texto);
   },
 
-  // Janela sem a moldura do Windows (Layout/LayoutPrincipal.razor): a página faz o papel da barra de título.
+  // Janela sem a moldura do Windows (Core/Layout/LayoutPrincipal.razor): a página faz o papel da barra de título.
   // Apertar o botão num [data-arrastar] (fora de botões e links) move a janela; duas vezes maximiza;
   // as bordas .borda-janela redimensionam. Quem mexe na janela de verdade é o C# (JanelaService → MainWindow).
   registrarJanela(ponte) {

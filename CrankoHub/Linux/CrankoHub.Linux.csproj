@@ -2,7 +2,7 @@
 
   <!--
     Versão Linux (Linux Mint / Cinnamon) do CrankoHub.
-    Usa o núcleo (Core) e as MESMAS telas do projeto Windows (arquivos da pasta acima, por link);
+    Usa o núcleo (Core: telas, modelos e serviços) e o wwwroot do projeto Windows (por link);
     só a janela (Photino em vez de WPF) e as partes exclusivas do Windows são trocadas (pasta Plataforma).
   -->
   <PropertyGroup>
@@ -39,21 +39,13 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.154.0" />
   </ItemGroup>
 
-  <!-- Modelos, regras e serviços compartilhados -->
+  <!-- Telas, modelos, regras e serviços compartilhados -->
   <ItemGroup>
     <ProjectReference Include="..\Core\CrankoHub.Core.csproj" />
   </ItemGroup>
 
-  <!-- Telas compartilhadas com a versão Windows -->
+  <!-- Arquivos da página (wwwroot) compartilhados com a versão Windows -->
   <ItemGroup>
-    <!-- O Link repete o caminho original: é dele que o Razor tira o namespace (CrankoHub.Pages...) -->
-    <Compile Include="..\Components\**\*.cs" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" />
-
-    <Content Include="..\Main.razor;..\_Imports.razor" Link="%(Filename)%(Extension)" CopyToOutputDirectory="Never" />
-    <Content Include="..\Pages\**\*.razor" Link="Pages\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="Never" />
-    <Content Include="..\Components\**\*.razor" Link="Components\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="Never" />
-    <Content Include="..\Layout\**\*.razor" Link="Layout\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="Never" />
-
     <Content Include="..\wwwroot\**\*" Link="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="icone.png;crankohub.desktop;instalar.sh" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

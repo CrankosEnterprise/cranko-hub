@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <!--
-    Núcleo do CrankoHub: modelos, regras de negócio e serviços usados pelas 3 versões (Windows, Linux e Android).
+    Núcleo do CrankoHub: telas (Pages, Components, Layout), modelos, regras de negócio e serviços usados
+    pelas 3 versões (Windows, Linux e Android). Cada app só põe a janela, o wwwroot e as partes de plataforma.
     É net10.0 puro: nada de WPF, WinForms, Photino ou MAUI. O que muda por plataforma fica atrás das
     interfaces de Services/Plataforma e cada app registra a sua implementação.
   -->
